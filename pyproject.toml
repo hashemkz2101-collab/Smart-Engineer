@@ -1,0 +1,5 @@
+[tool.uv]
+required-version = "==0.13.8"
+
+[tool.uv.workspace]
+members = ["apps/api"]

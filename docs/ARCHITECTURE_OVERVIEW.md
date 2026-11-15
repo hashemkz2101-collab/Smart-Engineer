@@ -1,9 +1,11 @@
 # Architecture overview
 
-This document separates **confirmed product constraints** from **proposed
-implementation choices**. The master specification is authoritative. Nothing
-in this overview means the application architecture has been implemented or
-that a proposed technology has been selected.
+This document separates **confirmed product constraints**, the **approved
+architecture baseline**, and **proposed implementation choices**. The master
+specification remains authoritative for product requirements. The baseline
+records an approved direction; it does not mean the application architecture
+has been implemented or that implementation details and external services
+have been selected. See [ADR-0001](adr/ADR-0001-approved-architecture-baseline.md).
 
 ## Confirmed by the master specification
 
@@ -38,16 +40,34 @@ that a proposed technology has been selected.
   Security, quality, rollback, and qualified professional review are release
   constraints, not optional enhancements.
 
-## Proposed technology choices — not approved or finalized
+## Approved architecture baseline
 
-The master specification proposes the following target stack. Each item remains
-a proposal until evaluated and recorded as an approved architecture decision:
+The following high-level direction is approved in principle:
+
+| Area | Approved baseline | Scope limitation |
+|---|---|---|
+| Frontend | Next.js 16.4.6 + React 19.3.1 + TypeScript 5.9.3 | P0-02 pins these workspace versions; UI libraries and deployment remain undecided. |
+| Backend | FastAPI 0.163.0 + Python 3.14.10 | P0-02 pins these workspace versions; additional libraries and deployment remain undecided. |
+| Database | PostgreSQL | Hosting, configuration, access layer, and operational policies remain undecided. |
+| Architecture style | Modular Monolith | Domain boundaries are required; specific deployment topology and any future worker/service split remain undecided. |
+| API contract | REST API documented with OpenAPI | Endpoint details and API versioning policy remain subject to implementation design. |
+| Frontend/backend boundary | Frontend communicates with backend through the documented API boundary | The frontend is not an authorization or domain-logic authority. |
+| Engineering calculations | Deterministic, testable, traceable backend modules | An LLM must never be the authoritative engineering calculation engine. |
+
+This approval is limited to architectural direction. It does not approve any
+particular library, identity or AI provider, hosting/infrastructure provider,
+queue, storage service, licensing choice, service limit, or operational
+configuration. Those choices remain subject to the open-decision register.
+Phase status and feature status are unchanged; no implementation is implied.
+
+## Other proposed technology choices — not approved or finalized
+
+The master specification proposes the following additional implementation
+choices. Each remains a proposal until evaluated and recorded as an approved
+decision:
 
 | Area | Proposal in master specification | Status |
 |---|---|---|
-| Frontend | Next.js + TypeScript | PROPOSED |
-| Backend API | FastAPI + Python | PROPOSED |
-| Operational database | PostgreSQL; SQLite only for development/sample use | PROPOSED |
 | Background processing | Redis + Celery or an equivalent after evaluation | PROPOSED |
 | Geometry | Independent geometry library/engine with unit tests | PROPOSED |
 | BIM | IFC and IfcOpenShell at an appropriate phase | PROPOSED |
@@ -62,20 +82,48 @@ Hosting, queue, storage provider, AI model/provider, payment and messaging
 providers, library licenses, and supported service limits are open decisions;
 see [`OPEN_DECISIONS.md`](OPEN_DECISIONS.md).
 
+## Architectural responsibilities and boundaries
+
+- **Frontend:** presents responsive user experiences and gathers user input.
+  It calls the backend through the documented REST/OpenAPI contract. It must
+  not be trusted to enforce authorization or to own authoritative domain
+  calculations.
+- **Backend:** exposes the API, validates untrusted input, enforces
+  authentication/authorization once those capabilities are approved and
+  implemented, applies project/tenant scope, and owns domain behavior. It is
+  organized as a modular monolith with explicit domain boundaries. Deterministic
+  engineering calculation modules belong here and must be independently
+  testable and traceable.
+- **Database:** PostgreSQL is the approved database direction for persisted
+  application data. It stores data through backend-controlled access; clients
+  must not bypass backend authorization. Schema, access-layer, hosting,
+  backup, and retention details remain undecided.
+- **API boundary:** REST resources and OpenAPI documentation define the
+  frontend/backend contract. The contract is the integration boundary; it does
+  not determine endpoint details or deployment topology.
+
+Tenant/project-scoped authorization must be enforced by the backend on every
+protected operation. Data access must be scoped to the authorized tenant and
+project; frontend visibility is never an access-control mechanism. Authentication
+assurance and session rules remain open under DEC-022. This baseline does not
+implement authentication or authorization.
+
 ## Proposed logical structure
 
 An eventual repository may use a monorepo with a web application, API, shared
 domain/geometry packages, background worker, tests, documentation, and
-deployment configuration. This is a proposal only; Phase 0 must inspect the
-actual starter and approve the structure before implementation. Do not create
-these source directories merely because they appear here.
+deployment configuration. This is still a proposal; the approved baseline
+does not select a repository layout. Do not create source directories merely
+because they appear here.
 
-The backend boundaries should map to the specified domain modules. Module
-boundaries do not prescribe a microservice deployment: deployment topology is
-unresolved. Deterministic engineering engines should expose explicit inputs,
-versions, outputs, warnings, and testable contracts. The AI Gateway may assist
-with extraction/explanation but cannot be a source of authoritative rules,
-prices, solver results, or approvals.
+The backend boundaries should map to the specified domain modules. The
+Modular Monolith direction does not authorize premature microservices or
+decide how asynchronous workloads will be hosted. Deterministic engineering
+engines should expose explicit inputs, versions, outputs, warnings, and
+testable contracts. The AI Gateway may assist with extraction/explanation only
+within approved scope; it cannot be a source of authoritative calculations,
+rules, prices, solver results, or approvals. AI-004 and dependent AI features
+remain gated and are not activated by this baseline.
 
 ## Conceptual data domains
 

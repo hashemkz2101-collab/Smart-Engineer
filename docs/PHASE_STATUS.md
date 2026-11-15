@@ -1,8 +1,10 @@
 # Phase status
 
-No application phase has started. This status is based on the repository and
-available code/tests, not on roadmap presence. The documentation foundation is
-planning material and does not count as Phase 0 implementation.
+Phase 0 is in progress. This status is based on repository evidence, not on
+roadmap presence. P0-04's implementation is complete and its initial visual
+appearance was approved by the user; this completes that task only, not Phase 0
+or its broader acceptance criteria. Browser-based responsive, interaction, and
+accessibility testing and Windows setup/execution remain unverified.
 
 Allowed project feature states are defined in the master specification:
 Planned, In Progress, Implemented, Tested, Released, Blocked, and Deferred.
@@ -11,7 +13,7 @@ roadmap acceptance criteria and applicable quality gates are evidenced.
 
 | Phase | Name | Status | Acceptance evidence / blocker |
 |---:|---|---|---|
-| 0 | Infrastructure and development standards | NOT STARTED | No starter, setup, tests, build, CI, or architecture decisions have been assessed/implemented as phase deliverables. |
+| 0 | Infrastructure and development standards | IN PROGRESS | P0-03 API shell and completed P0-04 Next.js shell; Linux dependency installation, typecheck/build, and focused API/frontend tests verified. P0-04 initial appearance approved by user. Browser-based responsive/interaction/accessibility validation, Windows clean-install/UI behavior, full Phase 0 gates, and broader OPS-001/OPS-003/TEST-001 criteria remain outstanding. |
 | 1 | Product core and project management | NOT STARTED | Depends on Phase 0 acceptance. |
 | 2 | Site and reliable geometry engine | NOT STARTED | Depends on Phase 1 acceptance and reference geometry tests. |
 | 3 | First architecture engine | NOT STARTED | Depends on Phase 2 acceptance. |

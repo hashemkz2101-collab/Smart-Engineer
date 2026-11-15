@@ -8,8 +8,9 @@ preceding phase's exit criteria pass, unless the product owner explicitly
 authorizes a change and records it.
 
 All phase dependencies below are gates in addition to the feature-level
-dependencies in [`FEATURE_REGISTRY.md`](FEATURE_REGISTRY.md). Every phase is
-currently **NOT STARTED**; see [`PHASE_STATUS.md`](PHASE_STATUS.md).
+dependencies in [`FEATURE_REGISTRY.md`](FEATURE_REGISTRY.md). Phase 0 is in
+progress; later phases remain **NOT STARTED**. See
+[`PHASE_STATUS.md`](PHASE_STATUS.md).
 
 ## Phase 0 — Infrastructure and development standards
 
@@ -34,6 +35,40 @@ RELEASE-001, GOV-001, DATA-001, and SEC-005. Each feature's test is linked in
 
 **Unresolved assignment:** AI-004 is not assigned to Phase 0; its
 implementation phase remains unresolved under DEC-032.
+
+### P0-03 implementation evidence — partial Phase 0 progress
+
+- Added the minimal `apps/api/smart_engineer_api` FastAPI application with
+  `GET /health`, default `/openapi.json`, `/docs`, and `/redoc` routes.
+- Added `unittest` coverage for the exact health response, OpenAPI metadata
+  and health operation, and interactive docs response.
+- Local Linux/Codespaces install, tests, and endpoint checks are recorded for
+  this work. The server binds to `127.0.0.1`; no database or external service is
+  used.
+- This is partial evidence for the broader Phase 0/OPS-001/OPS-003/TEST-001
+  criteria, not completion of those criteria or of Phase 0. Windows execution
+  remains untested under DEC-031.
+
+### P0-04 — completed implementation; validation limitations remain
+
+- Added the minimal Next.js App Router shell at `apps/web`: Persian RTL home,
+  accessible header/navigation, local-storage theme toggle with system
+  preference, generic error and not-found pages, and responsive system-font
+  styling.
+- Verified the pinned web dependencies with frozen install, strict TypeScript
+  check, and production build on Linux. Four Node built-in smoke tests passed
+  against the running local production server, covering the home shell,
+  accessibility markers, and not-found route.
+- The user reviewed and approved the initial UI appearance. The implementation
+  and automated checks for this task are complete; no Feature ID or feature
+  status is changed by this task completion.
+- The server was bound to `127.0.0.1`; there is no frontend API, database,
+  authentication, persistence, or product-feature integration. Browser-based
+  responsive-layout, theme-interaction, keyboard, and screen-reader/accessibility
+  checks were not performed. User visual approval does not constitute those
+  tests. Windows execution also remains untested under DEC-031.
+- P0-04 completion does not mark OPS-001, TEST-001, or Phase 0 complete; the
+  broader Phase 0 acceptance criteria and quality gates remain outstanding.
 
 ## Phase 1 — Product core and project management
 

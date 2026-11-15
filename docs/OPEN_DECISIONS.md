@@ -6,6 +6,14 @@ unverified source, legal interpretation, model, solver, price, or service as
 approved. Decisions require the product owner and, where appropriate, qualified
 technical, legal, regulatory, or security review.
 
+The high-level architecture direction is approved in principle as recorded in
+[ADR-0001](adr/ADR-0001-approved-architecture-baseline.md) and
+[`ARCHITECTURE_OVERVIEW.md`](ARCHITECTURE_OVERVIEW.md). That approval does not
+close or partially resolve any entry in this register. In particular,
+DEC-009, DEC-015, DEC-022, DEC-024, DEC-029, DEC-031, and DEC-032 remain open;
+all other decisions and their dependencies also remain open unless separately
+approved and recorded under the decision policy below.
+
 | ID | Open decision | Category | Affects / decision needed before |
 |---|---|---|---|
 | DEC-001 | Which cities and municipalities are first-priority for regulation coverage? | Regulatory / business | Phase 1 input defaults; Phase 4 active rule scope |
@@ -48,3 +56,11 @@ Section 21 of the master specification. A decision is not closed until the
 answer, rationale, approver, date, evidence, and affected feature/phase IDs are
 recorded in an approved decision record. Changes to the specification itself
 must follow the documentation maintenance policy.
+
+### DEC-029 — narrowly scoped P0-03 dependency approval
+
+For the P0-03 minimal FastAPI shell only, the project owner approved
+`httpx==0.28.1` and `uvicorn==0.54.0` as API development-group dependencies:
+HTTPX supports FastAPI's TestClient, and Uvicorn runs the local ASGI application.
+They are not runtime dependencies. This limited approval does not select other
+libraries or services and does not resolve DEC-029, which remains OPEN.
