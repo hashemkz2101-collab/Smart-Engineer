@@ -49,7 +49,20 @@ The health endpoint is at `http://127.0.0.1:8000/health`. Interactive
 documentation is at `http://127.0.0.1:8000/docs`, and the OpenAPI schema is at
 `http://127.0.0.1:8000/openapi.json` (`/redoc` is also available by default).
 The health response contains only `{"status":"ok"}` and does not check a
-database or expose configuration.
+database or expose configuration. `/health` is the unversioned liveness probe;
+versioned API routes live under `/api/v1` (currently `GET /api/v1/health`).
+
+Settings are read from the process environment (see `.env.example`, which is a
+template and is not loaded automatically): `SMART_ENGINEER_ENV`
+(`development`/`test`/`production`) and `SMART_ENGINEER_LOG_LEVEL`
+(`DEBUG`…`CRITICAL`). Invalid values stop startup with an explicit error.
+
+Every response carries an `X-Correlation-ID` header. A valid incoming value
+(1–64 letters, digits, `.`, `_`, `-`) is reused; otherwise one is generated.
+Logs are JSON lines on stderr that include the correlation ID; query strings
+are never logged. Errors use one envelope,
+`{"error": {"code", "message", "correlation_id"}}`; unhandled errors return a
+generic 500 with no stack trace, and the full traceback is logged server-side.
 
 Run the API tests from the repository root:
 
