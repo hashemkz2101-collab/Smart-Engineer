@@ -30,4 +30,9 @@ does not imply that planned application features have been implemented.
   smoke tests can start and stop the production server themselves. The first
   GitHub Actions run (PR #1, 2026-11-15) passed all four jobs on Ubuntu and
   Windows runners; this is not a manual Windows install on a developer machine.
+- Added P0-06 API foundation: validated environment settings and
+  `.env.example`, JSON logging with `X-Correlation-ID`, a safe error envelope
+  (no stack traces or echoed input in responses), a `create_app` factory, and a
+  versioned `/api/v1/health` route beside `/health`. 21 tests were added; CI
+  (PR #3, 2026-11-15) passed API and web jobs on Ubuntu and Windows runners.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.

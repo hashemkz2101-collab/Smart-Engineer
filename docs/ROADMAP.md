@@ -88,7 +88,30 @@ implementation phase remains unresolved under DEC-032.
   method. No Feature ID status is changed. GitHub Actions use as the CI service
   is pending the owner's DEC-029 approval.
 - Observed during review: `CLAUDE.md` referenced by master spec Section 20 is
-  absent from the repository, and no `.env.example` exists yet.
+  absent from the repository. (`.env.example` was added in P0-06.)
+
+### P0-06 — API foundation; CI passed (2026-11-15)
+
+- Added to `apps/api/smart_engineer_api`: validated environment settings
+  (`config.py`, `.env.example`); JSON logging with a correlation-ID context
+  (`logging_config.py`); a pure-ASGI correlation-ID and access-log middleware
+  that never logs query strings (`middleware.py`); one safe error envelope for
+  unhandled, HTTP, and validation errors with no exception text, stack trace, or
+  echoed input in responses (`errors.py`); a `create_app` factory; and a
+  versioned `/api/v1` router next to the unversioned `/health` probe
+  (`routes.py`). No new dependencies; `uv.lock` is unchanged.
+- Tests: 21 new `unittest` tests (settings, correlation IDs, access log,
+  unhandled/404/405/422 envelopes, JSON formatter, logging idempotency, v1
+  routes) plus the 3 existing tests. CI run 43766075454 (PR #3) passed all four
+  jobs on Ubuntu and Windows runners; the Ubuntu API job reported 24 tests, OK.
+- Mapping: partial progress on OPS-003 (a forced error is logged with a
+  correlation ID and returns a safe response), SEC-003 (safe errors), SEC-005
+  (no secrets in settings or `.env.example`), and ARCH-PLAT-001 (a versioned
+  route exists). Not done: audit logs, a metrics/tracing/error-monitoring
+  service, API-version policy, domain module boundaries, migrations, jobs, and
+  feature flags. No Feature ID status is changed.
+- Open question for the owner: keeping both `/health` (unversioned) and
+  `/api/v1/health` is a proposal, not an approved API-versioning policy.
 
 ## Phase 1 — Product core and project management
 
