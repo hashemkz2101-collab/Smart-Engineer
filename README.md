@@ -87,7 +87,19 @@ pnpm --filter @smart-engineer/web run test
 ```
 
 The smoke tests target `http://127.0.0.1:3000` by default. Windows frontend
-installation, execution, and UI behavior have not been tested.
+installation, execution, and UI behavior have not been tested locally.
+
+To run the same checks as CI (build, then start the production server, run the
+smoke tests, and stop the server automatically), run from the repository root:
+
+```bash
+pnpm --filter @smart-engineer/web run build
+pnpm --filter @smart-engineer/web run test:ci
+```
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs the API tests and
+these web steps on Ubuntu and Windows runners. Its results become evidence only
+once a run is recorded.
 
 ### GitHub Codespaces / Linux
 

@@ -13,7 +13,7 @@ roadmap acceptance criteria and applicable quality gates are evidenced.
 
 | Phase | Name | Status | Acceptance evidence / blocker |
 |---:|---|---|---|
-| 0 | Infrastructure and development standards | IN PROGRESS | P0-03 API shell and completed P0-04 Next.js shell; Linux dependency installation, typecheck/build, and focused API/frontend tests verified. P0-04 initial appearance approved by user. Browser-based responsive/interaction/accessibility validation, Windows clean-install/UI behavior, full Phase 0 gates, and broader OPS-001/OPS-003/TEST-001 criteria remain outstanding. |
+| 0 | Infrastructure and development standards | IN PROGRESS | P0-03 API shell and completed P0-04 Next.js shell; Linux dependency installation, typecheck/build, and focused API/frontend tests verified. P0-04 initial appearance approved by user. P0-05 CI workflow (Ubuntu + Windows) is added but has not yet run; no CI evidence is recorded. Browser-based responsive/interaction/accessibility validation, Windows clean-install/UI behavior, full Phase 0 gates, and broader OPS-001/OPS-003/TEST-001 criteria remain outstanding. |
 | 1 | Product core and project management | NOT STARTED | Depends on Phase 0 acceptance. |
 | 2 | Site and reliable geometry engine | NOT STARTED | Depends on Phase 1 acceptance and reference geometry tests. |
 | 3 | First architecture engine | NOT STARTED | Depends on Phase 2 acceptance. |

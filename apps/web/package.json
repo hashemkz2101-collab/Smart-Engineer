@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/smoke.test.mjs"
+    "test": "node --test tests/smoke.test.mjs",
+    "test:ci": "node scripts/run-smoke.mjs"
   },
   "dependencies": {
     "next": "16.4.6",
