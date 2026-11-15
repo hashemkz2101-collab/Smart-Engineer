@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv 0.13.8
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+
+      - name: Install Python 3.14.10
+        run: uv python install 3.14.10
+
+      - name: Sync locked dependencies
+        run: uv sync --locked --all-packages
+
+      - name: Run API tests
+        run: uv run --package smart-engineer-api --group dev python -m unittest discover -s apps/api/tests -t apps/api
+
+  web:
+    name: Web typecheck, build, smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install pnpm 12.16.1
+        run: npm install --global pnpm@12.16.1
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter @smart-engineer/web run typecheck
+
+      - name: Production build
+        run: pnpm --filter @smart-engineer/web run build
+
+      - name: Smoke tests against the production server
+        run: pnpm --filter @smart-engineer/web run test:ci

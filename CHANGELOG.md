@@ -24,4 +24,10 @@ does not imply that planned application features have been implemented.
   marked complete. Browser-based responsive, interaction, keyboard/screen-reader
   accessibility checks and Windows testing remain outstanding; Phase 0 remains
   in progress.
+- Added P0-05 CI configuration (`.github/workflows/ci.yml`) running the API
+  tests and the web typecheck, production build, and smoke tests on Ubuntu and
+  Windows runners, plus `apps/web/scripts/run-smoke.mjs` (`test:ci`) so the
+  smoke tests can start and stop the production server themselves. The workflow
+  has not yet been executed on GitHub; it is not evidence of passing tests or of
+  Windows installation until a recorded run exists.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.

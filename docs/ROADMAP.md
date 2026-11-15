@@ -70,6 +70,24 @@ implementation phase remains unresolved under DEC-032.
 - P0-04 completion does not mark OPS-001, TEST-001, or Phase 0 complete; the
   broader Phase 0 acceptance criteria and quality gates remain outstanding.
 
+### P0-05 — CI configuration added; awaiting a recorded run
+
+- Added `.github/workflows/ci.yml`: on push to `main` and on pull requests, an
+  `api` job (locked `uv sync`, `unittest` discovery) and a `web` job (frozen
+  `pnpm install`, typecheck, production build, smoke tests), each on
+  `ubuntu-latest` and `windows-latest`, using the pinned Node.js, pnpm, uv, and
+  Python versions.
+- Added `apps/web/scripts/run-smoke.mjs` and the `test:ci` script so smoke tests
+  start the built production server, wait for readiness, run, and always stop it.
+- Status: configuration only. It was syntax-checked but not executed; the
+  authoring environment lacked the pinned runtimes and package-registry access.
+  The first GitHub Actions run must be recorded as evidence. A passing Windows
+  job would be partial evidence toward OPS-001/DEC-031, but DEC-031 stays open
+  until the owner accepts that method. No Feature ID status is changed. GitHub
+  Actions use as the CI service is pending the owner's DEC-029 approval.
+- Observed during review: `CLAUDE.md` referenced by master spec Section 20 is
+  absent from the repository, and no `.env.example` exists yet.
+
 ## Phase 1 — Product core and project management
 
 **Features**
