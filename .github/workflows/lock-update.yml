@@ -1,0 +1,54 @@
+name: lock-update (temporary)
+
+on:
+  push:
+    branches: [p0-07-lock]
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv 0.13.8
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+
+      - name: Install Python 3.14.10
+        run: uv python install 3.14.10
+
+      - name: Add database dependencies and pin exact versions
+        run: |
+          uv add --package smart-engineer-api sqlalchemy alembic "psycopg[binary]"
+          python3 - <<'PY'
+          import re, tomllib
+          lock = tomllib.load(open("uv.lock", "rb"))
+          versions = {p["name"]: p["version"] for p in lock["package"]}
+          path = "apps/api/pyproject.toml"
+          text = open(path, encoding="utf-8").read()
+          for name, spec in (
+              ("sqlalchemy", "sqlalchemy"),
+              ("alembic", "alembic"),
+              ("psycopg", "psycopg[binary]"),
+          ):
+              pattern = r'"' + re.escape(spec) + r'[^"]*"'
+              text, count = re.subn(pattern, f'"{spec}=={versions[name]}"', text)
+              assert count == 1, (spec, count)
+          open(path, "w", encoding="utf-8").write(text)
+          print({k: versions[k] for k in ("sqlalchemy", "alembic", "psycopg", "psycopg-binary")})
+          PY
+          uv lock
+          uv lock --check
+          cat apps/api/pyproject.toml
+
+      - name: Commit lock result back to the branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add apps/api/pyproject.toml uv.lock
+          git commit -m "Pin database dependencies and update uv.lock"
+          git push
