@@ -27,7 +27,7 @@ does not imply that planned application features have been implemented.
 - Added P0-05 CI configuration (`.github/workflows/ci.yml`) running the API
   tests and the web typecheck, production build, and smoke tests on Ubuntu and
   Windows runners, plus `apps/web/scripts/run-smoke.mjs` (`test:ci`) so the
-  smoke tests can start and stop the production server themselves. The workflow
-  has not yet been executed on GitHub; it is not evidence of passing tests or of
-  Windows installation until a recorded run exists.
+  smoke tests can start and stop the production server themselves. The first
+  GitHub Actions run (PR #1, 2026-11-15) passed all four jobs on Ubuntu and
+  Windows runners; this is not a manual Windows install on a developer machine.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.
