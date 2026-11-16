@@ -1,0 +1,43 @@
+name: validate-script (temporary)
+
+on:
+  push:
+    branches: [p0-09-closure]
+
+jobs:
+  windows-script:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install pnpm 12.16.1
+        run: npm install --global pnpm@12.16.1
+
+      - name: Install uv 0.13.8
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+
+      - name: Install Python 3.14.10
+        run: uv python install 3.14.10
+
+      - name: Run the validation script under Windows PowerShell 5.1
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\windows-validate.ps1
+
+      - name: Show the report
+        if: always()
+        shell: powershell
+        run: Get-ChildItem -Directory -Filter "windows-validation-*" | ForEach-Object { Get-Content (Join-Path $_.FullName "report.md") }
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation
+          path: windows-validation-*
