@@ -64,6 +64,23 @@ are never logged. Errors use one envelope,
 `{"error": {"code", "message", "correlation_id"}}`; unhandled errors return a
 generic 500 with no stack trace, and the full traceback is logged server-side.
 
+### Database migrations
+
+The database URL comes from `SMART_ENGINEER_DATABASE_URL` (PostgreSQL:
+`postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME`). It is not needed to run
+the API or its health endpoints. To apply or roll back migrations, from the
+repository root:
+
+```bash
+uv run --package smart-engineer-api alembic -c apps/api/alembic.ini upgrade head
+uv run --package smart-engineer-api alembic -c apps/api/alembic.ini downgrade base
+```
+
+The migration tests run on SQLite by default. To also run them against your own
+disposable PostgreSQL database (they drop its tables), set
+`SMART_ENGINEER_TEST_DATABASE_URL` before running the API tests. How PostgreSQL
+should be run during development is still undecided (DEC-009).
+
 Run the API tests from the repository root:
 
 ```bash
