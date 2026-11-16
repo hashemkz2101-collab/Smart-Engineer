@@ -12,19 +12,12 @@ from sqlalchemy import inspect, select
 from sqlalchemy.exc import IntegrityError
 
 from smart_engineer_api.config import ConfigurationError, Settings
-from smart_engineer_api.db import Base, BackgroundJob, FeatureFlag
+from smart_engineer_api.db import BackgroundJob, Base, FeatureFlag
 from smart_engineer_api.db.session import create_db_engine, create_session_factory
+from tests.helpers import API_ROOT, alembic_config
 
-API_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_TABLES = {"feature_flags", "background_jobs"}
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
-
-
-def alembic_config(url: str) -> Config:
-    config = Config(str(API_ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(API_ROOT / "migrations"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return config
 
 
 class MigrationChecks:

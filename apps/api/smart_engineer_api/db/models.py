@@ -62,7 +62,11 @@ class BackgroundJob(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="queued", server_default=text("'queued'")
     )
+    input_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
     payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     attempts: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default=text("0")
     )

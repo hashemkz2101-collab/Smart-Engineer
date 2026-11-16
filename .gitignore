@@ -19,3 +19,7 @@ __pycache__/
 .env.*
 !.env.example
 .DS_Store
+
+# Playwright
+playwright-report/
+test-results/
