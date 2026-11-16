@@ -1,0 +1,61 @@
+name: lock-update (temporary)
+
+on:
+  push:
+    branches: [p0-08-lock]
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv 0.13.8
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+
+      - name: Install Python 3.14.10
+        run: uv python install 3.14.10
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install pnpm 12.16.1
+        run: npm install --global pnpm@12.16.1
+
+      - name: Add and pin Python dev dependency (ruff)
+        run: |
+          uv add --package smart-engineer-api --group dev ruff
+          python3 - <<'PY'
+          import re, tomllib
+          lock = tomllib.load(open("uv.lock", "rb"))
+          versions = {p["name"]: p["version"] for p in lock["package"]}
+          path = "apps/api/pyproject.toml"
+          text = open(path, encoding="utf-8").read()
+          text, count = re.subn(r'"ruff[^"]*"', f'"ruff=={versions["ruff"]}"', text)
+          assert count == 1, count
+          open(path, "w", encoding="utf-8").write(text)
+          print("ruff", versions["ruff"])
+          PY
+          uv lock
+          uv lock --check
+
+      - name: Add exact-pinned web dev dependencies
+        run: >
+          pnpm --filter @smart-engineer/web add --save-dev --save-exact
+          @playwright/test @axe-core/playwright eslint eslint-config-next
+          && cat apps/web/package.json && pnpm install --frozen-lockfile
+
+      - name: Commit lock results back to the branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add apps/api/pyproject.toml uv.lock apps/web/package.json pnpm-lock.yaml
+          git commit -m "Pin lint/test dev dependencies and update lockfiles"
+          git push
