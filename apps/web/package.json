@@ -10,7 +10,9 @@
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/smoke.test.mjs",
-    "test:ci": "node scripts/run-smoke.mjs"
+    "test:ci": "node scripts/run-smoke.mjs",
+    "lint": "eslint .",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "16.4.6",
@@ -18,9 +20,13 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.1",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "eslint": "10.15.0",
+    "eslint-config-next": "16.4.6",
     "typescript": "5.9.3"
   }
 }

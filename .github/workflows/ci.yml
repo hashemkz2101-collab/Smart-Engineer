@@ -34,6 +34,9 @@ jobs:
       - name: Sync locked dependencies
         run: uv sync --locked --all-packages
 
+      - name: Lint API code (ruff)
+        run: uv run --package smart-engineer-api --group dev ruff check apps/api
+
       - name: Run API tests
         run: uv run --package smart-engineer-api --group dev python -m unittest discover -s apps/api/tests -t apps/api
 
@@ -95,6 +98,9 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm --filter @smart-engineer/web run lint
+
       - name: Typecheck
         run: pnpm --filter @smart-engineer/web run typecheck
 
@@ -103,3 +109,46 @@ jobs:
 
       - name: Smoke tests against the production server
         run: pnpm --filter @smart-engineer/web run test:ci
+
+  web-e2e:
+    name: Browser tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install pnpm 12.16.1
+        run: npm install --global pnpm@12.16.1
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Production build
+        run: pnpm --filter @smart-engineer/web run build
+
+      - name: Install Chromium for Playwright (Linux, with system dependencies)
+        if: runner.os == 'Linux'
+        run: pnpm --filter @smart-engineer/web exec playwright install --with-deps chromium
+
+      - name: Install Chromium for Playwright (Windows)
+        if: runner.os == 'Windows'
+        run: pnpm --filter @smart-engineer/web exec playwright install chromium
+
+      - name: Run browser tests (responsive, keyboard, theme, accessibility)
+        run: pnpm --filter @smart-engineer/web run test:e2e
+
+      - name: Upload Playwright results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ matrix.os }}
+          path: apps/web/test-results
+          if-no-files-found: ignore

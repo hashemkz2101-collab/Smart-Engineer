@@ -27,7 +27,7 @@ class Settings:
     database_url: str | None = field(default=None, repr=False)
 
     @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
+    def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         source = os.environ if env is None else env
 
         environment = source.get("SMART_ENGINEER_ENV", "development").strip().lower()

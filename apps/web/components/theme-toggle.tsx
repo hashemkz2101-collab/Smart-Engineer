@@ -18,6 +18,10 @@ export function ThemeToggle() {
   useEffect(() => {
     const currentTheme =
       document.documentElement.dataset.theme === "dark" ? "dark" : systemTheme();
+    // Intentional: the theme is applied to <html> by the inline bootstrap script
+    // before hydration, so it can only be read from the DOM after mount. Using it
+    // as initial state would cause a server/client hydration mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(currentTheme);
   }, []);
 

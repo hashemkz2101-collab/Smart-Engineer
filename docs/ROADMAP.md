@@ -113,6 +113,45 @@ implementation phase remains unresolved under DEC-032.
 - Open question for the owner: keeping both `/health` (unversioned) and
   `/api/v1/health` is a proposal, not an approved API-versioning policy.
 
+### P0-08 — quality gates and job/flag foundation; CI passed (2026-11-16)
+
+- Backend: migration `0002` adds `input_version` and `result` to
+  `background_jobs`, closing a gap against the ARCH-PLAT-002 criterion (versioned
+  input, output/error, start/end time). Added `feature_flags.py` (unknown flags
+  are off; keys validated) and `jobs.py` (explicit state machine
+  queued→running→succeeded/failed/cancelled, failed→queued retry, terminal
+  states enforced, error text truncated, attempts counted). 18 new tests,
+  including a data-preserving 0001→0002→0001 round trip, run on SQLite and on
+  PostgreSQL 17.
+- Lint: `ruff check` (rules E, F, I, B, UP) on the API and ESLint
+  (`eslint-config-next`, core-web-vitals + TypeScript) on the web app, both
+  enforced in CI. One react-hooks rule is disabled on a single line in
+  `theme-toggle.tsx` with a written reason (the theme is set before hydration and
+  can only be read from the DOM after mount).
+- Browser tests (Playwright, Chromium; desktop and Pixel 7 viewport projects):
+  47 tests passed on Ubuntu and Windows runners, 3 skipped by design (the
+  Tab-order tests run on desktop only). They cover RTL/lang, landmarks, no
+  horizontal overflow at 320/375/768/1024/1440px in light and dark, 24×24px
+  target size, skip link, focus order and visible focus ring, theme toggle with
+  Enter/Space, storage persistence and unavailable storage, the 404 page, and
+  axe-core WCAG 2.0/2.1/2.2 A/AA scans of the home and 404 pages in both themes.
+- Finding: the first axe run failed on `label-content-name-mismatch` (WCAG
+  2.5.3, serious): the brand link's `aria-label` did not contain its visible text.
+  The `aria-label` was removed so the name comes from the visible text; this is a
+  non-visual change, but it is a change to a component whose appearance the
+  owner approved in P0-04.
+- Limits: automated checks find only part of the accessibility problems. No
+  manual screen-reader, real-device, Firefox/Safari, text-zoom, or performance
+  testing was done, and no Persian-PDF suite exists yet. A Windows runner is not
+  the owner's own Windows machine. CI run 43814012419 (PR #5): all seven jobs
+  passed; the PostgreSQL job ran 61 API tests, OK, none skipped.
+- Mapping: partial progress on TEST-001, ARCH-PLAT-002, and OPS-003. Not done:
+  versioned-API contract tests beyond `/api/v1/health`, domain-boundary import
+  checks, performance and regression suites, authorization/isolation tests, a
+  real job runner/queue (DEC-029), and the P0-09 closing validation. No Feature
+  ID status is changed. New dev dependencies are provisional (see
+  OPEN_DECISIONS).
+
 ### P0-07 — database foundation; CI passed (2026-11-16)
 
 - Added `SMART_ENGINEER_DATABASE_URL` (validated; PostgreSQL required in

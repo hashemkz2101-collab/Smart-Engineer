@@ -76,3 +76,9 @@ This is not an approved decision record: the owner has not recorded an
 approval, rationale, or evidence review, and DEC-029 and DEC-009 remain OPEN.
 Until confirmed, these choices may be replaced; no development-database hosting
 method (Docker or direct install) has been chosen.
+
+P0-08 added further development-only dependencies on the same provisional
+basis: `@playwright/test` 1.65.1 and `@axe-core/playwright` 4.14.0 (browser and
+accessibility tests), `eslint` 10.15.0 and `eslint-config-next` 16.4.6 (web
+lint), and `ruff` 0.17.5 (Python lint). They are exact-pinned and not shipped in
+the application. They are likewise not an approved decision record.

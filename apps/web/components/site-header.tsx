@@ -6,7 +6,7 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <Link className="brand" href="/" aria-label="Smart Engineer، صفحهٔ اصلی">
+        <Link className="brand" href="/">
           <span className="brand-mark" aria-hidden="true">
             SE
           </span>
