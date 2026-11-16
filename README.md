@@ -209,6 +209,18 @@ pnpm install --frozen-lockfile
 uv sync --locked --all-packages
 ```
 
+### Windows validation script
+
+After installing the tools by hand (above), `scripts/windows-validate.ps1` runs
+the Phase 0 Windows checks (dependency install, lint, API tests, web build and
+tests, browser tests, migrations, live API check) and writes a report:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\windows-validate.ps1
+```
+
+See `docs/PHASE_0_CLOSURE.md` (section 6) for what it covers and does not cover.
+
 ### Verify resolved framework versions
 
 Run these commands from the repository root after installing dependencies:

@@ -114,6 +114,26 @@ Record: Windows edition/version, date, and the outcome of each step. Paste the
 results (or the failing output) into the conversation or into an issue, and add
 a summary to section 7.
 
+### Automated helper for steps 2-9
+
+After doing step 1 by hand, `scripts/windows-validate.ps1` runs steps 2-9 in
+order, never "fixes" a failure, and writes `report.md` and `full-output.log` to a
+new `windows-validation-<timestamp>` folder in the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\windows-validate.ps1
+```
+
+Options: `-SkipInstall` (dependencies already installed) and
+`-SkipBrowserTests` (skip the Chromium download and browser tests). Step 9
+starts the API on port 8765 and checks `/health`, `/api/v1/health`, `/docs`,
+`/openapi.json`, the correlation-ID header, and a 404; ports 3000 and 8765 must
+be free. Step 10 (looking at the page) remains manual.
+
+The script was exercised once on a GitHub `windows-latest` runner under Windows
+PowerShell 5.1 and all steps passed (2026-11-16). That run used pre-installed
+tools, so it validates the script, not the README's own installer steps.
+
 ## 7. Sign-off record (to be completed by the owner)
 
 | Field | Value |

@@ -51,4 +51,8 @@ does not imply that planned application features have been implemented.
   evidence-versus-criteria tables, open owner decisions, Windows validation
   steps, and a blank sign-off record; corrected a stale README paragraph. Phase
   0 is not closed and no feature status changed.
+- Added `scripts/windows-validate.ps1` (Windows PowerShell 5.1 compatible) that
+  runs Phase 0 Windows validation steps 2-9 and writes a report; verified once on
+  a `windows-latest` runner (all steps passed). It does not replace the manual
+  install (step 1) or the owner's run on their own machine.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.
