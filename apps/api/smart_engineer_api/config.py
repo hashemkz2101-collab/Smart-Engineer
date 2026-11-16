@@ -7,10 +7,12 @@ governed by SEC-005 and later decisions.
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 ENVIRONMENTS = ("development", "test", "production")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+POSTGRESQL_URL_PREFIX = "postgresql+psycopg://"
+SQLITE_URL_PREFIX = "sqlite://"
 
 
 class ConfigurationError(ValueError):
@@ -21,6 +23,8 @@ class ConfigurationError(ValueError):
 class Settings:
     environment: str = "development"
     log_level: str = "INFO"
+    # May contain credentials, so it is excluded from repr() and never logged.
+    database_url: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -38,4 +42,22 @@ class Settings:
                 "SMART_ENGINEER_LOG_LEVEL must be one of: " + ", ".join(LOG_LEVELS)
             )
 
-        return cls(environment=environment, log_level=log_level)
+        database_url = source.get("SMART_ENGINEER_DATABASE_URL", "").strip() or None
+        if database_url is not None:
+            # The value is never echoed: it may contain a password.
+            allowed = (POSTGRESQL_URL_PREFIX, SQLITE_URL_PREFIX)
+            if not database_url.startswith(allowed):
+                raise ConfigurationError(
+                    "SMART_ENGINEER_DATABASE_URL must start with "
+                    + " or ".join(allowed)
+                )
+            if environment == "production" and not database_url.startswith(
+                POSTGRESQL_URL_PREFIX
+            ):
+                raise ConfigurationError(
+                    "SMART_ENGINEER_DATABASE_URL must use PostgreSQL in production"
+                )
+
+        return cls(
+            environment=environment, log_level=log_level, database_url=database_url
+        )
