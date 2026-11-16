@@ -131,6 +131,26 @@ The GitHub Actions workflow in `.github/workflows/ci.yml` runs the API tests and
 these web steps on Ubuntu and Windows runners. Its results become evidence only
 once a run is recorded.
 
+### Lint and browser tests
+
+```bash
+uv run --package smart-engineer-api --group dev ruff check apps/api
+pnpm --filter @smart-engineer/web run lint
+```
+
+Browser tests use Playwright with Chromium against the production build. Install
+the browser once, then build and run (from the repository root):
+
+```bash
+pnpm --filter @smart-engineer/web exec playwright install chromium
+pnpm --filter @smart-engineer/web run build
+pnpm --filter @smart-engineer/web run test:e2e
+```
+
+They check the RTL layout at several widths, keyboard operation, the theme
+toggle, and automated accessibility scans (axe-core). Automated scans do not
+replace manual screen-reader and real-device testing.
+
 ### GitHub Codespaces / Linux
 
 Install or select the pinned Node.js runtime with nvm, then install the pinned

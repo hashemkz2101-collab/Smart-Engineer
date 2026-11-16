@@ -41,4 +41,10 @@ does not imply that planned application features have been implemented.
   `alembic`, and `psycopg[binary]`, and a PostgreSQL 17 CI job. CI (PR #4,
   2026-11-16) passed on Ubuntu and Windows runners and on PostgreSQL. The
   library choices are provisional; DEC-029 and DEC-009 remain open.
+- Added P0-08: migration `0002` (versioned job input and result), feature-flag
+  and job-lifecycle services with tests, ruff and ESLint in CI, and Playwright
+  browser tests (responsive, RTL, keyboard, theme, axe accessibility) on Ubuntu
+  and Windows runners. Fixed a WCAG 2.5.3 label mismatch on the brand link
+  (removed its `aria-label`; no visual change). CI (PR #5, 2026-11-16) passed
+  all seven jobs. New dev dependencies are provisional; DEC-029 remains open.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.
