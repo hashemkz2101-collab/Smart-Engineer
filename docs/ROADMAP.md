@@ -113,6 +113,23 @@ implementation phase remains unresolved under DEC-032.
 - Open question for the owner: keeping both `/health` (unversioned) and
   `/api/v1/health` is a proposal, not an approved API-versioning policy.
 
+### P0-09 — closure readiness review; owner sign-off pending (2026-11-16)
+
+- Added [`PHASE_0_CLOSURE.md`](PHASE_0_CLOSURE.md): the four roadmap acceptance
+  criteria and the Phase 0 feature IDs measured against evidence, open owner
+  decisions, a step-by-step Windows validation procedure with a results table,
+  and a blank sign-off record. Verdicts: backend tests and frontend build are met
+  (CI, Ubuntu and Windows runners); Windows installation is partial (runner
+  evidence only; the README's own Windows steps have not been run anywhere);
+  documentation is mostly met.
+- Corrected a stale README paragraph that still said the repository had no
+  database integration or migrations.
+- `CLAUDE.md` was deliberately not created: DOCUMENTATION_POLICY says to record
+  its absence rather than invent instructions. The owner is asked to supply it.
+- Phase 0 is **not** closed. It needs the owner's Windows run, decisions on
+  DEC-009/029/031, and a completed sign-off record; Phase 1 must not start
+  before that (master spec §20, rule 11). No Feature ID status is changed.
+
 ### P0-08 — quality gates and job/flag foundation; CI passed (2026-11-16)
 
 - Backend: migration `0002` adds `input_version` and `result` to

@@ -17,11 +17,15 @@ These are reproducible development-tool and dependency baselines, not evidence
 that the architecture has been implemented. Hosting, database provisioning,
 deployment, and other open decisions remain unselected.
 
-The application shell currently includes the P0-03 minimal FastAPI API and the
-P0-04 Persian-first Next.js frontend shell. It does not include database
-integration, schema, migrations, authentication, or engineering features.
-Phase 0 remains in progress; registered feature statuses remain unchanged and
-the broader phase acceptance criteria are not yet complete.
+The application currently includes the FastAPI API foundation (settings,
+structured logging with correlation IDs, a safe error envelope, a versioned
+`/api/v1` route, SQLAlchemy/Alembic migrations with two operational tables,
+feature-flag and job-lifecycle services) and the Persian-first Next.js frontend
+shell, with lint, unit, integration, and browser tests in CI. It does not
+include authentication, project data, or engineering features. Phase 0 remains
+in progress; registered feature statuses remain unchanged and the broader phase
+acceptance criteria are not yet complete (see
+[`docs/PHASE_0_CLOSURE.md`](docs/PHASE_0_CLOSURE.md)).
 
 ## Development workspace
 
@@ -230,6 +234,8 @@ baseline does not require hosting or a continuously running service.
   product-scope source of truth.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) defines the gated Phase 0–10 roadmap.
 - [`docs/PHASE_STATUS.md`](docs/PHASE_STATUS.md) records phase status.
+- [`docs/PHASE_0_CLOSURE.md`](docs/PHASE_0_CLOSURE.md) is the Phase 0 closure
+  readiness review, Windows validation steps, and owner sign-off record.
 - [`docs/FEATURE_REGISTRY.md`](docs/FEATURE_REGISTRY.md) lists stable feature
   IDs and dependencies.
 - [`docs/FEATURE_ACCEPTANCE.md`](docs/FEATURE_ACCEPTANCE.md) defines planned,

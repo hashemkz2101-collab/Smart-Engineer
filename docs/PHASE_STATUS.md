@@ -6,7 +6,9 @@ appearance was approved by the user; this completes that task only, not Phase 0
 or its broader acceptance criteria. Automated browser checks (responsive,
 keyboard, theme, axe accessibility) now run in CI (P0-08); manual
 screen-reader and real-device testing and a Windows install on the owner's own
-machine remain unverified.
+machine remain unverified. A closure readiness review (criteria vs evidence,
+open owner decisions, Windows validation steps, and a blank sign-off record) is
+in [`PHASE_0_CLOSURE.md`](PHASE_0_CLOSURE.md); it is not a sign-off.
 
 Allowed project feature states are defined in the master specification:
 Planned, In Progress, Implemented, Tested, Released, Blocked, and Deferred.
