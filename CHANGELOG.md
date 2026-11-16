@@ -35,4 +35,10 @@ does not imply that planned application features have been implemented.
   (no stack traces or echoed input in responses), a `create_app` factory, and a
   versioned `/api/v1/health` route beside `/health`. 21 tests were added; CI
   (PR #3, 2026-11-15) passed API and web jobs on Ubuntu and Windows runners.
+- Added P0-07 database foundation: validated `SMART_ENGINEER_DATABASE_URL`,
+  SQLAlchemy base and the `feature_flags` and `background_jobs` tables, an
+  Alembic baseline migration with downgrade, exact-pinned `sqlalchemy`,
+  `alembic`, and `psycopg[binary]`, and a PostgreSQL 17 CI job. CI (PR #4,
+  2026-11-16) passed on Ubuntu and Windows runners and on PostgreSQL. The
+  library choices are provisional; DEC-029 and DEC-009 remain open.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.

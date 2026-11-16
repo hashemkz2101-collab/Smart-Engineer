@@ -113,6 +113,33 @@ implementation phase remains unresolved under DEC-032.
 - Open question for the owner: keeping both `/health` (unversioned) and
   `/api/v1/health` is a proposal, not an approved API-versioning policy.
 
+### P0-07 — database foundation; CI passed (2026-11-16)
+
+- Added `SMART_ENGINEER_DATABASE_URL` (validated; PostgreSQL required in
+  production, SQLite accepted otherwise for tests; the value is never echoed or
+  logged), SQLAlchemy declarative base with constraint naming conventions, and
+  two operational tables only: `feature_flags` and `background_jobs`
+  (status check constraint, JSON payload). Alembic is configured in
+  `apps/api/alembic.ini` and `apps/api/migrations`, with baseline revision
+  `0001` and working downgrade. No identity, project, or product tables exist;
+  they belong to later phases. The `/health` endpoint still does not touch the
+  database.
+- Tests: 19 new tests. They cover upgrade, downgrade and re-upgrade, a drift
+  check (migrated schema equals the models), model round trips, and database
+  enforcement of the status check and primary key. They run on SQLite in every
+  API job; a dedicated Ubuntu job runs them against PostgreSQL 17. CI run
+  43806424484 (PR #4) passed all five jobs: the PostgreSQL job ran 43 tests, OK,
+  with none skipped; the other API jobs ran 43 with the 6 PostgreSQL tests
+  skipped by design.
+- Mapping: partial progress on OPS-002 (migration strategy and an applied,
+  reversible baseline) and DATA-001. Not done: the domain model, a
+  development-database workflow decision (DEC-009), backup and restore,
+  migration rollout policy, and any product schema. No Feature ID status is
+  changed. The library choices are provisional (see OPEN_DECISIONS, DEC-029 and
+  DEC-009).
+- First CI attempt failed because of a bug in a new test (an ID read before the
+  session flushed it); it was fixed in the test and no application code changed.
+
 ## Phase 1 — Product core and project management
 
 **Features**

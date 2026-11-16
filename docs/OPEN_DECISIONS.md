@@ -64,3 +64,15 @@ For the P0-03 minimal FastAPI shell only, the project owner approved
 HTTPX supports FastAPI's TestClient, and Uvicorn runs the local ASGI application.
 They are not runtime dependencies. This limited approval does not select other
 libraries or services and does not resolve DEC-029, which remains OPEN.
+
+### DEC-029 / DEC-009 — provisional P0-07 database choices (owner confirmation pending)
+
+For P0-07 the owner asked to proceed without answering the open questions, so
+the assistant used its proposal as a provisional implementation: SQLAlchemy
+2.1.8 (ORM/core), Alembic 1.20.1 (migrations), and psycopg 3.3.9 with the binary
+extra (PostgreSQL driver), added as exact-pinned runtime dependencies of
+`apps/api`. PostgreSQL 17 is used only as a disposable CI service container.
+This is not an approved decision record: the owner has not recorded an
+approval, rationale, or evidence review, and DEC-029 and DEC-009 remain OPEN.
+Until confirmed, these choices may be replaced; no development-database hosting
+method (Docker or direct install) has been chosen.
