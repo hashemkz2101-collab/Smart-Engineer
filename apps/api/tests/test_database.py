@@ -71,11 +71,12 @@ class MigrationChecks:
         engine = create_db_engine(self.url)
         try:
             sessions = create_session_factory(engine)
+            job_id = uuid.uuid4()
             with sessions.begin() as session:
                 session.add(FeatureFlag(key="demo"))
-                job = BackgroundJob(job_type="noop", payload={"a": 1})
-                session.add(job)
-                job_id = job.id
+                session.add(
+                    BackgroundJob(id=job_id, job_type="noop", payload={"a": 1})
+                )
 
             with sessions() as session:
                 flag = session.get(FeatureFlag, "demo")
