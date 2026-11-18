@@ -47,4 +47,12 @@ does not imply that planned application features have been implemented.
   and Windows runners. Fixed a WCAG 2.5.3 label mismatch on the brand link
   (removed its `aria-label`; no visual change). CI (PR #5, 2026-11-16) passed
   all seven jobs. New dev dependencies are provisional; DEC-029 remains open.
+- Added P0-09 closure readiness review (`docs/PHASE_0_CLOSURE.md`) with
+  evidence-versus-criteria tables, open owner decisions, Windows validation
+  steps, and a blank sign-off record; corrected a stale README paragraph. Phase
+  0 is not closed and no feature status changed.
+- Added `scripts/windows-validate.ps1` (Windows PowerShell 5.1 compatible) that
+  runs Phase 0 Windows validation steps 2-9 and writes a report; verified once on
+  a `windows-latest` runner (all steps passed). It does not replace the manual
+  install (step 1) or the owner's run on their own machine.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.

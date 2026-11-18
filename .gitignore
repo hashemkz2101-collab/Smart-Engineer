@@ -23,3 +23,6 @@ __pycache__/
 # Playwright
 playwright-report/
 test-results/
+
+# Windows validation output
+windows-validation-*/
