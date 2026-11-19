@@ -27,8 +27,22 @@ param(
     [switch]$SkipInstall
 )
 
+# Windows 7 ships PowerShell 2.0, which lacks $PSScriptRoot, Invoke-WebRequest and
+# other things this script needs. Stop early with a clear message instead.
+if ($PSVersionTable -and $PSVersionTable.PSVersion.Major -lt 5) {
+    Write-Host ""
+    Write-Host "This script needs Windows PowerShell 5.1 or newer. Found version $($PSVersionTable.PSVersion)." -ForegroundColor Red
+    Write-Host "Windows: $([System.Environment]::OSVersion.VersionString)"
+    Write-Host "Windows 7 includes PowerShell 2.0. On older Windows the pinned Node.js and Python"
+    Write-Host "versions are also unlikely to install. Use Windows 10 or Windows 11, then run this"
+    Write-Host "script again, and tell the project owner which Windows version you used."
+    exit 3
+}
+
 $ErrorActionPreference = "Continue"
-$root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$scriptDir = $PSScriptRoot
+if (-not $scriptDir) { $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+$root = (Resolve-Path (Join-Path $scriptDir "..")).Path
 Set-Location $root
 
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
