@@ -22,10 +22,10 @@ structured logging with correlation IDs, a safe error envelope, a versioned
 `/api/v1` route, SQLAlchemy/Alembic migrations with two operational tables,
 feature-flag and job-lifecycle services) and the Persian-first Next.js frontend
 shell, with lint, unit, integration, and browser tests in CI. It does not
-include authentication, project data, or engineering features. Phase 0 remains
-in progress; registered feature statuses remain unchanged and the broader phase
-acceptance criteria are not yet complete (see
-[`docs/PHASE_0_CLOSURE.md`](docs/PHASE_0_CLOSURE.md)).
+include authentication, project data, or engineering features. Phase 0 was accepted
+with exceptions on 2026-11-19 (see
+[`docs/PHASE_0_CLOSURE.md`](docs/PHASE_0_CLOSURE.md)); registered feature
+statuses remain unchanged.
 
 ## Development workspace
 

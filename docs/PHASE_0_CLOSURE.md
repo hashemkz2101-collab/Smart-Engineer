@@ -1,8 +1,10 @@
 # Phase 0 closure readiness review
 
 - **Date of review:** 2026-11-16
-- **Status of this document:** READINESS REVIEW — **not** a sign-off. Phase 0
-  stays IN PROGRESS until the owner records evidence and approval in section 7.
+- **Status of this document:** readiness review plus the sign-off record in
+  section 7. Outcome: Phase 0 **accepted with exceptions** on 2026-11-19 on the
+  owner's instruction. The exceptions, including the waived manual Windows
+  run, are listed in section 7.
 - **Evidence base:** repository at commit `cf36380` (main after P0-08); GitHub
   Actions run 43815075682 on that commit; earlier recorded runs listed in
   [`ROADMAP.md`](ROADMAP.md). CI results are runner evidence (GitHub-hosted
@@ -18,7 +20,7 @@ unmet criteria, and approved exceptions. No feature status in
 
 | # | Criterion (ROADMAP.md) | Verdict | Evidence | Gap |
 |---|---|---|---|---|
-| 1 | Repeatable installation on Windows | **Partial** | `windows-latest` CI jobs install with frozen lockfiles and pass API tests, typecheck, build, smoke, and browser tests. README has a PowerShell setup section. | CI installs Node/Python with GitHub actions, so the README's own Windows steps (MSI/installer, pip-installed uv) have **not** been run anywhere. No run on the owner's machine. DEC-031 (accepted method) is open. |
+| 1 | Repeatable installation on Windows | **Partial; manual run waived by owner (2026-11-19, DEC-031)** | `windows-latest` CI jobs install with frozen lockfiles and pass API tests, typecheck, build, smoke, and browser tests. README has a PowerShell setup section. | CI installs Node/Python with GitHub actions, so the README's own Windows steps (MSI/installer, pip-installed uv) have **not** been run anywhere. No run on the owner's machine. DEC-031 (accepted method) is open. |
 | 2 | Backend tests pass | **Met** | 61 API tests pass on Ubuntu, Windows, and PostgreSQL 17 (PostgreSQL job: none skipped); `ruff check` clean. | The suite is small and covers the Phase 0 foundation only. |
 | 3 | Frontend production build succeeds | **Met** | `next build` passes on Ubuntu and Windows runners; typecheck, ESLint, 4 smoke tests, and 47 browser tests pass. | Chromium only. |
 | 4 | Setup and run documentation is complete | **Mostly met** | README covers install, run, tests, lint, browser tests, migrations, and logging/errors; ADR-0001 and OPEN_DECISIONS record decisions. | `CLAUDE.md` (master spec §20) is absent (see section 4). Windows steps unverified (criterion 1). |
@@ -146,17 +148,20 @@ The script was exercised once on a GitHub `windows-latest` runner under Windows
 PowerShell 5.1 and all steps passed (2026-11-16). That run used pre-installed
 tools, so it validates the script, not the README's own installer steps.
 
-## 7. Sign-off record (to be completed by the owner)
+## 7. Sign-off record
+
+Recorded by the assistant from the owner's chat instructions of 2026-11-19. The
+owner should confirm that this wording is correct.
 
 | Field | Value |
 |---|---|
-| Decision | _Phase 0 accepted / accepted with exceptions / not accepted_ |
-| Date | |
-| Owner / reviewer | |
-| Evidence reviewed | _Windows run results; CI run IDs; this document_ |
-| Unmet criteria | |
-| Approved exceptions and carry-forward items (with rationale and re-entry condition) | |
-| Decisions closed (DEC-009 / DEC-029 / DEC-031) | |
+| Decision | **Phase 0 accepted with exceptions.** The owner reviewed the running application, approved its appearance, waived the manual Windows run, and instructed to proceed to the next phase. |
+| Date | 2026-11-19 |
+| Owner / reviewer | Project owner (instruction given in the development chat session) |
+| Evidence reviewed | CI on `main`, run 43815075682, all jobs passed including `windows-latest` (Windows Server 2025); `scripts/windows-validate.ps1` passed all steps on a `windows-latest` runner (run 44618778609); owner's visual review of the running web app and API in a GitHub Codespace (Linux browser), appearance approved; this document |
+| Unmet criteria | Installation on the owner's own Windows machine was **not performed and is not claimed as passed**. The README's manual Windows installer steps have never been run. Minimum supported Windows version unconfirmed. `CLAUDE.md` is absent. Criteria listed as Partial or Not evidenced in section 3 remain unmet. |
+| Approved exceptions and carry-forward items | (1) Manual Windows verification **waived** (DEC-031 resolved, see OPEN_DECISIONS); re-entry: run `scripts/windows-validate.ps1` on Windows 10/11 before RELEASE-001. (2) DEC-009 and DEC-029 stay open; the provisional libraries are not approved and must be settled at the start of Phase 1, before further dependencies are added. (3) `CLAUDE.md`: owner to supply or confirm it is not needed. (4) Section 5 items (secret scan, import-boundary check, CORS/security headers, decision records for provisional dependencies) carried into Phase 1. (5) "0 / all" feature IDs in section 3 continue through later phases; no registry status was changed. |
+| Decisions closed | DEC-031 (method). DEC-009 and DEC-029 are **not** closed. |
 
-Until this table is completed, Phase 0 remains IN PROGRESS and Phase 1 must not
-start (master spec §20, rule 11).
+Phase 1 may begin under master spec §20, rule 11 (explicit owner instruction).
+Phase 1 must not rely on the provisional libraries as approved decisions.

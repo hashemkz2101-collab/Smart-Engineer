@@ -58,4 +58,7 @@ does not imply that planned application features have been implemented.
 - `scripts/windows-validate.ps1` now stops with a clear message on PowerShell
   older than 5.1 and no longer depends on `$PSScriptRoot`; re-verified on a
   `windows-latest` runner from the repository root and from the `scripts` folder.
-- Phase 0 is in progress; registered product feature statuses remain unchanged.
+- Recorded the owner's Phase 0 decision (2026-11-19): application appearance
+  approved; manual Windows verification waived and DEC-031 resolved to rely on
+  `windows-latest` CI (waived, not passed); Phase 0 accepted with exceptions;
+  DEC-009 and DEC-029 remain open. Registered feature statuses are unchanged.

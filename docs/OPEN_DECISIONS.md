@@ -10,7 +10,8 @@ The high-level architecture direction is approved in principle as recorded in
 [ADR-0001](adr/ADR-0001-approved-architecture-baseline.md) and
 [`ARCHITECTURE_OVERVIEW.md`](ARCHITECTURE_OVERVIEW.md). That approval does not
 close or partially resolve any entry in this register. In particular,
-DEC-009, DEC-015, DEC-022, DEC-024, DEC-029, DEC-031, and DEC-032 remain open;
+DEC-009, DEC-015, DEC-022, DEC-024, DEC-029, and DEC-032 remain open (DEC-031
+was resolved by owner decision on 2026-11-19; see its record below);
 all other decisions and their dependencies also remain open unless separately
 approved and recorded under the decision policy below.
 
@@ -82,3 +83,28 @@ basis: `@playwright/test` 1.65.1 and `@axe-core/playwright` 4.14.0 (browser and
 accessibility tests), `eslint` 10.15.0 and `eslint-config-next` 16.4.6 (web
 lint), and `ruff` 0.17.5 (Python lint). They are exact-pinned and not shipped in
 the application. They are likewise not an approved decision record.
+
+### DEC-031 — resolved by owner decision (2026-11-19)
+
+- **Status:** Approved as an exception. Recorded by the assistant from the
+  owner's chat instruction; the owner should confirm the wording.
+- **Decision:** For Phase 0, the "repeatable installation on Windows" criterion
+  is verified only by the automated `windows-latest` CI runner (Windows Server
+  2025, Windows PowerShell 5.1), which runs the full test suite and
+  `scripts/windows-validate.ps1`. A manual installation on the owner's own
+  machine is **waived**. It was not run and did not pass.
+- **Rationale (owner's situation):** The owner's computer runs Windows 7
+  (PowerShell 2.0). The pinned Node.js 24.22.3 and Python 3.14.10 are not
+  expected to install there (not confirmed from official sources). No
+  Windows 10/11 machine was available.
+- **Alternatives considered:** a manual run on a Windows 10/11 computer; upgrading
+  the owner's computer; a Windows virtual machine or cloud PC; GitHub
+  Codespaces (rejected for this criterion because it is Linux and cannot test
+  Windows).
+- **Consequences and limits:** This is not evidence that the README's manual
+  Windows installer steps work, and the minimum supported Windows version
+  (expected to be 10 or 11) is not confirmed. **Re-entry condition:** run
+  `scripts/windows-validate.ps1` on a Windows 10/11 machine before RELEASE-001
+  or earlier if one becomes available.
+- **Affected IDs:** OPS-001, TEST-001, RELEASE-001. DEC-009 and DEC-029 are not
+  affected and remain open.

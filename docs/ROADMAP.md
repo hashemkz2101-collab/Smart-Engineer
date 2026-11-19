@@ -126,9 +126,12 @@ implementation phase remains unresolved under DEC-032.
   database integration or migrations.
 - `CLAUDE.md` was deliberately not created: DOCUMENTATION_POLICY says to record
   its absence rather than invent instructions. The owner is asked to supply it.
-- Phase 0 is **not** closed. It needs the owner's Windows run, decisions on
-  DEC-009/029/031, and a completed sign-off record; Phase 1 must not start
-  before that (master spec §20, rule 11). No Feature ID status is changed.
+- **Outcome (2026-11-19):** the owner reviewed the running application and
+  approved its appearance, waived the manual Windows run (recorded as waived,
+  not passed; DEC-031 resolved to rely on `windows-latest` CI), and instructed
+  the project to proceed. Phase 0 is recorded as accepted with exceptions in
+  [`PHASE_0_CLOSURE.md`](PHASE_0_CLOSURE.md) section 7. DEC-009 and DEC-029 stay
+  open and their libraries provisional. No Feature ID status is changed.
 
 ### P0-08 — quality gates and job/flag foundation; CI passed (2026-11-16)
 
