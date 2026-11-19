@@ -164,4 +164,10 @@ owner should confirm that this wording is correct.
 | Decisions closed | DEC-031 (method). DEC-009 and DEC-029 are **not** closed. |
 
 Phase 1 may begin under master spec §20, rule 11 (explicit owner instruction).
-Phase 1 must not rely on the provisional libraries as approved decisions.
+Addendum (2026-11-19, later the same day): the owner approved the listed
+provisional libraries (DEC-029, listed items only), chose PostgreSQL in Docker in
+Codespaces plus CI service containers for development (DEC-009), and chose email
+and password as the first login method (DEC-022, partly). See
+[`OPEN_DECISIONS.md`](OPEN_DECISIONS.md). Exception (2) above is therefore
+resolved for those items; other DEC-029 categories and the rest of DEC-022 remain
+open.

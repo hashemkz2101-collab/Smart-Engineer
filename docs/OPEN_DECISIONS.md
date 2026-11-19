@@ -10,8 +10,10 @@ The high-level architecture direction is approved in principle as recorded in
 [ADR-0001](adr/ADR-0001-approved-architecture-baseline.md) and
 [`ARCHITECTURE_OVERVIEW.md`](ARCHITECTURE_OVERVIEW.md). That approval does not
 close or partially resolve any entry in this register. In particular,
-DEC-009, DEC-015, DEC-022, DEC-024, DEC-029, and DEC-032 remain open (DEC-031
-was resolved by owner decision on 2026-11-19; see its record below);
+DEC-015, DEC-022 (partly decided), DEC-024, DEC-029 (partly decided), and DEC-032
+remain open. DEC-031 and DEC-009 were resolved by owner decision on 2026-11-19,
+and DEC-029 and DEC-022 were partly resolved the same day (see the records
+below);
 all other decisions and their dependencies also remain open unless separately
 approved and recorded under the decision policy below.
 
@@ -66,7 +68,7 @@ HTTPX supports FastAPI's TestClient, and Uvicorn runs the local ASGI application
 They are not runtime dependencies. This limited approval does not select other
 libraries or services and does not resolve DEC-029, which remains OPEN.
 
-### DEC-029 / DEC-009 — provisional P0-07 database choices (owner confirmation pending)
+### DEC-029 / DEC-009 — provisional P0-07 database choices (superseded by the owner decisions recorded below)
 
 For P0-07 the owner asked to proceed without answering the open questions, so
 the assistant used its proposal as a provisional implementation: SQLAlchemy
@@ -82,7 +84,8 @@ P0-08 added further development-only dependencies on the same provisional
 basis: `@playwright/test` 1.65.1 and `@axe-core/playwright` 4.14.0 (browser and
 accessibility tests), `eslint` 10.15.0 and `eslint-config-next` 16.4.6 (web
 lint), and `ruff` 0.17.5 (Python lint). They are exact-pinned and not shipped in
-the application. They are likewise not an approved decision record.
+the application. They were provisional when added and were approved on
+2026-11-19 (see the decision records below).
 
 ### DEC-031 — resolved by owner decision (2026-11-19)
 
@@ -106,5 +109,28 @@ the application. They are likewise not an approved decision record.
   (expected to be 10 or 11) is not confirmed. **Re-entry condition:** run
   `scripts/windows-validate.ps1` on a Windows 10/11 machine before RELEASE-001
   or earlier if one becomes available.
-- **Affected IDs:** OPS-001, TEST-001, RELEASE-001. DEC-009 and DEC-029 are not
-  affected and remain open.
+- **Affected IDs:** OPS-001, TEST-001, RELEASE-001.
+
+### DEC-009, DEC-029 (part), DEC-022 (part) — owner decisions (2026-11-19)
+
+Recorded by the assistant from the owner's answers to multiple-choice questions;
+the owner should confirm the wording.
+
+- **DEC-009 — resolved.** The development database is PostgreSQL run in Docker
+  inside GitHub Codespaces, and CI uses a PostgreSQL service container (as
+  today). Rationale: the owner's computer runs Windows 7 and work is done on
+  GitHub and Codespaces. Alternatives considered: direct installation on a
+  developer computer; a managed cloud database now. Not decided: production
+  database hosting. Affected IDs: OPS-002, DATA-001, OPS-001.
+- **DEC-029 — partly resolved.** Approved, exact-pinned: `sqlalchemy` 2.1.8,
+  `alembic` 1.20.1, `psycopg[binary]` 3.3.9, `@playwright/test` 1.65.1,
+  `@axe-core/playwright` 4.14.0, `eslint` 10.15.0, `eslint-config-next` 16.4.6,
+  `ruff` 0.17.5, and PostgreSQL 17 as the CI service. Still open: geometry, IFC,
+  PDF, observability, queue/job-runner, and any other library or service.
+  Affected IDs: OPS-002, OPS-003, ARCH-PLAT-002, TEST-001.
+- **DEC-022 — partly resolved.** The first version's login method is **email
+  and password**. Phone/SMS login is not selected (it would also need a provider
+  under DEC-010). Still open: assurance level, email-verification rules, account
+  recovery, session lifetime and management, and multi-factor authentication.
+  These must be decided before IAM-001 is implemented. Affected IDs: IAM-001,
+  SEC-001.
