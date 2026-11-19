@@ -55,4 +55,7 @@ does not imply that planned application features have been implemented.
   runs Phase 0 Windows validation steps 2-9 and writes a report; verified once on
   a `windows-latest` runner (all steps passed). It does not replace the manual
   install (step 1) or the owner's run on their own machine.
+- `scripts/windows-validate.ps1` now stops with a clear message on PowerShell
+  older than 5.1 and no longer depends on `$PSScriptRoot`; re-verified on a
+  `windows-latest` runner from the repository root and from the `scripts` folder.
 - Phase 0 is in progress; registered product feature statuses remain unchanged.

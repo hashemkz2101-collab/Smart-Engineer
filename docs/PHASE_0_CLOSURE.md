@@ -130,6 +130,18 @@ starts the API on port 8765 and checks `/health`, `/api/v1/health`, `/docs`,
 `/openapi.json`, the correlation-ID header, and a 404; ports 3000 and 8765 must
 be free. Step 10 (looking at the page) remains manual.
 
+The script requires Windows PowerShell 5.1 or newer (included in Windows 10 and
+11). On an older PowerShell it now stops with a clear message.
+
+**Finding, 2026-11-19:** the owner's first attempt printed the banner
+"Copyright (C) 2009" and PowerShell 2.0 style errors (`$PSScriptRoot` empty),
+which indicates PowerShell 2.0, normally shipped with Windows 7. The Windows
+version on that machine has not been confirmed. The pinned Node.js 24.22.3 and
+Python 3.14.10 are not expected to install on such an old Windows (not verified
+from official sources in this review), so a Windows 10 or 11 machine is needed
+for step 1. This is evidence for DEC-031 and OPS-001: the minimum supported
+Windows version should be decided and documented.
+
 The script was exercised once on a GitHub `windows-latest` runner under Windows
 PowerShell 5.1 and all steps passed (2026-11-16). That run used pre-installed
 tools, so it validates the script, not the README's own installer steps.
