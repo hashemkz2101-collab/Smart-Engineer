@@ -61,4 +61,9 @@ does not imply that planned application features have been implemented.
 - Recorded the owner's Phase 0 decision (2026-11-19): application appearance
   approved; manual Windows verification waived and DEC-031 resolved to rely on
   `windows-latest` CI (waived, not passed); Phase 0 accepted with exceptions;
-  DEC-009 and DEC-029 remain open. Registered feature statuses are unchanged.
+  DEC-009 and DEC-029 were still open at that point.
+- Recorded further owner decisions (2026-11-19, later): DEC-009 resolved
+  (PostgreSQL in Docker in Codespaces plus CI service containers); DEC-029 partly
+  resolved (the listed dependencies approved; other categories still open);
+  DEC-022 partly resolved (email and password as the first login method).
+  Registered feature statuses are unchanged.
