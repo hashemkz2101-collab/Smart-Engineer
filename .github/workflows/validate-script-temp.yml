@@ -1,0 +1,27 @@
+name: validate-script (temporary)
+
+on:
+  push:
+    branches: [p0-09-script-guard]
+
+jobs:
+  windows-script:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --global pnpm@12.16.1
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+      - run: uv python install 3.14.10
+      - name: Run from the repository root under Windows PowerShell 5.1
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File .\scripts\windows-validate.ps1 -SkipBrowserTests
+      - name: Run from inside the scripts folder
+        shell: powershell
+        run: |
+          Set-Location scripts
+          powershell -ExecutionPolicy Bypass -File .\windows-validate.ps1 -SkipInstall -SkipBrowserTests
