@@ -30,6 +30,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from ..roles import (
     AUTH_TOKEN_PURPOSES,
+    INVITABLE_ORG_ROLES,
     ORG_ROLES,
     PROJECT_ROLES,
     PROJECT_STATUSES,
@@ -232,4 +233,35 @@ class LoginFailure(Base):
     email: Mapped[str] = mapped_column(String(320), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Invitation(Base):
+    """Invitation to join an organization. Only the token's SHA-256 is stored."""
+
+    __tablename__ = "invitations"
+    __table_args__ = (
+        CheckConstraint(sql_in("org_role", INVITABLE_ORG_ROLES), name="org_role_valid"),
+        Index("ix_invitations_organization_id", "organization_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    org_role: Mapped[str] = mapped_column(String(20), nullable=False)
+    invited_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
