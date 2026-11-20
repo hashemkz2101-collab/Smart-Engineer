@@ -14,11 +14,14 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -264,4 +267,29 @@ class Invitation(Base):
     )
     revoked_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class ActivityEvent(Base):
+    """Append-only, ordered project activity record (PRJ-002).
+
+    The integer primary key increases with insertion, so ordering never depends
+    on clock resolution.
+    """
+
+    __tablename__ = "activity_events"
+    __table_args__ = (Index("ix_activity_events_project_id", "project_id", "id"),)
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    action: Mapped[str] = mapped_column(String(60), nullable=False)
+    target_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
