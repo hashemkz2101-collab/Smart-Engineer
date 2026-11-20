@@ -14,7 +14,7 @@ extend-exclude = ["apps/api/migrations/script.py.mako"]
 select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["fastapi.Depends"]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 
 [tool.ruff.lint.per-file-ignores]
 "apps/api/tests/*" = ["E501"]

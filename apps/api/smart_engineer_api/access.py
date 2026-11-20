@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from .db import Membership, Project, ProjectMember, User
 from .permissions import AccessDenied, org_role_can, project_role_can
 
+ARCHIVE_RECOVERY_ACTIONS = frozenset({"project.view", "project.restore"})
+
 
 def org_role_of(session: Session, user: User, organization_id: uuid.UUID) -> str | None:
     return session.scalar(
@@ -54,11 +56,19 @@ def authorize_project(
     if project is None:
         raise AccessDenied(action, hidden=True)
     role = project_role_of(session, user, project_id)
+    if (
+        project.status == "archived"
+        and action in ARCHIVE_RECOVERY_ACTIONS
+        and org_role_of(session, user, project.organization_id) in ("owner", "admin")
+    ):
+        # Archive policy (DEC-016): organization owners/admins can retrieve and
+        # restore archived projects even without a project role.
+        return project, role or "org_admin"
     if role is None:
         raise AccessDenied(action, hidden=True)
     if not project_role_can(role, action):
         raise AccessDenied(action)
-    if project.status == "archived" and action != "project.restore" and action != "project.view":
+    if project.status == "archived" and action not in ARCHIVE_RECOVERY_ACTIONS:
         # Archived projects are read-only (DEC-016).
         raise AccessDenied(action)
     return project, role

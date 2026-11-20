@@ -5,6 +5,9 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-04: projects (create, list, read, update, archive, restore), project members with
+  last-owner protection, and an ordered activity log written with each change;
+  `/api/v1/projects` endpoints, migration 0006. Backend only; no feature status changed.
 - P1-03: role/permission matrix, project and organization authorization, organization
   members and invitations (hashed single-use tokens), member role change and removal,
   `/api/v1/orgs` endpoints, migration 0005. Backend only; no feature status changed.
