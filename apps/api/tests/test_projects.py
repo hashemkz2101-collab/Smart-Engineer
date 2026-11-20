@@ -102,7 +102,10 @@ class ProjectChecks:
         owner, admin, member = self.user("owner"), self.user("admin"), self.user("member")
         self.join(owner, admin, "admin")
         self.join(owner, member)
-        project = self.make(member)  # created by a plain member, who becomes project owner
+        # A plain member creates a project in the shared organization and owns it.
+        project = project_service.create_project(
+            self.session, member, self.org_of(owner), name="House", project_type="other"
+        )
         project_service.archive_project(self.session, member, project.id)
         lists = project_service.list_projects
 
