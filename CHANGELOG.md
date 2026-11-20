@@ -5,6 +5,10 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-02: authentication backend (scrypt passwords, hashed cookie sessions, CSRF and
+  Origin checks, lockout, password change and reset, migration 0004) with HTTP
+  endpoints under `/api/v1/auth`. Tests run on SQLite and PostgreSQL; no frontend
+  and no real email delivery yet. No feature status changed.
 - P1-01: added users, organizations, memberships, projects and project_members
   tables (migration 0003), the SQLite foreign-key pragma, schema tests, the Phase 1
   plan, and owner-delegated Phase 1 decision records. CI passed on all jobs

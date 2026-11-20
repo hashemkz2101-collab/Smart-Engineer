@@ -68,6 +68,19 @@ are never logged. Errors use one envelope,
 `{"error": {"code", "message", "correlation_id"}}`; unhandled errors return a
 generic 500 with no stack trace, and the full traceback is logged server-side.
 
+### Authentication API (P1-02, backend only)
+
+Endpoints under `/api/v1/auth`: `register`, `login`, `me`, `logout`,
+`change-password`, `password-reset/request`, `password-reset/confirm`. They need
+`SMART_ENGINEER_DATABASE_URL` (otherwise they return 503). The session is an
+HttpOnly `se_session` cookie (Secure in production); state-changing requests that
+use the session must send the `X-CSRF-Token` value returned by `login`/`me`.
+A browser `Origin` that is not the API's own host is rejected unless listed in
+`SMART_ENGINEER_ALLOWED_ORIGINS` (comma-separated, e.g. `http://localhost:3000`).
+Password-reset emails are not sent yet (DEC-010); in production the API requires
+verified email, and no verification flow exists yet, so production login stays
+disabled until it does.
+
 ### Database migrations
 
 The database URL comes from `SMART_ENGINEER_DATABASE_URL` (PostgreSQL:

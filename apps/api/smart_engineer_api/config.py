@@ -25,6 +25,9 @@ class Settings:
     log_level: str = "INFO"
     # May contain credentials, so it is excluded from repr() and never logged.
     database_url: str | None = field(default=None, repr=False)
+    # Extra browser origins allowed to call state-changing endpoints (e.g. the web
+    # dev server on another port). The API's own host is always allowed.
+    allowed_origins: tuple[str, ...] = ()
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -58,6 +61,15 @@ class Settings:
                     "SMART_ENGINEER_DATABASE_URL must use PostgreSQL in production"
                 )
 
+        allowed_origins = tuple(
+            origin.strip().rstrip("/")
+            for origin in source.get("SMART_ENGINEER_ALLOWED_ORIGINS", "").split(",")
+            if origin.strip()
+        )
+
         return cls(
-            environment=environment, log_level=log_level, database_url=database_url
+            environment=environment,
+            log_level=log_level,
+            database_url=database_url,
+            allowed_origins=allowed_origins,
         )
