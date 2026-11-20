@@ -5,6 +5,9 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-03: role/permission matrix, project and organization authorization, organization
+  members and invitations (hashed single-use tokens), member role change and removal,
+  `/api/v1/orgs` endpoints, migration 0005. Backend only; no feature status changed.
 - P1-02: authentication backend (scrypt passwords, hashed cookie sessions, CSRF and
   Origin checks, lockout, password change and reset, migration 0004) with HTTP
   endpoints under `/api/v1/auth`. Tests run on SQLite and PostgreSQL; no frontend
