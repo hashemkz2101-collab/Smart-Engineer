@@ -9,6 +9,10 @@ from .db.session import create_db_engine, create_session_factory
 from .errors import register_exception_handlers
 from .logging_config import configure_logging
 from .middleware import CorrelationIdMiddleware
+from .org_routes import access_denied_handler, org_error_handler
+from .org_routes import router as org_router
+from .org_service import OrgError
+from .permissions import AccessDenied
 from .routes import API_V1_PREFIX, operational_router, v1_router
 
 
@@ -40,9 +44,12 @@ def create_app(
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.add_exception_handler(auth_service.AuthError, auth_error_handler)
+    app.add_exception_handler(OrgError, org_error_handler)
+    app.add_exception_handler(AccessDenied, access_denied_handler)
     app.include_router(operational_router)
     app.include_router(v1_router)
     app.include_router(auth_router, prefix=API_V1_PREFIX)
+    app.include_router(org_router, prefix=API_V1_PREFIX)
     return app
 
 

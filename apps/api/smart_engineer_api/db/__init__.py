@@ -2,6 +2,7 @@ from .base import Base
 from .identity_models import (
     AuthSession,
     AuthToken,
+    Invitation,
     LoginFailure,
     Membership,
     Organization,
@@ -17,6 +18,7 @@ __all__ = [
     "Base",
     "BackgroundJob",
     "FeatureFlag",
+    "Invitation",
     "LoginFailure",
     "Membership",
     "Organization",

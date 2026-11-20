@@ -27,6 +27,7 @@ EXPECTED_TABLES = {
     "auth_sessions",
     "auth_tokens",
     "login_failures",
+    "invitations",
 }
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
 

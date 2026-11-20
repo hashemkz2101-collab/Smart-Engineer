@@ -18,6 +18,8 @@ SYSTEM_ADMIN = "system_admin"  # platform administrator (spec 2.6), flag on user
 ROLE_IDENTITIES = (*PROJECT_ROLES, SYSTEM_ADMIN)
 
 ORG_ROLES = ("owner", "admin", "member")
+# Ownership cannot be granted by invitation (no ownership transfer in Phase 1).
+INVITABLE_ORG_ROLES = ("admin", "member")
 
 # Initial market project types are a Phase 1 default (DEC-003, owner-delegated
 # assistant proposal). More types can be added by a migration.
