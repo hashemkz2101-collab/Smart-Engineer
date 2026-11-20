@@ -12,7 +12,7 @@ test.describe("Persian RTL shell", () => {
     await expect(page.getByRole("main")).toBeVisible();
     await expect(page.getByRole("contentinfo")).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("به Smart Engineer خوش آمدید");
-    await expect(page.getByText("هنوز در این نسخه پیاده‌سازی نشده‌اند")).toBeVisible();
+    await expect(page.getByText(/برآورد هنوز\s+پیاده‌سازی نشده‌اند/)).toBeVisible();
   });
 
   test("the brand sits at the inline start (right) and the actions at the end (left)", async ({

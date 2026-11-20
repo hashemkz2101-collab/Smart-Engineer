@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ThemeToggle } from "./theme-toggle";
+import { UserMenu } from "./user-menu";
 
 export function SiteHeader() {
   return (
@@ -19,6 +20,7 @@ export function SiteHeader() {
             </Link>
           </nav>
           <ThemeToggle />
+          <UserMenu />
         </div>
       </div>
     </header>

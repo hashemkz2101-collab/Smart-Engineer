@@ -30,11 +30,13 @@ test("home page contains accessible navigation and theme controls", async () => 
   assert.match(html, /matchMedia\("\(prefers-color-scheme: dark\)"\)/);
 });
 
-test("home page identifies the shell without claiming unfinished features", async () => {
+test("home page states what exists and what does not", async () => {
   const html = await getHomePage();
 
-  assert.match(html, /پوستهٔ پایهٔ برنامه آماده است/);
-  assert.match(html, /هنوز در این نسخه پیاده‌سازی نشده‌اند/);
+  assert.match(html, /حساب، سازمان و مدیریت پروژه/);
+  assert.match(html, /طراحی\s+معماری، محاسبات مهندسی و برآورد هنوز\s+پیاده‌سازی نشده‌اند/);
+  assert.match(html, /href="\/register"/);
+  assert.match(html, /href="\/login"/);
 });
 
 test("unknown routes render a Persian not-found page with a home link", async () => {

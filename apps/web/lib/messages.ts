@@ -1,0 +1,74 @@
+// Persian labels and error messages. Error codes come from the API envelope
+// ({"error": {"code": ...}}); unknown codes fall back to a generic message.
+
+const errorMessages: Record<string, string> = {
+  invalid_credentials: "ایمیل یا رمز عبور درست نیست.",
+  account_locked: "تلاش‌های ناموفق زیاد بود. چند دقیقه بعد دوباره امتحان کنید.",
+  email_taken: "حسابی با این ایمیل وجود دارد.",
+  weak_password:
+    "رمز عبور باید دست‌کم ۱۰ نویسه باشد و ساده یا شبیه بخش اول ایمیل نباشد.",
+  invalid_email: "نشانی ایمیل درست نیست.",
+  invalid_display_name: "نام لازم است و باید حداکثر ۲۰۰ نویسه باشد.",
+  invalid_token: "پیوند یا کد نامعتبر است یا منقضی شده است.",
+  email_not_verified: "ایمیل شما هنوز تأیید نشده است.",
+  forbidden: "اجازهٔ انجام این کار را ندارید.",
+  http_401: "لطفاً دوباره وارد شوید.",
+  http_403: "اجازهٔ انجام این کار را ندارید.",
+  http_404: "مورد درخواستی پیدا نشد.",
+  http_503: "سرویس در حال حاضر در دسترس نیست.",
+  validation_error: "اطلاعات واردشده درست نیست.",
+  internal_error: "خطای داخلی رخ داد. دوباره تلاش کنید.",
+  network_error: "ارتباط با سرور برقرار نشد.",
+  invalid_name: "نام لازم است و باید حداکثر ۲۰۰ نویسه باشد.",
+  invalid_project_type: "نوع پروژه درست نیست.",
+  invalid_role: "نقش انتخاب‌شده درست نیست.",
+  user_not_in_organization: "این کاربر عضو سازمان نیست.",
+  already_member: "این کاربر از قبل عضو است.",
+  last_owner: "هر پروژه باید دست‌کم یک مالک داشته باشد.",
+  not_archived: "این پروژه بایگانی نشده است.",
+  not_found: "مورد درخواستی پیدا نشد.",
+  cannot_remove_owner: "مالک سازمان را نمی‌توان حذف کرد.",
+  owner_role_fixed: "نقش مالک سازمان قابل تغییر نیست.",
+};
+
+export function messageForCode(code: string): string {
+  return errorMessages[code] ?? "خطایی رخ داد. دوباره تلاش کنید.";
+}
+
+export const projectTypeLabels: Record<string, string> = {
+  residential_house: "خانهٔ مسکونی (ویلایی)",
+  residential_apartment: "آپارتمان مسکونی",
+  commercial: "تجاری",
+  mixed_use: "مختلط",
+  other: "سایر",
+};
+
+export const projectRoleLabels: Record<string, string> = {
+  owner: "مالک / کارفرما",
+  architect: "معمار",
+  structural_engineer: "مهندس سازه",
+  mep_engineer: "مهندس تأسیسات",
+  quantity_surveyor: "متره‌گر / برآوردکننده",
+  org_admin: "مدیر سازمان",
+};
+
+export const orgRoleLabels: Record<string, string> = {
+  owner: "مالک",
+  admin: "مدیر",
+  member: "عضو",
+};
+
+export const activityLabels: Record<string, string> = {
+  "project.created": "پروژه ایجاد شد",
+  "project.updated": "مشخصات پروژه ویرایش شد",
+  "project.archived": "پروژه بایگانی شد",
+  "project.restored": "پروژه از بایگانی بازگردانده شد",
+  "project.member_added": "عضوی به پروژه اضافه شد",
+  "project.member_role_changed": "نقش یک عضو تغییر کرد",
+  "project.member_removed": "عضوی از پروژه حذف شد",
+};
+
+export function formatDate(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("fa-IR");
+}
