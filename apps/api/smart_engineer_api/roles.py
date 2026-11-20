@@ -31,6 +31,8 @@ PROJECT_TYPES = (
 
 PROJECT_STATUSES = ("active", "archived")
 
+AUTH_TOKEN_PURPOSES = ("password_reset", "email_verification")
+
 
 def sql_in(column: str, values: tuple[str, ...]) -> str:
     """Build a CHECK expression ``column IN ('a', 'b', ...)`` from fixed values."""

@@ -28,7 +28,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..roles import ORG_ROLES, PROJECT_ROLES, PROJECT_STATUSES, PROJECT_TYPES, sql_in
+from ..roles import (
+    AUTH_TOKEN_PURPOSES,
+    ORG_ROLES,
+    PROJECT_ROLES,
+    PROJECT_STATUSES,
+    PROJECT_TYPES,
+    sql_in,
+)
 from .base import Base
 
 
@@ -161,6 +168,68 @@ class ProjectMember(Base):
     added_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"), nullable=False
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AuthSession(Base):
+    """A login session. Only the SHA-256 digest of the cookie token is stored."""
+
+    __tablename__ = "auth_sessions"
+    __table_args__ = (Index("ix_auth_sessions_user_id", "user_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # Synchronizer token for CSRF; only meaningful together with the session cookie.
+    csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class AuthToken(Base):
+    """Single-use token for password reset or email verification (hashed)."""
+
+    __tablename__ = "auth_tokens"
+    __table_args__ = (
+        CheckConstraint(sql_in("purpose", AUTH_TOKEN_PURPOSES), name="purpose_valid"),
+        Index("ix_auth_tokens_user_id", "user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(30), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class LoginFailure(Base):
+    """One failed login attempt, kept only to enforce the lockout window.
+
+    Stores the attempted (lowercased) email and a time. No IP address is stored
+    (DEC-026 privacy default).
+    """
+
+    __tablename__ = "login_failures"
+    __table_args__ = (Index("ix_login_failures_email_created_at", "email", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
