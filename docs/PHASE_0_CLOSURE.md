@@ -146,6 +146,20 @@ The script was exercised once on a GitHub `windows-latest` runner under Windows
 PowerShell 5.1 and all steps passed (2026-11-16). That run used pre-installed
 tools, so it validates the script, not the README's own installer steps.
 
+### 6.1 Recorded run on the owner's machine (2026-11-19)
+
+Windows 10 Home (build 19045), PowerShell 5.1, Node 24.22.3, pnpm 12.16.1,
+uv 0.13.8 (all as expected), folder `E:\smart-engineer` (not a git checkout,
+so the exact commit is unknown). Result of `scripts/windows-validate.ps1`:
+steps 1-6, 8 and 9 **passed** (tools, frozen install, ruff, API tests, web
+lint/typecheck, production build and smoke tests, migrations up/down on SQLite,
+live API checks). Step 7 (Playwright browser tests) **failed to run**: the
+Chromium download from `cdn.playwright.dev` returned HTTP 403 ("not available in
+your location"), so no browser test executed on this machine. This is an
+environment limitation, not evidence of an application defect, and is not
+recorded as a pass. Step 10 (looking at the page) was not covered by the script.
+The 47 browser tests have passed only on CI runners.
+
 ## 7. Sign-off record (to be completed by the owner)
 
 | Field | Value |
