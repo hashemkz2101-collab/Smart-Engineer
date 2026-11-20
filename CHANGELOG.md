@@ -5,6 +5,10 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-01: added users, organizations, memberships, projects and project_members
+  tables (migration 0003), the SQLite foreign-key pragma, schema tests, the Phase 1
+  plan, and owner-delegated Phase 1 decision records. CI passed on all jobs
+  (PR #8). No feature status changed.
 - Renamed the master product specification to `SMART_ENGINEER_MASTER_SPEC.md`
   without changing its contents.
 - Added the phase roadmap, initial phase-status register, open-decision register,

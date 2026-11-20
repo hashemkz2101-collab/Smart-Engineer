@@ -82,3 +82,41 @@ basis: `@playwright/test` 1.65.1 and `@axe-core/playwright` 4.14.0 (browser and
 accessibility tests), `eslint` 10.15.0 and `eslint-config-next` 16.4.6 (web
 lint), and `ruff` 0.17.5 (Python lint). They are exact-pinned and not shipped in
 the application. They are likewise not an approved decision record.
+
+### Phase 1 decisions — owner-delegated, assistant-proposed (2026-11-19)
+
+The owner instructed the assistant to decide the remaining Phase 1 questions
+("این تصمیمات رو خودت بگیر"). These are recorded as the owner's delegation plus
+the assistant's proposal, not as independent owner review. Items touching law or
+privacy are **development defaults** pending DEC-026 legal review and must be
+revisited before RELEASE-001. Any item can be reversed by the owner.
+
+- **DEC-022 (remainder, authentication policy).** Email + password (owner
+  approved). Passwords hashed with stdlib scrypt (no new dependency). Sessions:
+  opaque 32-byte random token, stored hashed (SHA-256), HttpOnly SameSite=Lax
+  cookie (Secure in production), 14-day absolute and 24-hour idle limits,
+  logout revokes, password change revokes other sessions. CSRF: token header on
+  unsafe methods plus Origin check. Password policy: 10–128 characters, no
+  composition rules, rejects the email local part and a small denylist.
+  Brute-force: 5 failures in 15 minutes lock the account for 15 minutes.
+  Recovery: single-use hashed token, 1-hour expiry, responses never reveal
+  whether an email exists, all sessions revoked on reset; real delivery is
+  blocked on DEC-010. Email verification is a setting (off in dev/test, on in
+  production). MFA and phone/SMS login are deferred. IP addresses are not stored.
+- **DEC-017 (tenant, roles, invitations).** The organization is the tenant;
+  registration creates a personal organization owned by the user. Organization
+  roles: owner/admin/member. A project belongs to exactly one organization.
+  Project roles: owner, architect, structural_engineer, mep_engineer,
+  quantity_surveyor; system administrator is a platform flag on users, never a
+  project role. Invitations use a hashed single-use token valid 7 days, shown as
+  a link until a mailer exists (DEC-010). Only the organization owner may export
+  or delete organization data.
+- **DEC-016 (archive part only).** Archiving is a soft state (`archived_at`,
+  `archived_by`); archived projects are hidden from active lists, read-only,
+  visible through an archived filter to organization owners/admins and the
+  project owner, and can be restored. No automatic deletion in Phase 1.
+  Retention periods, hard deletion, encryption at rest, and backup RPO/RTO stay
+  OPEN pending DEC-026.
+- **DEC-003 (first project types).** residential_house, residential_apartment,
+  commercial, mixed_use, other; single-family residential is the first
+  acceptance scenario. Assistant assumption; more types need only a migration.

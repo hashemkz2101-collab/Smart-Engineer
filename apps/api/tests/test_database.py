@@ -16,7 +16,15 @@ from smart_engineer_api.db import BackgroundJob, Base, FeatureFlag
 from smart_engineer_api.db.session import create_db_engine, create_session_factory
 from tests.helpers import API_ROOT, alembic_config
 
-EXPECTED_TABLES = {"feature_flags", "background_jobs"}
+EXPECTED_TABLES = {
+    "feature_flags",
+    "background_jobs",
+    "users",
+    "organizations",
+    "memberships",
+    "projects",
+    "project_members",
+}
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
 
 
