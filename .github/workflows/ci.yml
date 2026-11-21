@@ -152,3 +152,68 @@ jobs:
           name: playwright-results-${{ matrix.os }}
           path: apps/web/test-results
           if-no-files-found: ignore
+
+  fullstack:
+    name: Full stack (real API and PostgreSQL, Ubuntu)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: smart_engineer
+          # Throwaway credential for a disposable CI-only database.
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: smart_engineer_fullstack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smart_engineer -d smart_engineer_fullstack"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SMART_ENGINEER_DATABASE_URL: postgresql+psycopg://smart_engineer:ci_only_password@localhost:5432/smart_engineer_fullstack
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv 0.13.8
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+
+      - name: Install Python 3.14.10
+        run: uv python install 3.14.10
+
+      - name: Sync locked dependencies
+        run: uv sync --locked --all-packages
+
+      - name: Apply database migrations
+        run: uv run --package smart-engineer-api alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install pnpm 12.16.1
+        run: npm install --global pnpm@12.16.1
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Production build
+        run: pnpm --filter @smart-engineer/web run build
+
+      - name: Install Chromium for Playwright
+        run: pnpm --filter @smart-engineer/web exec playwright install --with-deps chromium
+
+      - name: Run the full-stack workflow tests
+        run: pnpm --filter @smart-engineer/web run test:fullstack
+
+      - name: Upload Playwright results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-fullstack-results
+          path: apps/web/test-results-fullstack
+          if-no-files-found: ignore

@@ -5,6 +5,11 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-06: CI job `Full stack` runs the real FastAPI service on migrated PostgreSQL 17 and the
+  real Next.js server with three unmocked browser workflows (sign-up, project
+  create/edit/archive/restore, invitation with single-use link, member role, hidden
+  project 404, sign-out, lockout). It found and led to a fix of a sign-out redirect
+  bug. README API start command corrected (`--group dev --app-dir apps/api`).
 - P1-05: Persian RTL web pages for sign-up, sign-in, password-reset request/confirm,
   project list/create/detail (edit, archive/restore, members, activity), organization
   members and invitations, and invitation acceptance; `/api` is proxied to the API.

@@ -16,6 +16,9 @@ import type { User } from "../lib/types";
 type AuthState =
   | { status: "loading" }
   | { status: "anonymous" }
+  // The user just signed out: protected pages must not bounce to the login page
+  // while the sign-out handler navigates away.
+  | { status: "signed_out" }
   | { status: "authenticated"; user: User };
 
 type Session = { user: User; csrf_token: string };
@@ -61,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The local state is cleared either way; an expired session is already signed out.
     }
     setCsrfToken(null);
-    setState({ status: "anonymous" });
+    setState({ status: "signed_out" });
   }, []);
 
   const value = useMemo(() => ({ state, signIn, signOut }), [state, signIn, signOut]);
