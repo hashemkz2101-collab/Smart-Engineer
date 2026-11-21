@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
@@ -16,6 +17,13 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     }
   }, [state.status, router]);
 
+  if (state.status === "signed_out") {
+    return (
+      <p className="status-text" role="status">
+        از حساب خارج شدید. <Link href="/">بازگشت به صفحهٔ اصلی</Link>
+      </p>
+    );
+  }
   if (state.status !== "authenticated") {
     return (
       <p className="status-text" role="status">

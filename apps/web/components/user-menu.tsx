@@ -13,7 +13,7 @@ export function UserMenu() {
     return null;
   }
 
-  if (state.status === "anonymous") {
+  if (state.status === "anonymous" || state.status === "signed_out") {
     return (
       <nav className="user-menu" aria-label="حساب کاربری">
         <Link href="/login">ورود</Link>
