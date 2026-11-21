@@ -45,7 +45,7 @@ test.describe("sign-up and sign-in", () => {
     await page.getByLabel("رمز عبور").fill("wrong password");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
 
-    await expect(page.getByRole("alert")).toHaveText("ایمیل یا رمز عبور درست نیست.");
+    await expect(page.locator("#main-content").getByRole("alert")).toHaveText("ایمیل یا رمز عبور درست نیست.");
     await expect(page).toHaveURL(/\/login$/);
   });
 
@@ -63,7 +63,7 @@ test.describe("sign-up and sign-in", () => {
     await page.getByLabel("رمز عبور").fill("whatever it is");
     await page.getByRole("button", { name: "ورود", exact: true }).click();
 
-    await expect(page.getByRole("alert")).toContainText("تلاش‌های ناموفق زیاد بود");
+    await expect(page.locator("#main-content").getByRole("alert")).toContainText("تلاش‌های ناموفق زیاد بود");
   });
 
   test("protected pages send anonymous visitors to the login page and back", async ({ page }) => {
@@ -175,7 +175,7 @@ test.describe("projects", () => {
     });
     await page.goto(`/projects/${PROJECT.id}`);
 
-    await expect(page.getByRole("alert")).toHaveText("مورد درخواستی پیدا نشد.");
+    await expect(page.locator("#main-content").getByRole("alert")).toHaveText("مورد درخواستی پیدا نشد.");
   });
 });
 

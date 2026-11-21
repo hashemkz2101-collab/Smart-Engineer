@@ -400,9 +400,20 @@ h1 {
   --color-danger-soft: #3a1f1f;
 }
 
-.header-inner,
-.header-actions {
+.header-inner {
   flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.header-inner .brand {
+  margin-inline-end: auto;
+}
+
+@media (width <= 40rem) {
+  .header-inner .user-menu {
+    flex-basis: 100%;
+    padding-block-end: 0.4rem;
+  }
 }
 
 .user-menu {

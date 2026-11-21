@@ -20,8 +20,8 @@ export function SiteHeader() {
             </Link>
           </nav>
           <ThemeToggle />
-          <UserMenu />
         </div>
+        <UserMenu />
       </div>
     </header>
   );
