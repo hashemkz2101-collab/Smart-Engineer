@@ -29,6 +29,7 @@ const errorMessages: Record<string, string> = {
   not_found: "مورد درخواستی پیدا نشد.",
   cannot_remove_owner: "مالک سازمان را نمی‌توان حذف کرد.",
   owner_role_fixed: "نقش مالک سازمان قابل تغییر نیست.",
+  invalid_site: "برخی فیلدهای داده‌های زمین درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_intake: "برخی فیلدها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   version_conflict:
     "این مرحله در جای دیگری تغییر کرده است. اطلاعات را دوباره بارگذاری کنید.",
@@ -70,6 +71,7 @@ export const activityLabels: Record<string, string> = {
   "project.member_added": "عضوی به پروژه اضافه شد",
   "project.member_role_changed": "نقش یک عضو تغییر کرد",
   "project.member_removed": "عضوی از پروژه حذف شد",
+  "project.site_saved": "داده‌های زمین ذخیره شد",
   "project.intake_saved": "اطلاعات ورودی پروژه ذخیره شد",
 };
 
@@ -86,4 +88,13 @@ export const fieldReasonMessages: Record<string, string> = {
   invalid_choice: "یکی از گزینه‌های موجود را انتخاب کنید.",
   unknown_field: "این فیلد شناخته‌شده نیست.",
   coordinates_need_both: "عرض و طول جغرافیایی باید با هم وارد شوند.",
+  not_an_integer: "یک عدد صحیح وارد کنید.",
+  not_a_boolean: "مقدار باید بله یا خیر باشد.",
+  not_a_list: "فهرست درست نیست.",
+  not_an_object: "ردیف درست نیست.",
+  too_many_items: "تعداد ردیف‌ها از حد مجاز بیشتر است.",
+  required: "این مورد ضروری است.",
+  too_few_points: "دست‌کم سه نقطه لازم است.",
+  degenerate: "نقاط مساحت صفر می‌سازند.",
+  self_intersecting: "مرز قطعه خودش را قطع می‌کند.",
 };

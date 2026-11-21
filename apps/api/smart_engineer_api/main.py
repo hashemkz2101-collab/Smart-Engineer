@@ -10,6 +10,9 @@ from .errors import register_exception_handlers
 from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
+from .site_routes import router as site_router
+from .site_routes import site_error_handler, site_validation_handler
+from .site_service import SiteError, SiteValidationError
 from .logging_config import configure_logging
 from .middleware import CorrelationIdMiddleware
 from .org_routes import access_denied_handler, org_error_handler
@@ -55,12 +58,15 @@ def create_app(
     app.add_exception_handler(ProjectError, project_error_handler)
     app.add_exception_handler(IntakeError, intake_error_handler)
     app.add_exception_handler(IntakeValidationError, intake_validation_handler)
+    app.add_exception_handler(SiteError, site_error_handler)
+    app.add_exception_handler(SiteValidationError, site_validation_handler)
     app.include_router(operational_router)
     app.include_router(v1_router)
     app.include_router(auth_router, prefix=API_V1_PREFIX)
     app.include_router(org_router, prefix=API_V1_PREFIX)
     app.include_router(project_router, prefix=API_V1_PREFIX)
     app.include_router(intake_router, prefix=API_V1_PREFIX)
+    app.include_router(site_router, prefix=API_V1_PREFIX)
     return app
 
 

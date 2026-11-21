@@ -738,3 +738,32 @@ textarea[aria-invalid="true"] {
 .tab .badge {
   margin-inline-start: 0.35rem;
 }
+
+.site-list {
+  margin-block: 1rem;
+}
+
+.site-row {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-block: 0.5rem;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 0.5rem;
+}
+
+.site-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.area-report {
+  padding: 0.75rem;
+  margin-block: 0.75rem;
+  border-inline-start: 4px solid currentColor;
+}
+
+.area-report[data-status="discrepancy"] {
+  font-weight: 600;
+}
