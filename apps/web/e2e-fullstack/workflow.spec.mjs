@@ -34,6 +34,26 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("ویلای ویرایش‌شده");
   await expect(page.getByText("مشخصات پروژه ویرایش شد")).toBeVisible();
 
+  // Intake: save a step incomplete, reload, finish it, and see invalid input rejected.
+  await page.getByRole("button", { name: /موقعیت/ }).click();
+  await page.getByLabel("شهر (ضروری)").fill("تهران");
+  await page.getByRole("button", { name: "ذخیرهٔ این مرحله" }).click();
+  await expect(page.getByText(/برای تکمیل این مرحله لازم است: استان/)).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /موقعیت/ }).click();
+  await expect(page.getByLabel("شهر (ضروری)")).toHaveValue("تهران");
+  await page.getByLabel("استان (ضروری)").fill("تهران");
+  await page.getByLabel("عرض جغرافیایی").fill("95");
+  await page.getByLabel("طول جغرافیایی").fill("51.4");
+  await page.getByRole("button", { name: "ذخیرهٔ این مرحله" }).click();
+  await expect(page.getByText("عدد خارج از محدودهٔ مجاز است.")).toBeVisible();
+  await page.getByLabel("عرض جغرافیایی").fill("35.69");
+  await page.getByRole("button", { name: "ذخیرهٔ این مرحله" }).click();
+  await expect(page.getByText("ذخیره شد؛ این مرحله کامل است.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /موقعیت/ }).click();
+  await expect(page.getByLabel("عرض جغرافیایی")).toHaveValue("35.69");
+
   // Archive and restore.
   await page.getByRole("button", { name: "بایگانی پروژه" }).click();
   await expect(page.getByText("این پروژه بایگانی شده و فقط‌خواندنی است.")).toBeVisible();

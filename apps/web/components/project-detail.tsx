@@ -13,6 +13,7 @@ import {
 import type { ActivityEvent, Project, ProjectMember } from "../lib/types";
 import { useResource } from "../lib/use-resource";
 import { FormError, FormField, FormNotice } from "./form-field";
+import { IntakePanel } from "./intake-panel";
 
 type ProjectResponse = { project: Project; my_role: string; permissions: string[] };
 
@@ -332,6 +333,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       </div>
 
       {can("project.update") ? <EditForm key={project.name} project={project} onSaved={reload} /> : null}
+
+      {myRole === "org_admin" ? null : (
+        <IntakePanel
+          projectId={projectId}
+          canEdit={can("project.intake.edit")}
+          version={version}
+        />
+      )}
 
       {myRole === "org_admin" ? null : (
         <Members

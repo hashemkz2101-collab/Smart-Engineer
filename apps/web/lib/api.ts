@@ -7,11 +7,13 @@ import { messageForCode } from "./messages";
 export class ApiError extends Error {
   status: number;
   code: string;
+  details: unknown[];
 
-  constructor(status: number, code: string) {
+  constructor(status: number, code: string, details: unknown[] = []) {
     super(code);
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 
   get userMessage(): string {
@@ -62,12 +64,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
 
   if (!response.ok) {
-    const envelope = data as { error?: { code?: unknown } } | null;
+    const envelope = data as { error?: { code?: unknown; details?: unknown } } | null;
     const code =
       typeof envelope?.error?.code === "string"
         ? envelope.error.code
         : `http_${response.status}`;
-    throw new ApiError(response.status, code);
+    const details = Array.isArray(envelope?.error?.details) ? envelope.error.details : [];
+    throw new ApiError(response.status, code, details);
   }
   return data as T;
 }
@@ -76,5 +79,6 @@ export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {}),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
+  put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),
 };

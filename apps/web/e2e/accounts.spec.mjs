@@ -224,3 +224,78 @@ test.describe("accessibility and layout of the new pages", () => {
     });
   }
 });
+
+test.describe("project intake", () => {
+  const intakeUrl = `/projects/${PROJECT.id}`;
+
+  test("a step can be saved incomplete and tells what is still missing", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/intake/location`]: (route) =>
+        route
+          .fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              step: "location",
+              data: { city: "تهران" },
+              complete: false,
+              missing: ["province"],
+              version: 1,
+            }),
+          })
+          .then(() => true),
+    });
+    await page.goto(intakeUrl);
+    await page.getByRole("button", { name: /موقعیت/ }).click();
+    await page.getByLabel("شهر (ضروری)").fill("تهران");
+    await page.getByRole("button", { name: "ذخیرهٔ این مرحله" }).click();
+
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد." })).toContainText("استان");
+    const put = state.requests.find((r) => r.key.startsWith("PUT") && r.key.endsWith("/location"));
+    expect(put.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(put.body.version).toBe(0);
+    expect(put.body.data.city).toBe("تهران");
+  });
+
+  test("field errors from the API are shown next to the fields", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      [`PUT /projects/${PROJECT.id}/intake/location`]: (route) =>
+        route
+          .fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: {
+                code: "invalid_intake",
+                message: "x",
+                correlation_id: "t",
+                details: [{ field: "latitude", reason: "out_of_range" }],
+              },
+            }),
+          })
+          .then(() => true),
+    });
+    await page.goto(intakeUrl);
+    await page.getByRole("button", { name: /موقعیت/ }).click();
+    await page.getByLabel("عرض جغرافیایی").fill("95");
+    await page.getByRole("button", { name: "ذخیرهٔ این مرحله" }).click();
+
+    await expect(page.getByText("عدد خارج از محدودهٔ مجاز است.")).toBeVisible();
+    await expect(page.getByLabel("عرض جغرافیایی")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  test("members without edit permission see the data read-only", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      permissions: ["project.view"],
+      intake: { people: { data: { client: "شرکت نمونه" }, complete: true, version: 1 } },
+    });
+    await page.goto(intakeUrl);
+    await page.getByRole("button", { name: /افراد/ }).click();
+
+    await expect(page.getByLabel("کارفرما (ضروری)")).toHaveValue("شرکت نمونه");
+    await expect(page.getByLabel("کارفرما (ضروری)")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "ذخیرهٔ این مرحله" })).toHaveCount(0);
+  });
+});

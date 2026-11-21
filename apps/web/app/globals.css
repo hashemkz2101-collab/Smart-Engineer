@@ -700,3 +700,41 @@ textarea {
   border-block-end: 1px solid var(--color-border);
   padding-block-end: 0.6rem;
 }
+
+.plain-fieldset {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.tabs {
+  flex-wrap: wrap;
+}
+
+.tab .badge {
+  margin-inline-start: 0.35rem;
+}
