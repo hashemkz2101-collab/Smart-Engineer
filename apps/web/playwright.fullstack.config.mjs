@@ -25,7 +25,7 @@ export default defineConfig({
   use: { baseURL, locale: "fa-IR", trace: "retain-on-failure" },
   webServer: [
     {
-      command: `uv run --package smart-engineer-api --group dev uvicorn smart_engineer_api.main:app --host ${host} --port ${apiPort}`,
+      command: `uv run --package smart-engineer-api --group dev uvicorn --app-dir apps/api --host ${host} --port ${apiPort} smart_engineer_api.main:app`,
       cwd: repoRoot,
       url: `http://${host}:${apiPort}/health`,
       reuseExistingServer: false,

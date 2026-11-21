@@ -23,6 +23,7 @@ __pycache__/
 # Playwright
 playwright-report/
 test-results/
+test-results-fullstack/
 
 # Windows validation output
 windows-validation-*/

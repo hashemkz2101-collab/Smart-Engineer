@@ -90,7 +90,7 @@ with a database and allow the web origin, for example:
 ```bash
 SMART_ENGINEER_DATABASE_URL=sqlite:///dev.db \
 SMART_ENGINEER_ALLOWED_ORIGINS=http://127.0.0.1:3000 \
-uv run --package smart-engineer-api uvicorn smart_engineer_api.main:app --port 8000
+uv run --package smart-engineer-api --group dev uvicorn --app-dir apps/api --host 127.0.0.1 --port 8000 smart_engineer_api.main:app
 ```
 
 Run the migrations first (see below). Pages: `/register`, `/login`, `/projects`,
