@@ -112,7 +112,7 @@ test("owner and guest complete the account, project and invitation workflow", as
   await page.goto(projectUrl);
   await page.getByLabel("ایمیل عضو").fill(guestEmail);
   await page.locator("#member-role").selectOption("architect");
-  await page.getByRole("button", { name: "افزودن" }).click();
+  await page.getByRole("button", { name: "افزودن", exact: true }).click();
   await expect(page.getByText("مهمان آزمایشی")).toBeVisible();
   await expect(page.getByText("عضوی به پروژه اضافه شد")).toBeVisible();
 

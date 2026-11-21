@@ -10,9 +10,6 @@ from .errors import register_exception_handlers
 from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
-from .site_routes import router as site_router
-from .site_routes import site_error_handler, site_validation_handler
-from .site_service import SiteError, SiteValidationError
 from .logging_config import configure_logging
 from .middleware import CorrelationIdMiddleware
 from .org_routes import access_denied_handler, org_error_handler
@@ -23,6 +20,9 @@ from .project_routes import project_error_handler
 from .project_routes import router as project_router
 from .project_service import ProjectError
 from .routes import API_V1_PREFIX, operational_router, v1_router
+from .site_routes import router as site_router
+from .site_routes import site_error_handler, site_validation_handler
+from .site_service import SiteError, SiteValidationError
 
 
 def create_app(
