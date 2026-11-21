@@ -12,7 +12,8 @@
     "test": "node --test tests/smoke.test.mjs",
     "test:ci": "node scripts/run-smoke.mjs",
     "lint": "eslint .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:fullstack": "playwright test -c playwright.fullstack.config.mjs"
   },
   "dependencies": {
     "next": "16.4.6",
