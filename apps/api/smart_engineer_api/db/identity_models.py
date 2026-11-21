@@ -33,6 +33,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from ..roles import (
     AUTH_TOKEN_PURPOSES,
+    INTAKE_STEPS,
     INVITABLE_ORG_ROLES,
     ORG_ROLES,
     PROJECT_ROLES,
@@ -292,4 +293,41 @@ class ActivityEvent(Base):
     detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class IntakeStep(Base):
+    """One saved step of a project's intake form (INP-001/002).
+
+    ``data`` holds only the non-empty, validated fields. A step can be saved
+    incomplete; ``complete`` is derived from the required fields on every save.
+    ``version`` supports optimistic locking so two devices cannot silently
+    overwrite each other.
+    """
+
+    __tablename__ = "intake_steps"
+    __table_args__ = (
+        UniqueConstraint("project_id", "step_key"),
+        CheckConstraint(sql_in("step_key", INTAKE_STEPS), name="step_key_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    step_key: Mapped[str] = mapped_column(String(30), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    complete: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
