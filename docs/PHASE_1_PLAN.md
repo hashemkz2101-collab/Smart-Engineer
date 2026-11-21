@@ -11,8 +11,9 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-03 | Organizations, memberships, invitations, role checks | IAM-002, ROLE-001 | merged (backend only) |
 | P1-04 | Project create/list/read/update/archive/restore with audit events | PRJ-001, PRJ-002 | merged (backend only) |
 | P1-05 | Persian RTL frontend for the above | IAM/PRJ | merged (UI tested against a mocked API; not yet run against the real API by the owner) |
-| P1-06 | Full-stack CI run: real web + API + PostgreSQL, unmocked workflows | IAM-001/002, PRJ-001/002, FLOW-001 | in review |
-| P1-07+ | Input forms, site, requirements, files (DEC-023), security | INP, SITE, REQ, FILE-001, SEC-002 | planned |
+| P1-06 | Full-stack CI run: real web + API + PostgreSQL, unmocked workflows | IAM-001/002, PRJ-001/002, FLOW-001 | merged |
+| P1-07 | Staged project intake: identity, location, people, land-status notes | INP-001, INP-002 | in review |
+| P1-08+ | Site/land (SITE), zoning inputs (RULE-DATA), requirements (REQ), files (DEC-023), security | SITE, RULE-DATA, REQ, FILE-001, SEC-002 | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys

@@ -22,6 +22,7 @@ export const PROJECT = {
 };
 export const OWNER_PERMISSIONS = [
   "project.view",
+  "project.intake.edit",
   "project.update",
   "project.archive",
   "project.restore",
@@ -100,6 +101,17 @@ export async function mockApi(page, state = {}, overrides = {}) {
               created_at: PROJECT.created_at,
             },
           ],
+        });
+      case `GET /projects/${PROJECT.id}/intake`:
+        return json(route, 200, {
+          steps: ["identity", "location", "people", "legal"].map((step) => ({
+            step,
+            data: state.intake?.[step]?.data ?? {},
+            complete: state.intake?.[step]?.complete ?? false,
+            missing: [],
+            version: state.intake?.[step]?.version ?? 0,
+            updated_at: null,
+          })),
         });
       case "GET /orgs/o-1/members":
         return json(route, 200, {

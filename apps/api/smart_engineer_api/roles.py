@@ -33,6 +33,8 @@ PROJECT_TYPES = (
 
 PROJECT_STATUSES = ("active", "archived")
 
+INTAKE_STEPS = ("identity", "location", "people", "legal")
+
 AUTH_TOKEN_PURPOSES = ("password_reset", "email_verification")
 
 

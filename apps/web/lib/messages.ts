@@ -29,6 +29,10 @@ const errorMessages: Record<string, string> = {
   not_found: "مورد درخواستی پیدا نشد.",
   cannot_remove_owner: "مالک سازمان را نمی‌توان حذف کرد.",
   owner_role_fixed: "نقش مالک سازمان قابل تغییر نیست.",
+  invalid_intake: "برخی فیلدها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
+  version_conflict:
+    "این مرحله در جای دیگری تغییر کرده است. اطلاعات را دوباره بارگذاری کنید.",
+  unknown_step: "این مرحله وجود ندارد.",
 };
 
 export function messageForCode(code: string): string {
@@ -66,9 +70,20 @@ export const activityLabels: Record<string, string> = {
   "project.member_added": "عضوی به پروژه اضافه شد",
   "project.member_role_changed": "نقش یک عضو تغییر کرد",
   "project.member_removed": "عضوی از پروژه حذف شد",
+  "project.intake_saved": "اطلاعات ورودی پروژه ذخیره شد",
 };
 
 export function formatDate(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("fa-IR");
 }
+
+export const fieldReasonMessages: Record<string, string> = {
+  not_text: "مقدار باید متن باشد.",
+  too_long: "متن از حد مجاز طولانی‌تر است.",
+  not_a_number: "یک عدد معتبر وارد کنید.",
+  out_of_range: "عدد خارج از محدودهٔ مجاز است.",
+  invalid_choice: "یکی از گزینه‌های موجود را انتخاب کنید.",
+  unknown_field: "این فیلد شناخته‌شده نیست.",
+  coordinates_need_both: "عرض و طول جغرافیایی باید با هم وارد شوند.",
+};
