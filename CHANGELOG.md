@@ -5,6 +5,12 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-07: staged project intake (identity, location with coordinates, people, land-status
+  notes): partial saves, per-field error reasons, optimistic version locking, owner-only
+  edit with member read access, archived read-only, activity events, migration 0007, and
+  the Persian form UI. Covered by API tests (SQLite/PostgreSQL), mocked-UI tests, and the
+  unmocked full-stack run. Legal fields record user statements only; no validation of
+  legal validity. No feature status changed.
 - P1-06: CI job `Full stack` runs the real FastAPI service on migrated PostgreSQL 17 and the
   real Next.js server with three unmocked browser workflows (sign-up, project
   create/edit/archive/restore, invitation with single-use link, member role, hidden
