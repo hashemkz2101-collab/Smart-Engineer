@@ -332,7 +332,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         ) : null}
       </div>
 
-      {can("project.update") ? <EditForm key={project.name} project={project} onSaved={reload} /> : null}
+      {can("project.update") ? <EditForm project={project} onSaved={reload} /> : null}
 
       {myRole === "org_admin" ? null : (
         <IntakePanel
