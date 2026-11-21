@@ -5,6 +5,15 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-09: zoning / building-control inputs in nine categories (land use/zone, coverage,
+  density and floor area, floors and height, setbacks, parking/access, daylight and
+  openings, stairs/elevator/ramp/exit, local constraints). Each record carries a source
+  (type, title or reference, Jalali or Gregorian date) and an explicit "source verified"
+  statement; status is derived: no values = unknown, values without a complete verified
+  source = needs inquiry, otherwise verified. Values are user-entered only and never
+  asserted as law or produced by AI. Owner and architect edit, other roles read, archived
+  read-only, activity events, migration 0009, Persian UI, API tests (SQLite/PostgreSQL),
+  mocked-UI and full-stack tests. No feature status changed.
 - P1-08: site / land data in five versioned sections (parcel, access and orientation,
   terrain, surroundings, soil): rectangle sides or polygon vertices with computed area
   (shoelace; self-intersecting or degenerate boundaries rejected), survey references and

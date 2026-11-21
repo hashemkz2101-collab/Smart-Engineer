@@ -23,6 +23,9 @@ from .routes import API_V1_PREFIX, operational_router, v1_router
 from .site_routes import router as site_router
 from .site_routes import site_error_handler, site_validation_handler
 from .site_service import SiteError, SiteValidationError
+from .zoning_routes import router as zoning_router
+from .zoning_routes import zoning_error_handler, zoning_validation_handler
+from .zoning_service import ZoningError, ZoningValidationError
 
 
 def create_app(
@@ -60,6 +63,8 @@ def create_app(
     app.add_exception_handler(IntakeValidationError, intake_validation_handler)
     app.add_exception_handler(SiteError, site_error_handler)
     app.add_exception_handler(SiteValidationError, site_validation_handler)
+    app.add_exception_handler(ZoningError, zoning_error_handler)
+    app.add_exception_handler(ZoningValidationError, zoning_validation_handler)
     app.include_router(operational_router)
     app.include_router(v1_router)
     app.include_router(auth_router, prefix=API_V1_PREFIX)
@@ -67,6 +72,7 @@ def create_app(
     app.include_router(project_router, prefix=API_V1_PREFIX)
     app.include_router(intake_router, prefix=API_V1_PREFIX)
     app.include_router(site_router, prefix=API_V1_PREFIX)
+    app.include_router(zoning_router, prefix=API_V1_PREFIX)
     return app
 
 

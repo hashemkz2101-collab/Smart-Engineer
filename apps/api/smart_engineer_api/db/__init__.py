@@ -12,6 +12,7 @@ from .identity_models import (
     ProjectMember,
     SiteSection,
     User,
+    ZoningRecord,
 )
 from .models import BackgroundJob, FeatureFlag
 
@@ -31,4 +32,5 @@ __all__ = [
     "ProjectMember",
     "SiteSection",
     "User",
+    "ZoningRecord",
 ]

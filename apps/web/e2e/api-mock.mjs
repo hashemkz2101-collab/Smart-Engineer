@@ -24,6 +24,7 @@ export const OWNER_PERMISSIONS = [
   "project.view",
   "project.intake.edit",
   "project.site.edit",
+  "project.zoning.edit",
   "project.update",
   "project.archive",
   "project.restore",
@@ -142,6 +143,20 @@ export async function mockApi(page, state = {}, overrides = {}) {
                 }
               : base;
           }),
+        });
+      case `GET /projects/${PROJECT.id}/zoning`:
+        return json(route, 200, {
+          records: [
+            "land_use", "coverage", "density", "floors_height", "setbacks",
+            "parking_access", "daylight_openings", "circulation", "local_constraints",
+          ].map((field) => ({
+            field,
+            data: state.zoning?.[field]?.data ?? {},
+            status: state.zoning?.[field]?.status ?? "unknown",
+            source_missing: state.zoning?.[field]?.source_missing ?? [],
+            version: state.zoning?.[field]?.version ?? 0,
+            updated_at: null,
+          })),
         });
       case "GET /orgs/o-1/members":
         return json(route, 200, {

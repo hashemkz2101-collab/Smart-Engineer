@@ -18,6 +18,7 @@ EXPECTED_PROJECT_ALLOWED = {
     "project.members.manage": {"owner"},
     "project.intake.edit": {"owner"},
     "project.site.edit": {"owner", "architect"},
+    "project.zoning.edit": {"owner", "architect"},
     "project.architect_input.edit": {"architect"},
     "project.space_review": {"architect"},
     "project.structural_input.edit": {"structural_engineer"},

@@ -38,6 +38,19 @@ INTAKE_STEPS = ("identity", "location", "people", "legal")
 # Site / land data sections (SITE-001, SITE-002).
 SITE_SECTIONS = ("parcel", "access", "terrain", "surroundings", "soil")
 
+# Zoning / building-control input categories (RULE-DATA-001, master spec 3.3).
+ZONING_FIELDS = (
+    "land_use",
+    "coverage",
+    "density",
+    "floors_height",
+    "setbacks",
+    "parking_access",
+    "daylight_openings",
+    "circulation",
+    "local_constraints",
+)
+
 AUTH_TOKEN_PURPOSES = ("password_reset", "email_verification")
 
 
