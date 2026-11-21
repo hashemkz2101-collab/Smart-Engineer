@@ -20,6 +20,9 @@ from .project_routes import project_error_handler
 from .project_routes import router as project_router
 from .project_service import ProjectError
 from .routes import API_V1_PREFIX, operational_router, v1_router
+from .site_routes import router as site_router
+from .site_routes import site_error_handler, site_validation_handler
+from .site_service import SiteError, SiteValidationError
 
 
 def create_app(
@@ -55,12 +58,15 @@ def create_app(
     app.add_exception_handler(ProjectError, project_error_handler)
     app.add_exception_handler(IntakeError, intake_error_handler)
     app.add_exception_handler(IntakeValidationError, intake_validation_handler)
+    app.add_exception_handler(SiteError, site_error_handler)
+    app.add_exception_handler(SiteValidationError, site_validation_handler)
     app.include_router(operational_router)
     app.include_router(v1_router)
     app.include_router(auth_router, prefix=API_V1_PREFIX)
     app.include_router(org_router, prefix=API_V1_PREFIX)
     app.include_router(project_router, prefix=API_V1_PREFIX)
     app.include_router(intake_router, prefix=API_V1_PREFIX)
+    app.include_router(site_router, prefix=API_V1_PREFIX)
     return app
 
 

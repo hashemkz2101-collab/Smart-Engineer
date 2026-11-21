@@ -39,6 +39,7 @@ from ..roles import (
     PROJECT_ROLES,
     PROJECT_STATUSES,
     PROJECT_TYPES,
+    SITE_SECTIONS,
     sql_in,
 )
 from .base import Base
@@ -314,6 +315,42 @@ class IntakeStep(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     step_key: Mapped[str] = mapped_column(String(30), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    complete: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class SiteSection(Base):
+    """One saved section of a project's site / land data (SITE-001/002).
+
+    Same versioned-document pattern as ``IntakeStep``. ``data`` holds only values
+    the user supplied: omitted optional values are never defaulted, so a missing
+    soil value stays missing. Explicitly empty lists are kept (they mean "none").
+    """
+
+    __tablename__ = "site_sections"
+    __table_args__ = (
+        UniqueConstraint("project_id", "section_key"),
+        CheckConstraint(sql_in("section_key", SITE_SECTIONS), name="section_key_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    section_key: Mapped[str] = mapped_column(String(30), nullable=False)
     data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     complete: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")

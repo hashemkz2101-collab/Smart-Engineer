@@ -54,6 +54,27 @@ test("owner and guest complete the account, project and invitation workflow", as
   await page.getByRole("button", { name: /موقعیت/ }).click();
   await expect(page.getByLabel("عرض جغرافیایی")).toHaveValue("35.69");
 
+  // Site data: an L-shaped parcel (75 m2) declared as 80 m2 reports the discrepancy.
+  await page.getByLabel("شکل قطعه").selectOption("irregular");
+  await page.getByLabel("مساحت اظهارشده (متر مربع)").fill("80");
+  const vertices = [[0, 0], [10, 0], [10, 5], [5, 5], [5, 10], [0, 10]];
+  const listLabel = "رئوس مرز (به ترتیب دور قطعه)";
+  for (const [index, [x, y]] of vertices.entries()) {
+    await page.getByRole("button", { name: `افزودن ردیف به ${listLabel}` }).click();
+    await page.getByLabel(`${listLabel} ${index + 1}: X (ضروری)`).fill(String(x));
+    await page.getByLabel(`${listLabel} ${index + 1}: Y (ضروری)`).fill(String(y));
+  }
+  await page.getByRole("button", { name: "ذخیرهٔ این بخش" }).click();
+  await expect(page.getByText("ذخیره شد؛ این بخش کامل است.")).toBeVisible();
+  const report = page.getByTestId("area-report");
+  await expect(report).toHaveAttribute("data-status", "discrepancy");
+  await expect(report).toContainText("75");
+  await page.reload();
+  await expect(page.getByLabel(`${listLabel} 6: Y (ضروری)`)).toHaveValue("10");
+  await expect(page.getByTestId("area-report")).toHaveAttribute("data-status", "discrepancy");
+  await page.getByRole("button", { name: /خاک/ }).click();
+  await expect(page.getByTestId("soil-not-provided")).toContainText("ظرفیت باربری");
+
   // Archive and restore.
   await page.getByRole("button", { name: "بایگانی پروژه" }).click();
   await expect(page.getByText("این پروژه بایگانی شده و فقط‌خواندنی است.")).toBeVisible();
@@ -91,7 +112,7 @@ test("owner and guest complete the account, project and invitation workflow", as
   await page.goto(projectUrl);
   await page.getByLabel("ایمیل عضو").fill(guestEmail);
   await page.locator("#member-role").selectOption("architect");
-  await page.getByRole("button", { name: "افزودن" }).click();
+  await page.getByRole("button", { name: "افزودن", exact: true }).click();
   await expect(page.getByText("مهمان آزمایشی")).toBeVisible();
   await expect(page.getByText("عضوی به پروژه اضافه شد")).toBeVisible();
 
@@ -101,6 +122,7 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(guest.getByText(/نقش شما:\s*معمار/)).toBeVisible();
   await expect(guest.getByRole("button", { name: "بایگانی پروژه" })).toHaveCount(0);
   await expect(guest.getByRole("button", { name: "ذخیرهٔ تغییرات" })).toBeVisible();
+  await expect(guest.getByRole("button", { name: "ذخیرهٔ این بخش" })).toBeVisible();
 
   await guestContext.close();
 });

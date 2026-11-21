@@ -5,6 +5,16 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-08: site / land data in five versioned sections (parcel, access and orientation,
+  terrain, surroundings, soil): rectangle sides or polygon vertices with computed area
+  (shoelace; self-intersecting or degenerate boundaries rejected), survey references and
+  points, and an explicit declared-vs-computed area report (match within a 1% development
+  default, otherwise discrepancy). Neighbors, shared walls, barriers, trees, wells,
+  channels, existing utilities and easements are distinct fields; empty lists mean
+  "none"; omitted soil values are reported as `not_provided`, never defaulted. Owner and
+  architect edit, other roles read, archived read-only, activity events, migration 0008,
+  Persian UI, API tests (SQLite/PostgreSQL), mocked-UI and full-stack tests. Numbers are
+  user-entered; nothing asserts surveying or legal validity. No feature status changed.
 - P1-07: staged project intake (identity, location with coordinates, people, land-status
   notes): partial saves, per-field error reasons, optimistic version locking, owner-only
   edit with member read access, archived read-only, activity events, migration 0007, and

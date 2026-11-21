@@ -299,3 +299,137 @@ test.describe("project intake", () => {
     await expect(page.getByRole("button", { name: "ذخیرهٔ این مرحله" })).toHaveCount(0);
   });
 });
+
+test.describe("site data", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const parcelResponse = {
+    section: "parcel",
+    data: { shape: "irregular" },
+    complete: true,
+    missing: [],
+    not_provided: [],
+    version: 1,
+    derived: {
+      status: "discrepancy",
+      area_source: "vertices",
+      computed_area_m2: 75,
+      declared_area_m2: 80,
+      difference_m2: -5,
+      difference_percent: 6.25,
+      tolerance_percent: 1,
+      computed_side_lengths_m: [10, 5, 5, 5, 5, 10],
+    },
+  };
+
+  test("an irregular parcel is sent as vertices and the area discrepancy is shown", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/site/parcel`]: (route) =>
+        route
+          .fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(parcelResponse) })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByLabel("شکل قطعه").selectOption("irregular");
+    await page.getByLabel("مساحت اظهارشده (متر مربع)").fill("80");
+    for (const [index, [x, y]] of [["0", "0"], ["10", "0"], ["10", "5"]].entries()) {
+      await page.getByRole("button", { name: "افزودن ردیف به رئوس مرز (به ترتیب دور قطعه)" }).click();
+      await page.getByLabel(`رئوس مرز (به ترتیب دور قطعه) ${index + 1}: X (ضروری)`).fill(x);
+      await page.getByLabel(`رئوس مرز (به ترتیب دور قطعه) ${index + 1}: Y (ضروری)`).fill(y);
+    }
+    await page.getByRole("button", { name: "ذخیرهٔ این بخش" }).click();
+
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد؛ این بخش کامل است." })).toBeVisible();
+    const put = state.requests.find((r) => r.key === `PUT /projects/${PROJECT.id}/site/parcel`);
+    expect(put.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(put.body.version).toBe(0);
+    expect(put.body.data.vertices).toEqual([
+      { x: "0", y: "0" },
+      { x: "10", y: "0" },
+      { x: "10", y: "5" },
+    ]);
+    expect(put.body.data.sides).toBeUndefined();
+  });
+
+  test("the API's computed area report is displayed with the discrepancy", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, site: { parcel: parcelResponse } });
+    await page.goto(url);
+    const report = page.getByTestId("area-report");
+    await expect(report).toHaveAttribute("data-status", "discrepancy");
+    await expect(report).toContainText("اختلاف مساحت");
+    await expect(report).toContainText("75");
+    await expect(report).toContainText("80");
+    await expect(report).toContainText("این اختلاف باید بررسی شود");
+  });
+
+  test("list errors from the API name the row and column", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      [`PUT /projects/${PROJECT.id}/site/parcel`]: (route) =>
+        route
+          .fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({
+              error: {
+                code: "invalid_site",
+                message: "x",
+                correlation_id: "t",
+                details: [{ field: "vertices", reason: "too_few_points" }],
+              },
+            }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByLabel("شکل قطعه").selectOption("polygon");
+    await page.getByRole("button", { name: "ذخیرهٔ این بخش" }).click();
+    await expect(page.getByText("دست‌کم سه نقطه لازم است.")).toBeVisible();
+  });
+
+  test("omitted soil values are reported as not provided and surroundings send explicit lists", async ({ page }) => {
+    const state = { loggedIn: true, site: { soil: { data: { soil_type: "clay" }, complete: true, version: 1,
+      not_provided: ["bearing_capacity_kpa", "groundwater_depth_m", "report_reference"] } } };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/site/surroundings`]: (route) =>
+        route
+          .fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ section: "surroundings", data: {}, complete: true, missing: [],
+              not_provided: [], version: 1 }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /خاک/ }).click();
+    const missing = page.getByTestId("soil-not-provided");
+    await expect(missing).toContainText("ثبت‌نشده");
+    await expect(missing).toContainText("ظرفیت باربری");
+    await expect(page.getByLabel("ظرفیت باربری (کیلوپاسکال)")).toHaveValue("");
+
+    await page.getByRole("button", { name: /محیط اطراف/ }).click();
+    await page.getByRole("button", { name: "افزودن ردیف به همسایگان" }).click();
+    await page.getByLabel("همسایگان 1: سمت (ضروری)").selectOption("east");
+    await page.getByLabel("دیوار مشترک").check();
+    await page.getByRole("button", { name: "ذخیرهٔ این بخش" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد" })).toBeVisible();
+    const put = state.requests.find((r) => r.key.endsWith("/site/surroundings"));
+    expect(put.body.data.neighbors).toEqual([{ side: "east", shared_wall: true }]);
+    for (const name of ["trees", "wells", "channels", "existing_utilities", "easements"]) {
+      expect(put.body.data[name]).toEqual([]);
+    }
+  });
+
+  test("members without edit permission see site data read-only", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      permissions: ["project.view"],
+      site: { soil: { data: { soil_type: "rock" }, complete: true, version: 1, not_provided: [] } },
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /خاک/ }).click();
+    await expect(page.getByLabel("نوع خاک")).toHaveValue("rock");
+    await expect(page.getByLabel("نوع خاک")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "ذخیرهٔ این بخش" })).toHaveCount(0);
+  });
+});

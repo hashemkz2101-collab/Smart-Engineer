@@ -23,6 +23,7 @@ export const PROJECT = {
 export const OWNER_PERMISSIONS = [
   "project.view",
   "project.intake.edit",
+  "project.site.edit",
   "project.update",
   "project.archive",
   "project.restore",
@@ -112,6 +113,35 @@ export async function mockApi(page, state = {}, overrides = {}) {
             version: state.intake?.[step]?.version ?? 0,
             updated_at: null,
           })),
+        });
+      case `GET /projects/${PROJECT.id}/site`:
+        return json(route, 200, {
+          sections: ["parcel", "access", "terrain", "surroundings", "soil"].map((section) => {
+            const saved = state.site?.[section];
+            const base = {
+              section,
+              data: saved?.data ?? {},
+              complete: saved?.complete ?? false,
+              missing: [],
+              not_provided: saved?.not_provided ?? [],
+              version: saved?.version ?? 0,
+              updated_at: null,
+            };
+            return section === "parcel"
+              ? {
+                  ...base,
+                  derived: saved?.derived ?? {
+                    status: "not_computable",
+                    computed_area_m2: null,
+                    declared_area_m2: null,
+                    difference_m2: null,
+                    difference_percent: null,
+                    tolerance_percent: 1,
+                    computed_side_lengths_m: [],
+                  },
+                }
+              : base;
+          }),
         });
       case "GET /orgs/o-1/members":
         return json(route, 200, {

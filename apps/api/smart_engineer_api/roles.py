@@ -35,6 +35,9 @@ PROJECT_STATUSES = ("active", "archived")
 
 INTAKE_STEPS = ("identity", "location", "people", "legal")
 
+# Site / land data sections (SITE-001, SITE-002).
+SITE_SECTIONS = ("parcel", "access", "terrain", "surroundings", "soil")
+
 AUTH_TOKEN_PURPOSES = ("password_reset", "email_verification")
 
 
