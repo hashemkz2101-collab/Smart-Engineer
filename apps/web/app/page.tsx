@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <>
@@ -31,12 +33,21 @@ export default function HomePage() {
           </span>
           <div>
             <h2 id="workspace-title">محیط کار</h2>
-            <p className="panel-kicker">پوستهٔ پایهٔ برنامه آماده است</p>
+            <p className="panel-kicker">حساب، سازمان و مدیریت پروژه</p>
           </div>
         </div>
         <p className="panel-message">
-          قابلیت‌های مدیریت پروژه، طراحی و محاسبات مهندسی هنوز در این نسخه
-          پیاده‌سازی نشده‌اند.
+          در این نسخه می‌توانید حساب بسازید، سازمان و اعضای آن را مدیریت کنید و
+          پروژه‌ها را با نقش‌های مشخص ایجاد، ویرایش و بایگانی کنید. طراحی
+          معماری، محاسبات مهندسی و برآورد هنوز پیاده‌سازی نشده‌اند.
+        </p>
+        <p className="cta-row">
+          <Link className="button" href="/register">
+            ایجاد حساب
+          </Link>
+          <Link className="button button-secondary" href="/login">
+            ورود به حساب
+          </Link>
         </p>
       </section>
     </>

@@ -5,6 +5,11 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-05: Persian RTL web pages for sign-up, sign-in, password-reset request/confirm,
+  project list/create/detail (edit, archive/restore, members, activity), organization
+  members and invitations, and invitation acceptance; `/api` is proxied to the API.
+  Browser tests (mocked API, axe A/AA, 320px overflow) pass on Ubuntu and Windows
+  runners. No feature status changed.
 - P1-04: projects (create, list, read, update, archive, restore), project members with
   last-owner protection, and an ordered activity log written with each change;
   `/api/v1/projects` endpoints, migration 0006. Backend only; no feature status changed.

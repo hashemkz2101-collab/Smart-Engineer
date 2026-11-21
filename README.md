@@ -81,6 +81,22 @@ Password-reset emails are not sent yet (DEC-010); in production the API requires
 verified email, and no verification flow exists yet, so production login stays
 disabled until it does.
 
+### Running the web app together with the API (development)
+
+The web app proxies `/api/*` to the API (default `http://127.0.0.1:8000`, override
+with `SMART_ENGINEER_API_ORIGIN` when building/starting the web app). Start the API
+with a database and allow the web origin, for example:
+
+```bash
+SMART_ENGINEER_DATABASE_URL=sqlite:///dev.db \
+SMART_ENGINEER_ALLOWED_ORIGINS=http://127.0.0.1:3000 \
+uv run --package smart-engineer-api uvicorn smart_engineer_api.main:app --port 8000
+```
+
+Run the migrations first (see below). Pages: `/register`, `/login`, `/projects`,
+`/organization`. The browser tests use a mocked API (they check the interface, not
+the backend); a full web + API + database run is a manual check for now.
+
 ### Database migrations
 
 The database URL comes from `SMART_ENGINEER_DATABASE_URL` (PostgreSQL:

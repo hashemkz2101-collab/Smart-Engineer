@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { AuthProvider } from "../components/auth-provider";
 import { SiteHeader } from "../components/site-header";
 import "./globals.css";
 
@@ -39,10 +40,12 @@ export default function RootLayout({
         <a className="skip-link" href="#main-content">
           رفتن به محتوای اصلی
         </a>
-        <SiteHeader />
-        <main className="main-content" id="main-content" tabIndex={-1}>
-          {children}
-        </main>
+        <AuthProvider>
+          <SiteHeader />
+          <main className="main-content" id="main-content" tabIndex={-1}>
+            {children}
+          </main>
+        </AuthProvider>
         <footer className="site-footer">
           <div className="footer-inner">
             <p>محیط پایهٔ Smart Engineer</p>
