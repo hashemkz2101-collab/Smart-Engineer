@@ -41,7 +41,12 @@ test("a bootstrapped administrator manages users and sees the audit trail", asyn
       "run", "--package", "smart-engineer-api", "--group", "dev",
       "python", "-m", "smart_engineer_api.manage", "grant-admin", adminEmail,
     ],
-    { cwd: repoRoot, env: process.env, stdio: "pipe" },
+    {
+      cwd: repoRoot,
+      // The API runs with --app-dir apps/api (not installed as a package), so do the same.
+      env: { ...process.env, PYTHONPATH: path.join(repoRoot, "apps/api") },
+      stdio: "pipe",
+    },
   );
 
   await page.reload();
