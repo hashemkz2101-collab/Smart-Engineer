@@ -433,3 +433,107 @@ test.describe("site data", () => {
     await expect(page.getByRole("button", { name: "ذخیرهٔ این بخش" })).toHaveCount(0);
   });
 });
+
+test.describe("zoning inputs", () => {
+  const url = `/projects/${PROJECT.id}`;
+
+  test("an unsourced value is saved and shown as needing inquiry", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/zoning/coverage`]: (route) =>
+        route
+          .fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              field: "coverage",
+              data: { max_coverage_percent: 60 },
+              status: "needs_inquiry",
+              source_missing: ["source_type", "source_date", "source_title_or_reference"],
+              version: 1,
+            }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /سطح اشغال/ }).click();
+    await expect(page.getByTestId("zoning-status")).toHaveAttribute("data-status", "unknown");
+    await page.getByLabel("حداکثر سطح اشغال (درصد)").fill("60");
+    await page.getByRole("button", { name: "ذخیرهٔ این ضابطه" }).click();
+
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد؛ وضعیت: نیازمند استعلام." })).toBeVisible();
+    const put = state.requests.find((r) => r.key === `PUT /projects/${PROJECT.id}/zoning/coverage`);
+    expect(put.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(put.body).toEqual({ data: { max_coverage_percent: "60" }, version: 0 });
+  });
+
+  test("the source fields and verification are sent with the value", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/zoning/coverage`]: (route) =>
+        route
+          .fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ field: "coverage", data: {}, status: "verified",
+              source_missing: [], version: 1 }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /سطح اشغال/ }).click();
+    await page.getByLabel("حداکثر سطح اشغال (درصد)").fill("60");
+    await page.getByLabel("نوع منبع").selectOption("municipality_letter");
+    await page.getByLabel("عنوان منبع").fill("نامهٔ شهرداری");
+    await page.getByLabel("تاریخ منبع").fill("1405-02-10");
+    await page.getByLabel("تقویم تاریخ").selectOption("jalali");
+    await page.getByLabel(/تأیید می‌کنم/).check();
+    await page.getByRole("button", { name: "ذخیرهٔ این ضابطه" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "تأییدشده" })).toBeVisible();
+    const put = state.requests.find((r) => r.key.endsWith("/zoning/coverage"));
+    expect(put.body.data).toEqual({
+      max_coverage_percent: "60",
+      source_type: "municipality_letter",
+      source_title: "نامهٔ شهرداری",
+      source_date: "1405-02-10",
+      source_calendar: "jalali",
+      source_verified: true,
+    });
+  });
+
+  test("API field errors are shown next to the fields", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      [`PUT /projects/${PROJECT.id}/zoning/coverage`]: (route) =>
+        route
+          .fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({ error: { code: "invalid_zoning", message: "x", correlation_id: "t",
+              details: [{ field: "source_calendar", reason: "calendar_required" }] } }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /سطح اشغال/ }).click();
+    await page.getByLabel("تاریخ منبع").fill("1405-02-10");
+    await page.getByRole("button", { name: "ذخیرهٔ این ضابطه" }).click();
+    await expect(page.getByText("با تاریخ، تقویم آن را هم انتخاب کنید.")).toBeVisible();
+    await expect(page.getByLabel("تقویم تاریخ")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  test("stored status and missing source parts are displayed; view-only members cannot edit", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      permissions: ["project.view"],
+      zoning: { coverage: { data: { max_coverage_percent: 60 }, status: "needs_inquiry",
+        source_missing: ["source_date"], version: 1 } },
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /سطح اشغال/ }).click();
+    const status = page.getByTestId("zoning-status");
+    await expect(status).toHaveAttribute("data-status", "needs_inquiry");
+    await expect(status).toContainText("تاریخ منبع");
+    await expect(page.getByLabel("حداکثر سطح اشغال (درصد)")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "ذخیرهٔ این ضابطه" })).toHaveCount(0);
+  });
+});

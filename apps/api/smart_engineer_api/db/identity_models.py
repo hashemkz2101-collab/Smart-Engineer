@@ -40,6 +40,7 @@ from ..roles import (
     PROJECT_STATUSES,
     PROJECT_TYPES,
     SITE_SECTIONS,
+    ZONING_FIELDS,
     sql_in,
 )
 from .base import Base
@@ -355,6 +356,39 @@ class SiteSection(Base):
     complete: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ZoningRecord(Base):
+    """One zoning / building-control category with its source (RULE-DATA-001).
+
+    ``data`` holds the user-entered values plus the source reference. Whether a
+    record is unknown, needs inquiry or is verified is derived on read; nothing
+    is ever stored as law without a source, and unverified values stay flagged.
+    """
+
+    __tablename__ = "zoning_records"
+    __table_args__ = (
+        UniqueConstraint("project_id", "field_key"),
+        CheckConstraint(sql_in("field_key", ZONING_FIELDS), name="field_key_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    field_key: Mapped[str] = mapped_column(String(30), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"), nullable=False

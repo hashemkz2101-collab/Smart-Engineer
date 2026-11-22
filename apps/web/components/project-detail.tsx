@@ -15,6 +15,7 @@ import { useResource } from "../lib/use-resource";
 import { FormError, FormField, FormNotice } from "./form-field";
 import { IntakePanel } from "./intake-panel";
 import { SitePanel } from "./site-panel";
+import { ZoningPanel } from "./zoning-panel";
 
 type ProjectResponse = { project: Project; my_role: string; permissions: string[] };
 
@@ -347,6 +348,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <SitePanel
           projectId={projectId}
           canEdit={can("project.site.edit")}
+          version={version}
+        />
+      )}
+
+      {myRole === "org_admin" ? null : (
+        <ZoningPanel
+          projectId={projectId}
+          canEdit={can("project.zoning.edit")}
           version={version}
         />
       )}
