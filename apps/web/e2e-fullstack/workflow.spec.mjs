@@ -97,6 +97,28 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(page.getByTestId("zoning-status")).toHaveAttribute("data-status", "verified");
   await expect(page.getByLabel("تاریخ منبع")).toHaveValue("1405-02-10");
 
+  // Requirements: a partial program reports what is missing, then a full one round-trips.
+  await page.getByRole("button", { name: /برنامهٔ فضاها/ }).click();
+  await page.getByLabel("تعداد واحدها (ضروری)").fill("2");
+  await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+  await expect(page.getByText(/برای تکمیل این بخش لازم است: تعداد طبقات/)).toBeVisible();
+  await page.getByLabel("تعداد طبقات (ضروری)").fill("3");
+  await page.getByRole("button", { name: "افزودن ردیف به اتاق‌ها و فضاها" }).click();
+  await page.getByLabel("اتاق‌ها و فضاها 1: نوع فضا (ضروری)").selectOption("kitchen");
+  await page.getByLabel("اتاق‌ها و فضاها 1: مساحت هدف (متر مربع)").fill("12");
+  await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+  await expect(page.getByText("ذخیره شد؛ این بخش کامل است.").last()).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /برنامهٔ فضاها/ }).click();
+  await expect(page.getByLabel("اتاق‌ها و فضاها 1: مساحت هدف (متر مربع)")).toHaveValue("12");
+  await page.getByRole("button", { name: /ترجیحات و محدودیت‌ها/ }).click();
+  await page.getByLabel("بودجهٔ هدف").fill("5000");
+  await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+  await expect(page.getByText("با مبلغ، واحد آن را هم انتخاب کنید.")).toBeVisible();
+  await page.getByLabel("واحد بودجه").selectOption("toman");
+  await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+  await expect(page.getByText("ذخیره شد؛ این بخش کامل است.").last()).toBeVisible();
+
   // Archive and restore.
   await page.getByRole("button", { name: "بایگانی پروژه" }).click();
   await expect(page.getByText("این پروژه بایگانی شده و فقط‌خواندنی است.")).toBeVisible();
@@ -146,6 +168,7 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(guest.getByRole("button", { name: "ذخیرهٔ تغییرات" })).toBeVisible();
   await expect(guest.getByRole("button", { name: "ذخیرهٔ این بخش" })).toBeVisible();
   await expect(guest.getByRole("button", { name: "ذخیرهٔ این ضابطه" })).toBeVisible();
+  await expect(guest.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" })).toBeVisible();
 
   await guestContext.close();
 });

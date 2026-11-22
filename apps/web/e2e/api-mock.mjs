@@ -25,6 +25,7 @@ export const OWNER_PERMISSIONS = [
   "project.intake.edit",
   "project.site.edit",
   "project.zoning.edit",
+  "project.requirements.edit",
   "project.update",
   "project.archive",
   "project.restore",
@@ -143,6 +144,18 @@ export async function mockApi(page, state = {}, overrides = {}) {
                 }
               : base;
           }),
+        });
+      case `GET /projects/${PROJECT.id}/requirements`:
+        return json(route, 200, {
+          sections: ["program", "preferences", "references"].map((section) => ({
+            section,
+            data: state.requirements?.[section]?.data ?? {},
+            complete: state.requirements?.[section]?.complete ?? false,
+            missing: [],
+            not_provided: state.requirements?.[section]?.not_provided ?? [],
+            version: state.requirements?.[section]?.version ?? 0,
+            updated_at: null,
+          })),
         });
       case `GET /projects/${PROJECT.id}/zoning`:
         return json(route, 200, {

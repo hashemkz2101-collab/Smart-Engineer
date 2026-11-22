@@ -537,3 +537,118 @@ test.describe("zoning inputs", () => {
     await expect(page.getByRole("button", { name: "ذخیرهٔ این ضابطه" })).toHaveCount(0);
   });
 });
+
+test.describe("client requirements", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const ok = (body) => (route) =>
+    route
+      .fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) })
+      .then(() => true);
+
+  test("the space program is sent with counts and rooms", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/requirements/program`]: ok({
+        section: "program", data: {}, complete: true, missing: [], not_provided: [], version: 1,
+      }),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /برنامهٔ فضاها/ }).click();
+    await page.getByLabel("تعداد واحدها (ضروری)").fill("2");
+    await page.getByLabel("تعداد طبقات (ضروری)").fill("3");
+    await page.getByRole("button", { name: "افزودن ردیف به اتاق‌ها و فضاها" }).click();
+    await page.getByLabel("اتاق‌ها و فضاها 1: نوع فضا (ضروری)").selectOption("bedroom");
+    await page.getByLabel("اتاق‌ها و فضاها 1: تعداد").fill("4");
+    await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد؛ این بخش کامل است." })).toBeVisible();
+    const put = state.requests.find((r) => r.key.endsWith("/requirements/program"));
+    expect(put.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(put.body).toEqual({
+      data: { units_count: "2", floors_count: "3", rooms: [{ kind: "bedroom", count: "4" }] },
+      version: 0,
+    });
+  });
+
+  test("an empty room list is sent explicitly as none", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/requirements/program`]: ok({
+        section: "program", data: {}, complete: false, missing: ["floors_count"], not_provided: [], version: 1,
+      }),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /برنامهٔ فضاها/ }).click();
+    await page.getByLabel("تعداد واحدها (ضروری)").fill("1");
+    await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "تعداد طبقات" })).toBeVisible();
+    const put = state.requests.find((r) => r.key.endsWith("/requirements/program"));
+    expect(put.body.data.rooms).toEqual([]);
+  });
+
+  test("preferences keep constraints by level and report values not provided", async ({ page }) => {
+    const state = {
+      loggedIn: true,
+      requirements: {
+        preferences: { data: { style: "مدرن" }, complete: true, version: 1,
+          not_provided: ["budget_amount", "budget_currency"] },
+      },
+    };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/requirements/preferences`]: ok({
+        section: "preferences", data: {}, complete: true, missing: [], not_provided: [], version: 2,
+      }),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /ترجیحات و محدودیت‌ها/ }).click();
+    await expect(page.getByTestId("preferences-not-provided")).toContainText("بودجهٔ هدف");
+    await expect(page.getByLabel("بودجهٔ هدف")).toHaveValue("");
+    await page.getByRole("button", { name: "افزودن ردیف به الزامات و محدودیت‌ها" }).click();
+    await page.getByLabel("الزامات و محدودیت‌ها 1: سطح (ضروری)").selectOption("unacceptable");
+    await page.getByLabel("الزامات و محدودیت‌ها 1: توضیح (ضروری)").fill("پنجرهٔ مشرف به همسایه");
+    await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد" })).toBeVisible();
+    const put = state.requests.find((r) => r.key.endsWith("/requirements/preferences"));
+    expect(put.body.data.style).toBe("مدرن");
+    expect(put.body.version).toBe(1);
+    expect(put.body.data.constraints).toEqual([
+      { level: "unacceptable", description: "پنجرهٔ مشرف به همسایه" },
+    ]);
+    expect(put.body.data.budget_amount).toBeUndefined();
+  });
+
+  test("references keep label and explanation; list errors name the row", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      [`PUT /projects/${PROJECT.id}/requirements/references`]: (route) =>
+        route
+          .fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({ error: { code: "invalid_requirements", message: "x", correlation_id: "t",
+              details: [{ field: "items[0].url", reason: "invalid_url" }] } }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /نمونه‌های مرجع/ }).click();
+    await page.getByRole("button", { name: "افزودن ردیف به نمونه‌ها" }).click();
+    await page.getByLabel("نمونه‌ها 1: برچسب (ضروری)").fill("نمای آجری");
+    await page.getByLabel("نمونه‌ها 1: توضیح").fill("نمای مورد علاقه");
+    await page.getByLabel("نمونه‌ها 1: پیوند").fill("ftp://x");
+    await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
+    await expect(page.getByText("ردیف 1 (url): پیوند باید با http:// یا https:// شروع شود.")).toBeVisible();
+  });
+
+  test("members without edit permission see requirements read-only", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      permissions: ["project.view"],
+      requirements: { preferences: { data: { style: "کلاسیک" }, complete: true, version: 1, not_provided: [] } },
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /ترجیحات و محدودیت‌ها/ }).click();
+    await expect(page.getByLabel("سبک معماری")).toHaveValue("کلاسیک");
+    await expect(page.getByLabel("سبک معماری")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" })).toHaveCount(0);
+  });
+});
