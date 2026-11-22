@@ -517,3 +517,29 @@ class ProjectFile(Base):
     deleted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True
     )
+
+
+class AdminAuditEvent(Base):
+    """Append-only record of a platform administrator action (ADMIN-001).
+
+    Unlike ``ActivityEvent`` it is not tied to one project: it records who did what
+    to which user or project, in the same transaction as the change.
+    """
+
+    __tablename__ = "admin_audit_events"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    action: Mapped[str] = mapped_column(String(60), nullable=False)
+    target_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    target_project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id"), nullable=True
+    )
+    detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

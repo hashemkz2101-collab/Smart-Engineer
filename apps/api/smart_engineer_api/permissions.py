@@ -45,7 +45,17 @@ ORG_ACTION_ROLES: dict[str, frozenset[str]] = {
 }
 
 # Platform-level actions available only through the is_system_admin flag.
-PLATFORM_ACTIONS = frozenset({"platform.users.view", "platform.feature_flags.manage"})
+PLATFORM_ACTIONS = frozenset(
+    {
+        "platform.users.view",
+        "platform.feature_flags.manage",
+        "platform.users.manage",
+        "platform.admins.manage",
+        "platform.projects.view",
+        "platform.projects.manage_access",
+        "platform.audit.view",
+    }
+)
 
 
 class AccessDenied(Exception):

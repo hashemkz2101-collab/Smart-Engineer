@@ -55,6 +55,17 @@ class PermissionMatrixTests(unittest.TestCase):
         self.assertTrue(platform_can(True, "platform.users.view"))
         self.assertFalse(platform_can(False, "platform.users.view"))
         self.assertFalse(platform_can(True, "project.view"))
+        for action in (
+            "platform.users.manage",
+            "platform.admins.manage",
+            "platform.projects.view",
+            "platform.projects.manage_access",
+            "platform.audit.view",
+        ):
+            self.assertTrue(platform_can(True, action), action)
+            self.assertFalse(platform_can(False, action), action)
+        # The platform role never gains project content rights.
+        self.assertFalse(platform_can(True, "project.requirements.edit"))
 
     def test_unassigned_and_unknown_are_denied(self) -> None:
         for action in EXPECTED_PROJECT_ALLOWED:

@@ -1,6 +1,7 @@
 from .base import Base
 from .identity_models import (
     ActivityEvent,
+    AdminAuditEvent,
     AuthSession,
     AuthToken,
     EnvironmentRecord,
@@ -20,6 +21,7 @@ from .identity_models import (
 from .models import BackgroundJob, FeatureFlag
 
 __all__ = [
+    "AdminAuditEvent",
     "ActivityEvent",
     "AuthSession",
     "AuthToken",

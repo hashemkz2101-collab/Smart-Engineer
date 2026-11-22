@@ -17,8 +17,9 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-09 | Zoning/building-control inputs with source, date and verification; unverified values stay unknown / needs inquiry | RULE-DATA-001 | merged |
 | P1-10 | Client requirements: space program, preferences/constraints, reference examples (label + explanation + link) | REQ-001, REQ-002, REQ-003 | merged |
 | P1-11 | Environmental and technical conditions with source, location and date | ENV-001 | merged |
-| P1-12 | Project file attachments: type/size/count limits, private storage, quarantine, authorized download (DEC-023 development defaults) | FILE-001, SEC-002 | in review |
-| P1-13+ | Admin (ADMIN-001), workflow refinement (FLOW-001), later AI features | ADMIN-001, FLOW-001 | planned |
+| P1-12 | Project file attachments: type/size/count limits, private storage, quarantine, authorized download (DEC-023 development defaults) | FILE-001, SEC-002 | merged |
+| P1-13 | System administration: user list/search, activate/deactivate, system-admin grant/revoke, project access management (metadata and roles only), append-only admin audit log, command-line bootstrap of the first administrator | ADMIN-001 | in review |
+| P1-14+ | Workflow refinement (FLOW-001), later AI features | FLOW-001 | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys
