@@ -232,7 +232,7 @@ function SectionForm({
   def: SiteSectionDef;
   state: SectionState;
   canEdit: boolean;
-  onSaved: (message: string) => void;
+  onSaved: (message: string, saved: SectionState) => void;
   onConflict: () => void;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -267,6 +267,7 @@ function SectionForm({
         saved.complete
           ? "ذخیره شد؛ این بخش کامل است."
           : `ذخیره شد. برای تکمیل این بخش لازم است: ${labels.join("، ")}.`,
+        saved,
       );
     } catch (failure) {
       const apiError = toApiError(failure);
@@ -347,9 +348,17 @@ export function RequirementsPanel({
     version + reload,
   );
   const bump = () => setReload((current) => current + 1);
+  // The saved response replaces the form at once, so edits made while the list reloads
+  // are never thrown away by a late refetch.
+  const [saved, setSaved] = useState<Record<string, SectionState>>({});
+  const latest = (key: string) => {
+    const fetched = site.data?.sections.find((item) => item.section === key);
+    const local = saved[key];
+    return local && (!fetched || local.version >= fetched.version) ? local : fetched;
+  };
 
   const def = requirementSections.find((section) => section.key === selected) ?? requirementSections[0];
-  const state = site.data?.sections.find((section) => section.section === def.key);
+  const state = latest(def.key);
 
   return (
     <section className="detail-section" aria-labelledby="req-title">
@@ -364,7 +373,7 @@ export function RequirementsPanel({
       ) : null}
       <div className="tabs" role="group" aria-label="بخش‌های نیازمندی‌ها">
         {requirementSections.map((section) => {
-          const info = site.data?.sections.find((item) => item.section === section.key);
+          const info = latest(section.key);
           const status = !info || info.version === 0 ? "شروع نشده" : info.complete ? "کامل" : "پیش‌نویس";
           return (
             <button
@@ -394,7 +403,8 @@ export function RequirementsPanel({
           def={def}
           state={state}
           canEdit={canEdit}
-          onSaved={(message) => {
+          onSaved={(message, payload) => {
+            setSaved((current) => ({ ...current, [def.key]: payload }));
             setNotice(message);
             bump();
           }}

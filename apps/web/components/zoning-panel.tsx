@@ -126,7 +126,7 @@ function RecordForm({
   def: ZoningDef;
   state: RecordState;
   canEdit: boolean;
-  onSaved: (message: string) => void;
+  onSaved: (message: string, saved: RecordState) => void;
   onConflict: () => void;
 }) {
   const all = [...def.fields, ...sourceFields];
@@ -156,7 +156,7 @@ function RecordForm({
         data,
         version: state.version,
       });
-      onSaved(`ذخیره شد؛ وضعیت: ${statusLabels[saved.status]}.`);
+      onSaved(`ذخیره شد؛ وضعیت: ${statusLabels[saved.status]}.`, saved);
     } catch (failure) {
       const apiError = toApiError(failure);
       setFieldErrors(errorsFrom(apiError));
@@ -230,9 +230,17 @@ export function ZoningPanel({
     version + reload,
   );
   const bump = () => setReload((current) => current + 1);
+  // The saved response replaces the form at once, so edits made while the list reloads
+  // are never thrown away by a late refetch.
+  const [saved, setSaved] = useState<Record<string, RecordState>>({});
+  const latest = (key: string) => {
+    const fetched = zoning.data?.records.find((item) => item.field === key);
+    const local = saved[key];
+    return local && (!fetched || local.version >= fetched.version) ? local : fetched;
+  };
 
   const def = zoningFields.find((item) => item.key === selected) ?? zoningFields[0];
-  const state = zoning.data?.records.find((record) => record.field === def.key);
+  const state = latest(def.key);
 
   return (
     <section className="detail-section" aria-labelledby="zoning-title">
@@ -248,7 +256,7 @@ export function ZoningPanel({
       ) : null}
       <div className="tabs" role="group" aria-label="دسته‌های ضوابط">
         {zoningFields.map((item) => {
-          const info = zoning.data?.records.find((record) => record.field === item.key);
+          const info = latest(item.key);
           return (
             <button
               key={item.key}
@@ -277,7 +285,8 @@ export function ZoningPanel({
           def={def}
           state={state}
           canEdit={canEdit}
-          onSaved={(message) => {
+          onSaved={(message, payload) => {
+            setSaved((current) => ({ ...current, [def.key]: payload }));
             setNotice(message);
             bump();
           }}
