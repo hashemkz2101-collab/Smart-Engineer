@@ -564,9 +564,11 @@ test.describe("client requirements", () => {
     await expect(page.getByRole("status").filter({ hasText: "ذخیره شد؛ این بخش کامل است." })).toBeVisible();
     const put = state.requests.find((r) => r.key.endsWith("/requirements/program"));
     expect(put.headers["x-csrf-token"]).toBe("csrf-1");
-    expect(put.body).toEqual({
-      data: { units_count: "2", floors_count: "3", rooms: [{ kind: "bedroom", count: "4" }] },
-      version: 0,
+    expect(put.body.version).toBe(0);
+    expect(put.body.data).toMatchObject({
+      units_count: "2",
+      floors_count: "3",
+      rooms: [{ kind: "bedroom", count: "4" }],
     });
   });
 
@@ -614,7 +616,8 @@ test.describe("client requirements", () => {
     expect(put.body.data.constraints).toEqual([
       { level: "unacceptable", description: "پنجرهٔ مشرف به همسایه" },
     ]);
-    expect(put.body.data.budget_amount).toBeUndefined();
+    // Untouched fields are sent empty; the API drops them, so they stay "not provided".
+    expect(put.body.data.budget_amount ?? "").toBe("");
   });
 
   test("references keep label and explanation; list errors name the row", async ({ page }) => {
