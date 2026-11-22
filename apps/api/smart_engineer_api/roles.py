@@ -38,6 +38,20 @@ INTAKE_STEPS = ("identity", "location", "people", "legal")
 # Site / land data sections (SITE-001, SITE-002).
 SITE_SECTIONS = ("parcel", "access", "terrain", "surroundings", "soil")
 
+# Project file attachments (FILE-001, SEC-002); limits are Phase 1 development defaults
+# pending DEC-023 (see file_policy.py).
+FILE_KINDS = (
+    "survey",
+    "deed",
+    "zoning_letter",
+    "geotechnical_report",
+    "site_photo",
+    "reference_image",
+    "other",
+)
+FILE_TYPES = ("pdf", "png", "jpeg", "webp")
+FILE_SCAN_STATUSES = ("pending", "clean", "quarantined")
+
 # Environmental / technical condition inputs (ENV-001, master spec 3.5).
 ENV_FIELDS = (
     "climate",

@@ -11,13 +11,14 @@ Policies encoded here (see docs/PHASE_1_PLAN.md and DEC-016/017/022):
 """
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -34,6 +35,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ..roles import (
     AUTH_TOKEN_PURPOSES,
     ENV_FIELDS,
+    FILE_KINDS,
+    FILE_SCAN_STATUSES,
+    FILE_TYPES,
     INTAKE_STEPS,
     INVITABLE_ORG_ROLES,
     ORG_ROLES,
@@ -471,4 +475,45 @@ class EnvironmentRecord(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+class ProjectFile(Base):
+    """Metadata of one uploaded project file (FILE-001, SEC-002).
+
+    The bytes live in private storage under ``storage_key`` (never a public path).
+    ``deleted_at`` marks a removed file whose bytes are gone but whose metadata is
+    kept for the audit trail.
+    """
+
+    __tablename__ = "project_files"
+    __table_args__ = (
+        CheckConstraint(sql_in("kind", FILE_KINDS), name="kind_valid"),
+        CheckConstraint(sql_in("detected_type", FILE_TYPES), name="detected_type_valid"),
+        CheckConstraint(sql_in("scan_status", FILE_SCAN_STATUSES), name="scan_status_valid"),
+        CheckConstraint("size_bytes > 0", name="size_positive"),
+        Index("ix_project_files_project_id", "project_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    original_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    document_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ownership: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    detected_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    scan_status: Mapped[str] = mapped_column(String(20), nullable=False)
+    scan_detail: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    uploaded_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
     )

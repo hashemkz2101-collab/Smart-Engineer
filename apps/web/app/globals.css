@@ -767,3 +767,22 @@ textarea[aria-invalid="true"] {
 .area-report[data-status="discrepancy"] {
   font-weight: 600;
 }
+
+.file-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.file-item {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 0.5rem;
+}
+
+.file-item[data-scan="quarantined"] {
+  border-inline-start: 4px solid currentColor;
+}

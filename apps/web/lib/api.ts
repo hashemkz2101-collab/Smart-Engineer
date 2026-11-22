@@ -31,9 +31,16 @@ export function toApiError(error: unknown): ApiError {
   return error instanceof ApiError ? error : new ApiError(0, "network_error");
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  rawBody?: Blob,
+): Promise<T> {
   const headers: Record<string, string> = {};
-  if (body !== undefined) {
+  if (rawBody !== undefined) {
+    headers["Content-Type"] = "application/octet-stream";
+  } else if (body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
   if (method !== "GET" && csrfToken) {
@@ -45,7 +52,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     response = await fetch(`/api/v1${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
       credentials: "same-origin",
     });
   } catch {
@@ -81,4 +88,6 @@ export const api = {
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),
+  // Sends the file itself as the request body (metadata goes in the query string).
+  upload: <T>(path: string, file: Blob) => request<T>("POST", path, undefined, file),
 };

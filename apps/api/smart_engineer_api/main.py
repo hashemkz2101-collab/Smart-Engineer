@@ -10,6 +10,10 @@ from .environment_routes import environment_error_handler, environment_validatio
 from .environment_routes import router as environment_router
 from .environment_service import EnvironmentError_, EnvironmentValidationError
 from .errors import register_exception_handlers
+from .file_routes import file_error_handler
+from .file_routes import router as file_router
+from .file_service import FileError
+from .file_storage import FileStorage
 from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
@@ -40,6 +44,7 @@ def create_app(
     session_factory: sessionmaker[Session] | None = None,
     auth_policy: auth_service.AuthPolicy | None = None,
     mailer: auth_service.Mailer | None = None,
+    file_storage: FileStorage | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     configure_logging(settings.log_level)
@@ -59,6 +64,7 @@ def create_app(
     )
     # Real email delivery is blocked on DEC-010; the outbox only keeps messages in memory.
     app.state.mailer = mailer or auth_service.OutboxMailer()
+    app.state.file_storage = file_storage or FileStorage(settings.file_storage_dir)
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.add_exception_handler(auth_service.AuthError, auth_error_handler)
@@ -69,6 +75,7 @@ def create_app(
     app.add_exception_handler(IntakeValidationError, intake_validation_handler)
     app.add_exception_handler(SiteError, site_error_handler)
     app.add_exception_handler(SiteValidationError, site_validation_handler)
+    app.add_exception_handler(FileError, file_error_handler)
     app.add_exception_handler(EnvironmentError_, environment_error_handler)
     app.add_exception_handler(EnvironmentValidationError, environment_validation_handler)
     app.add_exception_handler(RequirementsError, requirements_error_handler)
@@ -82,6 +89,7 @@ def create_app(
     app.include_router(project_router, prefix=API_V1_PREFIX)
     app.include_router(intake_router, prefix=API_V1_PREFIX)
     app.include_router(site_router, prefix=API_V1_PREFIX)
+    app.include_router(file_router, prefix=API_V1_PREFIX)
     app.include_router(environment_router, prefix=API_V1_PREFIX)
     app.include_router(requirements_router, prefix=API_V1_PREFIX)
     app.include_router(zoning_router, prefix=API_V1_PREFIX)

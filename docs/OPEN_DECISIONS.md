@@ -120,3 +120,11 @@ revisited before RELEASE-001. Any item can be reversed by the owner.
 - **DEC-003 (first project types).** residential_house, residential_apartment,
   commercial, mixed_use, other; single-family residential is the first
   acceptance scenario. Assistant assumption; more types need only a migration.
+- **DEC-023 (development defaults only; the decision stays OPEN).** Uploads allow PDF,
+  PNG, JPEG and WebP, detected from the file bytes with a matching extension; 10 MiB per
+  file and 100 files per project. Files are stored privately (not served statically) and
+  downloaded only through an authorized endpoint. The built-in scanner flags the EICAR
+  test signature and PDFs with active content into quarantine, but is not an antivirus:
+  outside development a clean verdict is not granted and files stay pending until a real
+  scanner is selected. CAD/BIM formats (DEC-004), extraction (AI-002/DEC-027), retention
+  periods and encryption at rest remain undecided.

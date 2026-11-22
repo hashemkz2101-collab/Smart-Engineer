@@ -36,6 +36,16 @@ const errorMessages: Record<string, string> = {
   invalid_intake: "برخی فیلدها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   version_conflict:
     "این مرحله در جای دیگری تغییر کرده است. اطلاعات را دوباره بارگذاری کنید.",
+  file_too_large: "حجم فایل از حد مجاز (۱۰ مگابایت) بیشتر است.",
+  unsupported_type: "این نوع فایل مجاز نیست. فقط PDF، PNG، JPEG و WebP پذیرفته می‌شود.",
+  extension_mismatch: "پسوند فایل با محتوای آن یکی نیست.",
+  empty_file: "فایل خالی است.",
+  invalid_kind: "نوع سند را انتخاب کنید.",
+  invalid_date: "تاریخ سند معتبر نیست؛ به شکل میلادی سال-ماه-روز وارد کنید.",
+  invalid_file_name: "نام فایل معتبر نیست.",
+  invalid_ownership: "متن مالکیت بیش از حد طولانی است.",
+  too_many_files: "تعداد فایل‌های این پروژه به سقف مجاز رسیده است.",
+  not_available: "این فایل برای دانلود در دسترس نیست.",
   unknown_step: "این مرحله وجود ندارد.",
 };
 
@@ -77,6 +87,8 @@ export const activityLabels: Record<string, string> = {
   "project.requirements_saved": "نیازمندی‌های کارفرما ذخیره شد",
   "project.environment_saved": "شرایط محیطی ذخیره شد",
   "project.zoning_saved": "ضوابط شهرسازی ذخیره شد",
+  "project.file_uploaded": "فایل بارگذاری شد",
+  "project.file_deleted": "فایل حذف شد",
   "project.site_saved": "داده‌های زمین ذخیره شد",
   "project.intake_saved": "اطلاعات ورودی پروژه ذخیره شد",
 };
