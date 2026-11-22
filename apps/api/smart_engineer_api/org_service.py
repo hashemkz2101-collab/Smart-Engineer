@@ -12,7 +12,15 @@ from sqlalchemy.orm import Session
 
 from .access import authorize_org
 from .auth_service import EMAIL_PATTERN, aware, utcnow
-from .db import Invitation, Membership, Organization, Project, ProjectMember, User
+from .db import (
+    ActivityEvent,
+    Invitation,
+    Membership,
+    Organization,
+    Project,
+    ProjectMember,
+    User,
+)
 from .permissions import AccessDenied
 from .roles import INVITABLE_ORG_ROLES
 from .security import new_token, normalize_email, token_digest
@@ -81,6 +89,7 @@ def create_invitation(
         .where(
             Invitation.organization_id == organization_id,
             Invitation.email == email,
+            Invitation.project_id.is_(None),
             Invitation.accepted_at.is_(None),
             Invitation.revoked_at.is_(None),
         )
@@ -121,7 +130,16 @@ def revoke_invitation(
 def accept_invitation(
     session: Session, user: User, token: str, now: datetime | None = None
 ) -> Membership:
-    """Join the organization. Wrong account, expired and used tokens look the same."""
+    return accept_invitation_scoped(session, user, token, now)[0]
+
+
+def accept_invitation_scoped(
+    session: Session, user: User, token: str, now: datetime | None = None
+) -> tuple[Membership, uuid.UUID | None]:
+    """Join the organization (and the project, for a project invitation).
+
+    Wrong account, expired and used tokens look the same.
+    """
     now = now or utcnow()
     invitation = session.scalar(
         select(Invitation).where(Invitation.token_hash == token_digest(token))
@@ -134,23 +152,58 @@ def accept_invitation(
         or invitation.email != user.email
     ):
         raise OrgError("invalid_token")
-    already = session.scalar(
-        select(Membership.id).where(
+    project = None
+    if invitation.project_id is not None:
+        project = session.get(Project, invitation.project_id)
+        if project is None or project.status == "archived":
+            # Archived projects are read-only: the invitation can no longer be used.
+            raise OrgError("invalid_token")
+    membership = session.scalar(
+        select(Membership).where(
             Membership.organization_id == invitation.organization_id,
             Membership.user_id == user.id,
         )
     )
-    if already is not None:
+    if membership is not None and project is None:
         raise OrgError("already_member")
-    membership = Membership(
-        organization_id=invitation.organization_id,
-        user_id=user.id,
-        org_role=invitation.org_role,
-    )
+    if membership is None:
+        membership = Membership(
+            organization_id=invitation.organization_id,
+            user_id=user.id,
+            org_role=invitation.org_role,
+        )
+        session.add(membership)
     invitation.accepted_at = now
-    session.add(membership)
+    if project is not None:
+        has_role = session.scalar(
+            select(ProjectMember.id).where(
+                ProjectMember.project_id == project.id, ProjectMember.user_id == user.id
+            )
+        )
+        if has_role is None:
+            session.add(
+                ProjectMember(
+                    project_id=project.id,
+                    user_id=user.id,
+                    role=invitation.project_role,
+                    added_by_user_id=invitation.invited_by_user_id,
+                )
+            )
+            session.add(
+                ActivityEvent(
+                    project_id=project.id,
+                    actor_user_id=user.id,
+                    action="project.invitation_accepted",
+                    target_user_id=user.id,
+                    detail={
+                        "role": invitation.project_role,
+                        "invited_by": str(invitation.invited_by_user_id),
+                        "invitation_id": str(invitation.id),
+                    },
+                )
+            )
     session.commit()
-    return membership
+    return membership, invitation.project_id
 
 
 def _membership(session: Session, organization_id: uuid.UUID, user_id: uuid.UUID) -> Membership:

@@ -9,7 +9,7 @@ import { FormError } from "./form-field";
 
 export function AcceptInvitation({ token }: { token?: string }) {
   const [error, setError] = useState<string | null>(null);
-  const [joinedRole, setJoinedRole] = useState<string | null>(null);
+  const [joined, setJoined] = useState<{ role: string; projectId: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!token) {
@@ -24,22 +24,27 @@ export function AcceptInvitation({ token }: { token?: string }) {
     setBusy(true);
     setError(null);
     try {
-      const result = await api.post<{ org_role: string }>("/invitations/accept", { token });
-      setJoinedRole(result.org_role);
+      const result = await api.post<{ org_role: string; project_id: string | null }>(
+        "/invitations/accept",
+        { token },
+      );
+      setJoined({ role: result.org_role, projectId: result.project_id });
     } catch (failure) {
       setError(toApiError(failure).userMessage);
       setBusy(false);
     }
   }
 
-  if (joinedRole) {
+  if (joined) {
     return (
       <div className="form-panel">
         <p className="alert alert-success" role="status">
-          به سازمان پیوستید (نقش: {orgRoleLabels[joinedRole] ?? joinedRole}).
+          {joined.projectId
+            ? "دعوت پروژه پذیرفته شد."
+            : `به سازمان پیوستید (نقش: ${orgRoleLabels[joined.role] ?? joined.role}).`}
         </p>
-        <Link className="button" href="/organization">
-          رفتن به سازمان
+        <Link className="button" href={joined.projectId ? `/projects/${joined.projectId}` : "/organization"}>
+          {joined.projectId ? "رفتن به پروژه" : "رفتن به سازمان"}
         </Link>
       </div>
     );

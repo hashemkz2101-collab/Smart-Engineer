@@ -18,6 +18,8 @@ STATUS_BY_CODE = {
     "invalid_project_type": 422,
     "invalid_role": 422,
     "user_not_in_organization": 422,
+    "invalid_email": 422,
+    "already_in_organization": 409,
     "already_member": 409,
     "last_owner": 409,
     "not_archived": 409,
@@ -28,6 +30,8 @@ MESSAGE_BY_CODE = {
     "invalid_project_type": "The project type is not valid.",
     "invalid_role": "The role is not valid.",
     "user_not_in_organization": "The user is not a member of this organization.",
+    "invalid_email": "The email address is not valid.",
+    "already_in_organization": "This user is already in the organization; add them directly.",
     "already_member": "This user already has a role on the project.",
     "last_owner": "A project must keep at least one owner.",
     "not_archived": "The project is not archived.",
@@ -65,6 +69,15 @@ class AddMemberBody(BaseModel):
 
 class RoleBody(BaseModel):
     role: str = Field(max_length=30)
+
+
+def _invitation_payload(invitation) -> dict:
+    return {
+        "id": str(invitation.id),
+        "email": invitation.email,
+        "role": invitation.project_role,
+        "expires_at": invitation.expires_at.isoformat(),
+    }
 
 
 def project_payload(project) -> dict:
@@ -206,6 +219,41 @@ def add_member(
         db, current.user, project_id, email=body.email, role=body.role
     )
     return {"user_id": str(member.user_id), "role": member.role}
+
+
+@router.get("/projects/{project_id}/invitations")
+def project_invitations(
+    project_id: uuid.UUID,
+    current: Authenticated = Depends(current_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    rows = project_service.list_project_invitations(db, current.user, project_id)
+    return {"invitations": [_invitation_payload(row) for row in rows]}
+
+
+@router.post("/projects/{project_id}/invitations", status_code=201)
+def invite_to_project(
+    project_id: uuid.UUID,
+    body: AddMemberBody,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> dict:
+    invitation, token = project_service.invite_to_project(
+        db, current.user, project_id, email=body.email, role=body.role
+    )
+    # The token is returned once so the inviter can share a link (no mailer yet).
+    return {"invitation": _invitation_payload(invitation), "token": token}
+
+
+@router.delete("/projects/{project_id}/invitations/{invitation_id}", status_code=204)
+def revoke_project_invitation(
+    project_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> Response:
+    project_service.revoke_project_invitation(db, current.user, project_id, invitation_id)
+    return Response(status_code=204)
 
 
 @router.patch("/projects/{project_id}/members/{user_id}")

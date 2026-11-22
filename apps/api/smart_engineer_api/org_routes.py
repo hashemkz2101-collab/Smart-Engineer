@@ -139,10 +139,11 @@ def accept(
     current: Authenticated = Depends(csrf_protected),
     db: Session = Depends(get_db),
 ) -> dict:
-    membership = org_service.accept_invitation(db, current.user, body.token)
+    membership, project_id = org_service.accept_invitation_scoped(db, current.user, body.token)
     return {
         "organization_id": str(membership.organization_id),
         "org_role": membership.org_role,
+        "project_id": str(project_id) if project_id else None,
     }
 
 

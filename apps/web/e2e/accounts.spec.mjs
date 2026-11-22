@@ -873,3 +873,76 @@ test.describe("project files", () => {
     await expect(page.getByRole("button", { name: "حذف survey.pdf" })).toHaveCount(0);
   });
 });
+
+test.describe("project invitations", () => {
+  test("the owner invites by email, sees the pending invitation and can revoke it", async ({
+    page,
+  }) => {
+    const state = { loggedIn: true, invitations: [] };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/invitations`]: (route, request) => {
+        const body = request.postDataJSON();
+        if (body.email === "member@example.com") {
+          return route
+            .fulfill({
+              status: 409,
+              contentType: "application/json",
+              body: JSON.stringify(error("already_in_organization")),
+            })
+            .then(() => true);
+        }
+        state.invitations = [
+          { id: "i-1", email: body.email, role: body.role, expires_at: "2026-12-01T00:00:00+00:00" },
+        ];
+        return route
+          .fulfill({
+            status: 201,
+            contentType: "application/json",
+            body: JSON.stringify({ invitation: state.invitations[0], token: "tok-1" }),
+          })
+          .then(() => true);
+      },
+      [`DELETE /projects/${PROJECT.id}/invitations/i-1`]: (route) => {
+        state.invitations = [];
+        return route.fulfill({ status: 204 }).then(() => true);
+      },
+    });
+    await page.goto(`/projects/${PROJECT.id}`);
+
+    await page.getByLabel("ایمیل فرد دعوت‌شده به پروژه").fill("member@example.com");
+    await page.getByRole("button", { name: "ساخت دعوت‌نامهٔ پروژه" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "عضو سازمان است" })).toBeVisible();
+
+    await page.getByLabel("ایمیل فرد دعوت‌شده به پروژه").fill("new@example.com");
+    await page.getByLabel("نقش فرد دعوت‌شده در پروژه").first().selectOption("structural_engineer");
+    await page.getByRole("button", { name: "ساخت دعوت‌نامهٔ پروژه" }).click();
+    await expect(page.locator("#project-invite-link")).toHaveValue(/\/invitations\/accept\?token=tok-1$/);
+    const created = state.requests.filter((r) => r.key === `POST /projects/${PROJECT.id}/invitations`).at(-1);
+    expect(created.body).toEqual({ email: "new@example.com", role: "structural_engineer" });
+    expect(created.headers["x-csrf-token"]).toBe("csrf-1");
+    await expect(page.getByRole("button", { name: "لغو دعوت new@example.com" })).toBeVisible();
+
+    await page.getByRole("button", { name: "لغو دعوت new@example.com" }).click();
+    await expect(page.getByRole("button", { name: "لغو دعوت new@example.com" })).toHaveCount(0);
+  });
+
+  test("accepting a project invitation links to the project", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      "POST /invitations/accept": (route) =>
+        route
+          .fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ organization_id: "o-1", org_role: "member", project_id: PROJECT.id }),
+          })
+          .then(() => true),
+    });
+    await page.goto("/invitations/accept?token=abc");
+    await page.getByRole("button", { name: "پذیرش دعوت" }).click();
+    await expect(page.getByText("دعوت پروژه پذیرفته شد.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "رفتن به پروژه" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT.id}`,
+    );
+  });
+});

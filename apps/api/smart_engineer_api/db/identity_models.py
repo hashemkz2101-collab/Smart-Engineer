@@ -254,7 +254,14 @@ class Invitation(Base):
     __tablename__ = "invitations"
     __table_args__ = (
         CheckConstraint(sql_in("org_role", INVITABLE_ORG_ROLES), name="org_role_valid"),
+        CheckConstraint(sql_in("project_role", PROJECT_ROLES), name="project_role_valid"),
+        CheckConstraint(
+            "(project_id IS NULL AND project_role IS NULL)"
+            " OR (project_id IS NOT NULL AND project_role IS NOT NULL)",
+            name="project_scope_complete",
+        ),
         Index("ix_invitations_organization_id", "organization_id"),
+        Index("ix_invitations_project_id", "project_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -266,6 +273,11 @@ class Invitation(Base):
     invited_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"), nullable=False
     )
+    # Set for a project invitation (FLOW-001): accepting it also grants this project role.
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("projects.id"), nullable=True
+    )
+    project_role: Mapped[str | None] = mapped_column(String(30), nullable=True)
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
