@@ -28,6 +28,8 @@ class Settings:
     # Extra browser origins allowed to call state-changing endpoints (e.g. the web
     # dev server on another port). The API's own host is always allowed.
     allowed_origins: tuple[str, ...] = ()
+    # Private directory for uploaded project files. Never served statically (SEC-002).
+    file_storage_dir: str = "var/files"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -72,4 +74,6 @@ class Settings:
             log_level=log_level,
             database_url=database_url,
             allowed_origins=allowed_origins,
+            file_storage_dir=source.get("SMART_ENGINEER_FILE_STORAGE_DIR", "").strip()
+            or "var/files",
         )

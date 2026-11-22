@@ -27,6 +27,8 @@ export const OWNER_PERMISSIONS = [
   "project.zoning.edit",
   "project.requirements.edit",
   "project.environment.edit",
+  "project.files.upload",
+  "project.files.delete",
   "project.update",
   "project.archive",
   "project.restore",
@@ -55,7 +57,11 @@ export async function mockApi(page, state = {}, overrides = {}) {
       key,
       query: url.search,
       headers: request.headers(),
-      body: request.postData() ? JSON.parse(request.postData()) : null,
+      body:
+        request.postData() && (request.headers()["content-type"] ?? "").includes("json")
+          ? JSON.parse(request.postData())
+          : null,
+      raw: request.postDataBuffer(),
     });
 
     if (overrides[key] && (await overrides[key](route, request))) return;
@@ -158,6 +164,8 @@ export async function mockApi(page, state = {}, overrides = {}) {
             updated_at: null,
           })),
         });
+      case `GET /projects/${PROJECT.id}/files`:
+        return json(route, 200, { files: state.files ?? [] });
       case `GET /projects/${PROJECT.id}/environment`:
         return json(route, 200, {
           records: [

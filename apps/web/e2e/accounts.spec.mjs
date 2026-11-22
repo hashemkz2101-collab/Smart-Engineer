@@ -754,3 +754,122 @@ test.describe("environment inputs", () => {
     await expect(page.getByRole("button", { name: "ذخیرهٔ این مورد" })).toHaveCount(0);
   });
 });
+
+test.describe("project files", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const stored = (extra = {}) => ({
+    id: "f-1",
+    original_name: "survey.pdf",
+    kind: "survey",
+    document_date: "2026-05-01",
+    ownership: "کارفرما",
+    detected_type: "pdf",
+    size_bytes: 2048,
+    scan_status: "clean",
+    scan_detail: null,
+    uploaded_by_name: "کاربر",
+    created_at: "2026-11-22T08:00:00Z",
+    downloadable: true,
+    ...extra,
+  });
+
+  test("a chosen file is sent as the raw body with its metadata in the query", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/files`]: (route) =>
+        route
+          .fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(stored()) })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByLabel("فایل", { exact: true }).setInputFiles({
+      name: "survey.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("%PDF-1.4 test"),
+    });
+    await page.getByLabel("نوع سند").selectOption("survey");
+    await page.getByLabel("تاریخ سند").fill("2026-05-01");
+    await page.getByLabel("مالک سند").fill("کارفرما");
+    await page.getByRole("button", { name: "بارگذاری فایل" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "فایل بارگذاری شد." })).toBeVisible();
+
+    const post = state.requests.find((r) => r.key === `POST /projects/${PROJECT.id}/files`);
+    const query = new URLSearchParams(post.query);
+    expect(query.get("filename")).toBe("survey.pdf");
+    expect(query.get("kind")).toBe("survey");
+    expect(query.get("document_date")).toBe("2026-05-01");
+    expect(query.get("ownership")).toBe("کارفرما");
+    expect(post.headers["content-type"]).toBe("application/octet-stream");
+    expect(post.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(post.raw.toString()).toBe("%PDF-1.4 test");
+  });
+
+  test("a file and a document kind are required before anything is sent", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state);
+    await page.goto(url);
+    await page.getByRole("button", { name: "بارگذاری فایل" }).click();
+    await expect(page.getByText("یک فایل انتخاب کنید.")).toBeVisible();
+    expect(state.requests.some((r) => r.key.startsWith("POST") && r.key.endsWith("/files"))).toBe(false);
+  });
+
+  test("API rejections are explained in Persian", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      [`POST /projects/${PROJECT.id}/files`]: (route) =>
+        route
+          .fulfill({
+            status: 415,
+            contentType: "application/json",
+            body: JSON.stringify({ error: { code: "unsupported_type", message: "x", correlation_id: "t" } }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByLabel("فایل", { exact: true }).setInputFiles({
+      name: "a.pdf", mimeType: "application/pdf", buffer: Buffer.from("MZ"),
+    });
+    await page.getByLabel("نوع سند").selectOption("other");
+    await page.getByRole("button", { name: "بارگذاری فایل" }).click();
+    await expect(page.getByText("این نوع فایل مجاز نیست.", { exact: false })).toBeVisible();
+  });
+
+  test("clean files have a download link; quarantined files do not", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      files: [
+        stored(),
+        stored({ id: "f-2", original_name: "bad.pdf", scan_status: "quarantined",
+          scan_detail: "eicar_test_signature", downloadable: false }),
+      ],
+    });
+    await page.goto(url);
+    const link = page.getByRole("link", { name: "دانلود survey.pdf" });
+    await expect(link).toHaveAttribute("href", `/api/v1/projects/${PROJECT.id}/files/f-1/download`);
+    await expect(page.getByRole("link", { name: "دانلود bad.pdf" })).toHaveCount(0);
+    await expect(page.getByText("قرنطینه")).toBeVisible();
+    await expect(page.getByText("قابل دانلود نیست")).toBeVisible();
+  });
+
+  test("deleting a file asks the API and reloads the list", async ({ page }) => {
+    const state = { loggedIn: true, files: [stored()] };
+    await mockApi(page, state, {
+      [`DELETE /projects/${PROJECT.id}/files/f-1`]: (route) => {
+        state.files = [];
+        return route.fulfill({ status: 204 }).then(() => true);
+      },
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: "حذف survey.pdf" }).click();
+    await expect(page.getByText("هنوز فایلی بارگذاری نشده است.")).toBeVisible();
+    const del = state.requests.find((r) => r.key.startsWith("DELETE"));
+    expect(del.headers["x-csrf-token"]).toBe("csrf-1");
+  });
+
+  test("members without upload permission see the list but no upload form", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, permissions: ["project.view"], files: [stored()] });
+    await page.goto(url);
+    await expect(page.getByRole("link", { name: "دانلود survey.pdf" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "بارگذاری فایل" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "حذف survey.pdf" })).toHaveCount(0);
+  });
+});

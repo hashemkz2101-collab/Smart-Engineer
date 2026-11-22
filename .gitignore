@@ -27,3 +27,6 @@ test-results-fullstack/
 
 # Windows validation output
 windows-validation-*/
+
+# Local private file storage (uploaded project files)
+var/

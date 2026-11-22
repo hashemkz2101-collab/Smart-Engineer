@@ -5,6 +5,20 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-12: project file attachments. Allowed types PDF, PNG, JPEG and WebP, decided from the
+  file's own bytes (extension must agree); 10 MiB per file and 100 files per project are
+  development defaults pending DEC-023. Metadata: kind, document date, ownership text,
+  detected type, size, SHA-256, uploader and time. Bytes are stored privately under
+  random keys and leave only through an authenticated, authorized download (attachment,
+  nosniff, no-store); nothing is served publicly. The built-in scanner rejects the EICAR
+  test signature and PDFs with active content markers into quarantine; it is not an
+  antivirus, so outside development a clean verdict is not granted and files stay
+  pending (fail closed) until a real scanner is chosen under DEC-023. Quarantined or
+  pending files are never downloadable. Owner, architect, structural and MEP engineers
+  upload; owner and architect delete (bytes removed, metadata kept for audit); other
+  roles read and download; archived projects are read-only. Raw-body upload (no multipart
+  dependency), migration 0012, Persian UI, API tests (SQLite/PostgreSQL), mocked-UI and
+  full-stack tests. No feature status changed.
 - P1-11: environmental and technical conditions in thirteen categories (climate, solar
   exposure, prevailing wind, rainfall, design temperature and comfort, natural hazards,
   seismicity, water / electricity / gas / sewer / telecom availability, energy constraints

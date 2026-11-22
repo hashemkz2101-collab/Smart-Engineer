@@ -140,6 +140,41 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(page.getByTestId("env-status")).toHaveAttribute("data-status", "verified");
   await expect(page.getByLabel("محلی که داده به آن مربوط است")).toHaveValue("ایستگاه تبریز");
 
+  // Files: valid upload, content-based rejection, quarantine, private authorized download.
+  const pdf = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n");
+  const eicar = Buffer.from(
+    "%PDF-1.4\nX5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\n",
+  );
+  const chooseFile = async (name, buffer) => {
+    await page.getByLabel("فایل", { exact: true }).setInputFiles({
+      name,
+      mimeType: "application/octet-stream",
+      buffer,
+    });
+    await page.getByLabel("نوع سند").selectOption("survey");
+    await page.getByRole("button", { name: "بارگذاری فایل" }).click();
+  };
+  await chooseFile("run.exe", Buffer.from("MZ\x90\x00"));
+  await expect(page.getByText("این نوع فایل مجاز نیست.", { exact: false })).toBeVisible();
+  await chooseFile("survey.pdf", pdf);
+  await expect(page.getByText("فایل بارگذاری شد.")).toBeVisible();
+  await chooseFile("virus.pdf", eicar);
+  await expect(page.getByText("در قرنطینه است", { exact: false })).toBeVisible();
+  await expect(page.getByRole("link", { name: "دانلود virus.pdf" })).toHaveCount(0);
+  const link = page.getByRole("link", { name: "دانلود survey.pdf" });
+  const href = await link.getAttribute("href");
+  const downloaded = await page.request.get(href);
+  expect(downloaded.status()).toBe(200);
+  expect(downloaded.headers()["content-type"]).toBe("application/pdf");
+  expect(downloaded.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(Buffer.from(await downloaded.body()).equals(pdf)).toBe(true);
+  const anonymousContext = await browser.newContext();
+  expect((await anonymousContext.request.get(new URL(href, page.url()).href)).status()).toBe(401);
+  await anonymousContext.close();
+  await page.getByRole("button", { name: "حذف virus.pdf" }).click();
+  await expect(page.getByText("فایل حذف شد.")).toBeVisible();
+  await expect(page.getByText("virus.pdf")).toHaveCount(0);
+
   // Archive and restore.
   await page.getByRole("button", { name: "بایگانی پروژه" }).click();
   await expect(page.getByText("این پروژه بایگانی شده و فقط‌خواندنی است.")).toBeVisible();
@@ -191,6 +226,7 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(guest.getByRole("button", { name: "ذخیرهٔ این ضابطه" })).toBeVisible();
   await expect(guest.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" })).toBeVisible();
   await expect(guest.getByRole("button", { name: "ذخیرهٔ این مورد" })).toBeVisible();
+  await expect(guest.getByRole("button", { name: "بارگذاری فایل" })).toBeVisible();
 
   await guestContext.close();
 });
