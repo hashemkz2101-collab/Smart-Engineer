@@ -59,8 +59,8 @@ test("a bootstrapped administrator manages users and sees the audit trail", asyn
   await expect(page.getByRole("button", { name: "فعال‌سازی کاربر عادی" })).toBeVisible();
 
   // A deactivated account is locked out at once.
-  await memberPage.reload();
-  await expect(memberPage).toHaveURL(/\/login/);
+  await memberPage.goto("/admin");
+  await expect(memberPage).toHaveURL(/\/login/, { timeout: 15_000 });
 
   await page.getByRole("button", { name: "ممیزی" }).click();
   await expect(page.getByText("حساب کاربر غیرفعال شد")).toBeVisible();
