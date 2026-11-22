@@ -27,7 +27,6 @@ const errorMessages: Record<string, string> = {
   last_owner: "هر پروژه باید دست‌کم یک مالک داشته باشد.",
   not_archived: "این پروژه بایگانی نشده است.",
   not_found: "مورد درخواستی پیدا نشد.",
-  invalid_email: "ایمیل واردشده درست نیست.",
   already_in_organization: "این کاربر عضو سازمان است؛ او را مستقیم با «افزودن عضو» اضافه کنید.",
   user_not_found: "کاربر فعالی با این ایمیل پیدا نشد.",
   user_inactive: "حساب این کاربر غیرفعال است.",

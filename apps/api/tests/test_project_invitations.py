@@ -150,6 +150,10 @@ class InvitationChecks:
             select(ProjectMember.role).where(ProjectMember.user_id == guest.id)
         )
         self.assertEqual(role, "mep_engineer")
+        _, member_token = org_service.create_invitation(
+            self.session, owner, self.org_of(owner), email=member.email, org_role="member"
+        )
+        org_service.accept_invitation(self.session, member, member_token)
         for email, role_name, code in (
             ("nope", "architect", "invalid_email"),
             ("new@example.com", "emperor", "invalid_role"),
