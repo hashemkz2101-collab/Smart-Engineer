@@ -35,6 +35,7 @@ EXPECTED_TABLES = {
     "requirement_sections",
     "environment_records",
     "project_files",
+    "admin_audit_events",
 }
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
 

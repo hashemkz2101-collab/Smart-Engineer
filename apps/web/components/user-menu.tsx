@@ -26,6 +26,7 @@ export function UserMenu() {
     <nav className="user-menu" aria-label="حساب کاربری">
       <Link href="/projects">پروژه‌ها</Link>
       <Link href="/organization">سازمان</Link>
+      {state.user.is_system_admin ? <Link href="/admin">مدیریت سیستم</Link> : null}
       <span className="user-name">{state.user.display_name}</span>
       <button
         className="link-button"

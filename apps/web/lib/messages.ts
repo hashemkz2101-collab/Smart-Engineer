@@ -27,6 +27,11 @@ const errorMessages: Record<string, string> = {
   last_owner: "هر پروژه باید دست‌کم یک مالک داشته باشد.",
   not_archived: "این پروژه بایگانی نشده است.",
   not_found: "مورد درخواستی پیدا نشد.",
+  user_not_found: "کاربر فعالی با این ایمیل پیدا نشد.",
+  user_inactive: "حساب این کاربر غیرفعال است.",
+  last_system_admin: "پلتفرم باید دست‌کم یک مدیر سیستم فعال داشته باشد.",
+  cannot_change_self: "مدیر نمی‌تواند وضعیت حساب خودش را از اینجا تغییر دهد.",
+  project_archived: "پروژهٔ بایگانی‌شده فقط‌خواندنی است.",
   cannot_remove_owner: "مالک سازمان را نمی‌توان حذف کرد.",
   owner_role_fixed: "نقش مالک سازمان قابل تغییر نیست.",
   invalid_site: "برخی فیلدهای داده‌های زمین درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
@@ -121,4 +126,14 @@ export const fieldReasonMessages: Record<string, string> = {
   too_few_points: "دست‌کم سه نقطه لازم است.",
   degenerate: "نقاط مساحت صفر می‌سازند.",
   self_intersecting: "مرز قطعه خودش را قطع می‌کند.",
+};
+
+export const adminActionLabels: Record<string, string> = {
+  "admin.user_activated": "حساب کاربر فعال شد",
+  "admin.user_deactivated": "حساب کاربر غیرفعال شد",
+  "admin.system_admin_granted": "دسترسی مدیر سیستم داده شد",
+  "admin.system_admin_revoked": "دسترسی مدیر سیستم گرفته شد",
+  "admin.project_member_added": "عضوی به پروژه اضافه شد",
+  "admin.project_member_role_changed": "نقش عضو پروژه تغییر کرد",
+  "admin.project_member_removed": "عضو از پروژه حذف شد",
 };

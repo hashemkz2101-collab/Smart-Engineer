@@ -5,6 +5,20 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-13: system administration (ADMIN-001). Active system administrators can list and
+  search users, deactivate or reactivate accounts (deactivation revokes the user's
+  sessions at once), grant or revoke the system-admin flag, list projects (metadata only:
+  name, type, status, organization, member count; no project content) and add, re-role or
+  remove project members. Project access never crosses organizations: the user must
+  already belong to the project's organization, a project keeps at least one owner, and
+  archived projects stay read-only. Admins cannot change their own account state here and
+  the platform keeps at least one active admin. Every action writes an append-only
+  `admin_audit_events` row in the same transaction (project access changes also appear in
+  the project's own activity, marked as made by a platform admin). Everyone else gets 404
+  from `/admin/*`. The first administrator can only be created from the command line
+  (`python -m smart_engineer_api.manage grant-admin EMAIL`, audited). Migration 0013,
+  Persian `/admin` UI (users, projects and access, audit), API tests (SQLite/PostgreSQL),
+  mocked-UI and full-stack tests. No feature status changed.
 - P1-12: project file attachments. Allowed types PDF, PNG, JPEG and WebP, decided from the
   file's own bytes (extension must agree); 10 MiB per file and 100 files per project are
   development defaults pending DEC-023. Metadata: kind, document date, ownership text,
