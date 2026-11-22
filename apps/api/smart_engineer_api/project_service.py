@@ -6,15 +6,17 @@ their own work, like the other services.
 """
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from .access import authorize_org, authorize_project
-from .auth_service import utcnow
-from .db import ActivityEvent, Membership, Project, ProjectMember, User
+from .auth_service import EMAIL_PATTERN, aware, utcnow
+from .db import ActivityEvent, Invitation, Membership, Project, ProjectMember, User
+from .org_service import INVITATION_TTL
 from .roles import PROJECT_ROLES, PROJECT_TYPES
-from .security import normalize_email
+from .security import new_token, normalize_email, token_digest
 
 
 class ProjectError(Exception):
@@ -210,8 +212,12 @@ def add_member(
     )
     session.add(member)
     _record(
-        session, project_id, actor, "project.member_added",
-        target_user_id=target.id, detail={"role": role},
+        session,
+        project_id,
+        actor,
+        "project.member_added",
+        target_user_id=target.id,
+        detail={"role": role},
     )
     session.commit()
     return member
@@ -250,16 +256,18 @@ def change_member_role(
     previous = member.role
     member.role = role
     _record(
-        session, project_id, actor, "project.member_role_changed",
-        target_user_id=user_id, detail={"from": previous, "to": role},
+        session,
+        project_id,
+        actor,
+        "project.member_role_changed",
+        target_user_id=user_id,
+        detail={"from": previous, "to": role},
     )
     session.commit()
     return member
 
 
-def remove_member(
-    session: Session, actor: User, project_id: uuid.UUID, user_id: uuid.UUID
-) -> None:
+def remove_member(session: Session, actor: User, project_id: uuid.UUID, user_id: uuid.UUID) -> None:
     authorize_project(session, actor, project_id, "project.members.manage")
     member = _member(session, project_id, user_id)
     if member.role == "owner" and _owner_count(session, project_id) <= 1:
@@ -267,15 +275,17 @@ def remove_member(
     role = member.role
     session.delete(member)
     _record(
-        session, project_id, actor, "project.member_removed",
-        target_user_id=user_id, detail={"role": role},
+        session,
+        project_id,
+        actor,
+        "project.member_removed",
+        target_user_id=user_id,
+        detail={"role": role},
     )
     session.commit()
 
 
-def list_activity(
-    session: Session, actor: User, project_id: uuid.UUID
-) -> list[ActivityEvent]:
+def list_activity(session: Session, actor: User, project_id: uuid.UUID) -> list[ActivityEvent]:
     authorize_project(session, actor, project_id, "project.view")
     return list(
         session.scalars(
@@ -284,3 +294,115 @@ def list_activity(
             .order_by(ActivityEvent.id)
         )
     )
+
+
+def invite_to_project(
+    session: Session,
+    actor: User,
+    project_id: uuid.UUID,
+    *,
+    email: str,
+    role: str,
+    now: datetime | None = None,
+) -> tuple[Invitation, str]:
+    """Invite someone by email to a project with a bounded project role (FLOW-001).
+
+    The invitee has no access until they accept with the matching account; accepting
+    also makes them a plain organization member (the existing rule that project roles
+    only go to organization members). Returns the invitation and its one-time token,
+    shown as a link because no mailer is configured yet (DEC-010).
+    """
+    now = now or utcnow()
+    project, _ = authorize_project(session, actor, project_id, "project.members.manage")
+    if role not in PROJECT_ROLES:
+        raise ProjectError("invalid_role")
+    email = normalize_email(email)
+    if not EMAIL_PATTERN.match(email) or len(email) > 320:
+        raise ProjectError("invalid_email")
+    in_org = session.scalar(
+        select(Membership.id)
+        .join(User, User.id == Membership.user_id)
+        .where(Membership.organization_id == project.organization_id, User.email == email)
+    )
+    if in_org is not None:
+        # Already in the organization: grant the role directly instead.
+        raise ProjectError("already_in_organization")
+    session.execute(
+        update(Invitation)
+        .where(
+            Invitation.project_id == project_id,
+            Invitation.email == email,
+            Invitation.accepted_at.is_(None),
+            Invitation.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
+    token = new_token()
+    invitation = Invitation(
+        organization_id=project.organization_id,
+        email=email,
+        org_role="member",
+        project_id=project_id,
+        project_role=role,
+        invited_by_user_id=actor.id,
+        token_hash=token_digest(token),
+        created_at=now,
+        expires_at=now + INVITATION_TTL,
+    )
+    session.add(invitation)
+    session.flush()
+    _record(
+        session,
+        project_id,
+        actor,
+        "project.invitation_created",
+        detail={"email": email, "role": role, "invitation_id": str(invitation.id)},
+    )
+    session.commit()
+    return invitation, token
+
+
+def list_project_invitations(
+    session: Session, actor: User, project_id: uuid.UUID, now: datetime | None = None
+) -> list[Invitation]:
+    """Pending (not accepted, revoked or expired) invitations, newest first."""
+    now = now or utcnow()
+    authorize_project(session, actor, project_id, "project.members.manage")
+    rows = session.scalars(
+        select(Invitation)
+        .where(
+            Invitation.project_id == project_id,
+            Invitation.accepted_at.is_(None),
+            Invitation.revoked_at.is_(None),
+        )
+        .order_by(Invitation.created_at.desc())
+    )
+    return [row for row in rows if aware(row.expires_at) > now]
+
+
+def revoke_project_invitation(
+    session: Session,
+    actor: User,
+    project_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+    now: datetime | None = None,
+) -> None:
+    now = now or utcnow()
+    authorize_project(session, actor, project_id, "project.members.manage")
+    invitation = session.get(Invitation, invitation_id)
+    if invitation is None or invitation.project_id != project_id:
+        raise ProjectError("not_found")
+    if invitation.accepted_at is None and invitation.revoked_at is None:
+        invitation.revoked_at = now
+        _record(
+            session,
+            project_id,
+            actor,
+            "project.invitation_revoked",
+            detail={
+                "email": invitation.email,
+                "role": invitation.project_role,
+                "invitation_id": str(invitation.id),
+            },
+        )
+        session.commit()

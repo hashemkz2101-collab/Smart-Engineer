@@ -34,6 +34,13 @@ export type ProjectMember = {
   role: string;
 };
 
+export type ProjectInvitation = {
+  id: string;
+  email: string;
+  role: string;
+  expires_at: string;
+};
+
 export type ActivityEvent = {
   id: number;
   action: string;

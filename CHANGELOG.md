@@ -5,6 +5,17 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-14: project invitations (FLOW-001 refinement). A project owner can invite someone who is
+  not yet in the organization by email, with one bounded project role. Accepting the
+  one-time link (7 days, only the account with that email) makes the person a plain
+  organization member and grants exactly that project role; before acceptance they have
+  no access, and revoked, expired, used, wrong-account or archived-project links all look
+  the same (invalid). Invitation creation, revocation and acceptance are recorded in the
+  project activity with actor, target, role and time. Existing organization members are
+  still added directly. Organization-level invitations no longer revoke project
+  invitations for the same email. Migration 0014 (project_id and project_role on
+  invitations), Persian UI on the project page and the accept page, API tests
+  (SQLite/PostgreSQL), mocked-UI and full-stack tests. No feature status changed.
 - P1-13: system administration (ADMIN-001). Active system administrators can list and
   search users, deactivate or reactivate accounts (deactivation revokes the user's
   sessions at once), grant or revoke the system-admin flag, list projects (metadata only:

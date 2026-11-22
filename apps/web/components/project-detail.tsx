@@ -10,7 +10,7 @@ import {
   projectRoleLabels,
   projectTypeLabels,
 } from "../lib/messages";
-import type { ActivityEvent, Project, ProjectMember } from "../lib/types";
+import type { ActivityEvent, Project, ProjectInvitation, ProjectMember } from "../lib/types";
 import { useResource } from "../lib/use-resource";
 import { FormError, FormField, FormNotice } from "./form-field";
 import { IntakePanel } from "./intake-panel";
@@ -235,7 +235,113 @@ function Members({
           </button>
         </form>
       ) : null}
+      {canManage ? <ProjectInvitations projectId={projectId} onChanged={onChanged} /> : null}
     </section>
+  );
+}
+
+function ProjectInvitations({
+  projectId,
+  onChanged,
+}: {
+  projectId: string;
+  onChanged: () => void;
+}) {
+  const [version, setVersion] = useState(0);
+  const pending = useResource<{ invitations: ProjectInvitation[] }>(
+    `/projects/${projectId}/invitations`,
+    version,
+  );
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("architect");
+  const [error, setError] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+
+  async function run(action: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await action();
+      setVersion((current) => current + 1);
+      onChanged();
+    } catch (failure) {
+      setError(toApiError(failure).userMessage);
+    }
+  }
+
+  async function invite(event: FormEvent) {
+    event.preventDefault();
+    setInviteLink(null);
+    await run(async () => {
+      const result = await api.post<{ token: string }>(`/projects/${projectId}/invitations`, {
+        email,
+        role,
+      });
+      setInviteLink(
+        `${window.location.origin}/invitations/accept?token=${encodeURIComponent(result.token)}`,
+      );
+      setEmail("");
+    });
+  }
+
+  return (
+    <div className="detail-section" role="group" aria-labelledby="project-invite-title">
+      <h3 id="project-invite-title">دعوت از بیرون سازمان</h3>
+      <p className="field-hint">
+        برای کسی که هنوز عضو سازمان نیست. تا پذیرش دعوت هیچ دسترسی‌ای ندارد؛ با پذیرش، عضو
+        ساده‌ٔ سازمان می‌شود و فقط همین نقش پروژه را می‌گیرد. ارسال ایمیل هنوز فعال نیست؛
+        پیوند را خودتان بفرستید (یک بار نمایش داده می‌شود و ۷ روز اعتبار دارد).
+      </p>
+      <ul className="card-list">
+        {pending.data?.invitations.map((invitation) => (
+          <li key={invitation.id} className="card member-row">
+            <div>
+              <span className="card-meta" dir="ltr">
+                {invitation.email}
+              </span>
+              <span className="badge">{projectRoleLabels[invitation.role] ?? invitation.role}</span>
+            </div>
+            <button
+              type="button"
+              className="button button-secondary"
+              aria-label={`لغو دعوت ${invitation.email}`}
+              onClick={() => run(() => api.delete(`/projects/${projectId}/invitations/${invitation.id}`))}
+            >
+              لغو دعوت
+            </button>
+          </li>
+        ))}
+      </ul>
+      <FormError message={error ?? pending.error?.userMessage ?? null} />
+      <form className="form-panel" onSubmit={invite} noValidate>
+        <FormField id="project-invite-email" label="ایمیل فرد دعوت‌شده به پروژه">
+          <input
+            id="project-invite-email"
+            type="email"
+            dir="ltr"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </FormField>
+        <FormField id="project-invite-role" label="نقش فرد دعوت‌شده در پروژه">
+          <RoleSelect
+            id="project-invite-role"
+            label="نقش فرد دعوت‌شده در پروژه"
+            value={role}
+            onChange={setRole}
+          />
+        </FormField>
+        <button className="button" type="submit">
+          ساخت دعوت‌نامهٔ پروژه
+        </button>
+        {inviteLink ? (
+          <div role="status" className="alert alert-success">
+            <label htmlFor="project-invite-link">پیوند دعوت پروژه:</label>
+            <input id="project-invite-link" type="text" dir="ltr" readOnly value={inviteLink} />
+          </div>
+        ) : null}
+      </form>
+    </div>
   );
 }
 

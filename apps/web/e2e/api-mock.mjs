@@ -99,6 +99,8 @@ export async function mockApi(page, state = {}, overrides = {}) {
             { user_id: USER.id, email: USER.email, display_name: USER.display_name, role: "owner" },
           ],
         });
+      case `GET /projects/${PROJECT.id}/invitations`:
+        return json(route, 200, { invitations: state.invitations ?? [] });
       case `GET /projects/${PROJECT.id}/activity`:
         return json(route, 200, {
           events: [
