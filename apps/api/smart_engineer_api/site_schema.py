@@ -226,9 +226,10 @@ def _points(vertices: list[dict]) -> list[tuple[float, float]]:
 # --- validation -----------------------------------------------------------------------
 
 
-def validate_section(section: str, data: dict) -> tuple[dict, dict[str, str]]:
-    """Return (cleaned data, {path: reason}). Empty scalars are dropped."""
-    fields = SCHEMA[section]
+def clean_document(
+    fields: dict[str, Field | ListField], data: dict
+) -> tuple[dict, dict[str, str]]:
+    """Validate ``data`` against a field table; empty scalars are dropped."""
     cleaned: dict = {}
     errors: dict[str, str] = {}
     for key, value in data.items():
@@ -245,6 +246,12 @@ def validate_section(section: str, data: dict) -> tuple[dict, dict[str, str]]:
                 errors[key] = reason
             elif result is not None:
                 cleaned[key] = result
+    return cleaned, errors
+
+
+def validate_section(section: str, data: dict) -> tuple[dict, dict[str, str]]:
+    """Return (cleaned data, {path: reason}). Empty scalars are dropped."""
+    cleaned, errors = clean_document(SCHEMA[section], data)
     if section == "parcel":
         _check_parcel(cleaned, errors)
     return cleaned, errors

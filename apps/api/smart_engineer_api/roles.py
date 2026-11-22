@@ -38,6 +38,9 @@ INTAKE_STEPS = ("identity", "location", "people", "legal")
 # Site / land data sections (SITE-001, SITE-002).
 SITE_SECTIONS = ("parcel", "access", "terrain", "surroundings", "soil")
 
+# Client requirement sections (REQ-001, REQ-002, REQ-003).
+REQUIREMENT_SECTIONS = ("program", "preferences", "references")
+
 # Zoning / building-control input categories (RULE-DATA-001, master spec 3.3).
 ZONING_FIELDS = (
     "land_use",

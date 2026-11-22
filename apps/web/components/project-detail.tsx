@@ -14,6 +14,7 @@ import type { ActivityEvent, Project, ProjectMember } from "../lib/types";
 import { useResource } from "../lib/use-resource";
 import { FormError, FormField, FormNotice } from "./form-field";
 import { IntakePanel } from "./intake-panel";
+import { RequirementsPanel } from "./requirements-panel";
 import { SitePanel } from "./site-panel";
 import { ZoningPanel } from "./zoning-panel";
 
@@ -348,6 +349,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <SitePanel
           projectId={projectId}
           canEdit={can("project.site.edit")}
+          version={version}
+        />
+      )}
+
+      {myRole === "org_admin" ? null : (
+        <RequirementsPanel
+          projectId={projectId}
+          canEdit={can("project.requirements.edit")}
           version={version}
         />
       )}

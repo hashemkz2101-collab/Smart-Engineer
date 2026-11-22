@@ -32,6 +32,7 @@ EXPECTED_TABLES = {
     "intake_steps",
     "site_sections",
     "zoning_records",
+    "requirement_sections",
 }
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
 

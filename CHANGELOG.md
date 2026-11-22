@@ -5,6 +5,18 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-10: client requirements in three versioned sections. Program: unit and floor counts,
+  target area or range, and rooms / named spaces (bedrooms, kitchen, reception, living,
+  bathrooms, storage, laundry, special spaces, parking, yard, terrace, balcony, roof
+  garden, green space) with counts and area targets or ranges. Preferences: accessibility,
+  privacy and public/private separation, style, quality and material level, budget with
+  currency and priorities, mandatory / preferred / unacceptable constraints, expansion and
+  change of use, each independent and reported as not provided when omitted. References:
+  examples with label, explanation, kind and optional http(s) link (uploaded image files
+  wait for FILE-001/DEC-023). Inverted ranges, budget without currency and bad links are
+  rejected with per-field reasons. Owner and architect edit, others read, archived
+  read-only, activity events, migration 0010, Persian UI, API tests (SQLite/PostgreSQL),
+  mocked-UI and full-stack tests. No feature status changed.
 - P1-09: zoning / building-control inputs in nine categories (land use/zone, coverage,
   density and floor area, floors and height, setbacks, parking/access, daylight and
   openings, stairs/elevator/ramp/exit, local constraints). Each record carries a source
