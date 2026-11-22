@@ -655,3 +655,102 @@ test.describe("client requirements", () => {
     await expect(page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" })).toHaveCount(0);
   });
 });
+
+test.describe("environment inputs", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const ok = (body) => (route) =>
+    route
+      .fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) })
+      .then(() => true);
+
+  test("an unsourced value is saved and shown as needing inquiry", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/environment/rainfall`]: ok({
+        field: "rainfall",
+        data: { annual_mm: 290 },
+        status: "needs_inquiry",
+        source_missing: ["source_type", "source_title_or_reference", "location_reference", "source_date"],
+        version: 1,
+      }),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /بارندگی/ }).click();
+    await expect(page.getByTestId("env-status")).toHaveAttribute("data-status", "unknown");
+    await page.getByLabel("بارش سالانه (میلی‌متر)").fill("290");
+    await page.getByRole("button", { name: "ذخیرهٔ این مورد" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد؛ وضعیت: نیازمند استعلام." })).toBeVisible();
+    await expect(page.getByTestId("env-status")).toContainText("محل داده");
+    const put = state.requests.find((r) => r.key.endsWith("/environment/rainfall"));
+    expect(put.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(put.body.version).toBe(0);
+    expect(put.body.data.annual_mm).toBe("290");
+  });
+
+  test("source, location and date are sent with the value", async ({ page }) => {
+    const state = { loggedIn: true };
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/environment/seismicity`]: ok({
+        field: "seismicity", data: {}, status: "verified", source_missing: [], version: 1,
+      }),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /لرزه‌خیزی/ }).click();
+    await page.getByLabel("شتاب مبنای طرح (برحسب g)").fill("0.35");
+    await page.getByLabel("نوع مرجع داده").selectOption("national_standard");
+    await page.getByLabel("عنوان مرجع داده").fill("استاندارد ۲۸۰۰");
+    await page.getByLabel("محلی که داده به آن مربوط است").fill("تبریز");
+    await page.getByLabel("تاریخ داده").fill("1403-12-01");
+    await page.getByLabel("تقویم این تاریخ").selectOption("jalali");
+    await page.getByLabel(/تأیید شده می‌دانم/).check();
+    await page.getByRole("button", { name: "ذخیرهٔ این مورد" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "تأییدشده" })).toBeVisible();
+    const put = state.requests.find((r) => r.key.endsWith("/environment/seismicity"));
+    expect(put.body.data).toEqual({
+      design_pga_g: "0.35",
+      source_type: "national_standard",
+      source_title: "استاندارد ۲۸۰۰",
+      location_reference: "تبریز",
+      source_date: "1403-12-01",
+      source_calendar: "jalali",
+      source_verified: true,
+    });
+  });
+
+  test("utility availability is a choice and API errors show next to fields", async ({ page }) => {
+    await mockApi(page, { loggedIn: true }, {
+      [`PUT /projects/${PROJECT.id}/environment/gas`]: (route) =>
+        route
+          .fulfill({
+            status: 422,
+            contentType: "application/json",
+            body: JSON.stringify({ error: { code: "invalid_environment", message: "x", correlation_id: "t",
+              details: [{ field: "source_calendar", reason: "calendar_required" }] } }),
+          })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /^گاز / }).click();
+    await page.getByLabel("وضعیت دسترسی").selectOption("planned");
+    await page.getByLabel("تاریخ داده").fill("1403-12-01");
+    await page.getByRole("button", { name: "ذخیرهٔ این مورد" }).click();
+    await expect(page.getByText("با تاریخ، تقویم آن را هم انتخاب کنید.")).toBeVisible();
+    await expect(page.getByLabel("تقویم این تاریخ")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  test("stored status shows what is missing; view-only members cannot edit", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      permissions: ["project.view"],
+      environment: { wind: { data: { mean_speed_ms: 3 }, status: "needs_inquiry",
+        source_missing: ["source_date"], version: 1 } },
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: /باد غالب/ }).click();
+    const status = page.getByTestId("env-status");
+    await expect(status).toHaveAttribute("data-status", "needs_inquiry");
+    await expect(status).toContainText("تاریخ داده");
+    await expect(page.getByLabel("میانگین سرعت باد (متر بر ثانیه)")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "ذخیرهٔ این مورد" })).toHaveCount(0);
+  });
+});

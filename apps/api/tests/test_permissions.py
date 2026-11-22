@@ -20,6 +20,7 @@ EXPECTED_PROJECT_ALLOWED = {
     "project.site.edit": {"owner", "architect"},
     "project.zoning.edit": {"owner", "architect"},
     "project.requirements.edit": {"owner", "architect"},
+    "project.environment.edit": {"owner", "architect", "structural_engineer", "mep_engineer"},
     "project.architect_input.edit": {"architect"},
     "project.space_review": {"architect"},
     "project.structural_input.edit": {"structural_engineer"},

@@ -5,6 +5,17 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-11: environmental and technical conditions in thirteen categories (climate, solar
+  exposure, prevailing wind, rainfall, design temperature and comfort, natural hazards,
+  seismicity, water / electricity / gas / sewer / telecom availability, energy constraints
+  and efficiency requirements). Each record keeps the user's values plus source type,
+  title or reference, the location the data applies to, a Jalali or Gregorian date and an
+  explicit "source verified" statement. Status is derived: no values = unknown, values
+  without a complete verified source, location and date = needs inquiry, otherwise
+  verified. Entered values only; never defaulted, never produced by AI. Owner, architect,
+  structural and MEP engineers edit; other roles read; archived read-only; activity
+  events, migration 0011, Persian UI, API tests (SQLite/PostgreSQL), mocked-UI and
+  full-stack tests. No feature status changed.
 - P1-10: client requirements in three versioned sections. Program: unit and floor counts,
   target area or range, and rooms / named spaces (bedrooms, kitchen, reception, living,
   bathrooms, storage, laundry, special spaces, parking, yard, terrace, balcony, roof
