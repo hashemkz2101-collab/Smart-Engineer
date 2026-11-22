@@ -38,6 +38,23 @@ INTAKE_STEPS = ("identity", "location", "people", "legal")
 # Site / land data sections (SITE-001, SITE-002).
 SITE_SECTIONS = ("parcel", "access", "terrain", "surroundings", "soil")
 
+# Environmental / technical condition inputs (ENV-001, master spec 3.5).
+ENV_FIELDS = (
+    "climate",
+    "solar",
+    "wind",
+    "rainfall",
+    "design_temperature",
+    "hazards",
+    "seismicity",
+    "water",
+    "electricity",
+    "gas",
+    "sewer",
+    "telecom",
+    "energy",
+)
+
 # Client requirement sections (REQ-001, REQ-002, REQ-003).
 REQUIREMENT_SECTIONS = ("program", "preferences", "references")
 

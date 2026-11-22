@@ -119,6 +119,27 @@ test("owner and guest complete the account, project and invitation workflow", as
   await page.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" }).click();
   await expect(page.getByText("ذخیره شد؛ این بخش کامل است.").last()).toBeVisible();
 
+  // Environment: a value without a source needs inquiry; location, date and source verify it.
+  await page.getByRole("button", { name: /بارندگی/ }).click();
+  await page.getByLabel("بارش سالانه (میلی‌متر)").fill("290");
+  await page.getByRole("button", { name: "ذخیرهٔ این مورد" }).click();
+  await expect(page.getByText("ذخیره شد؛ وضعیت: نیازمند استعلام.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /بارندگی/ }).click();
+  await expect(page.getByTestId("env-status")).toHaveAttribute("data-status", "needs_inquiry");
+  await page.getByLabel("نوع مرجع داده").selectOption("meteorological_station");
+  await page.getByLabel("عنوان مرجع داده").fill("سالنامهٔ هواشناسی");
+  await page.getByLabel("محلی که داده به آن مربوط است").fill("ایستگاه تبریز");
+  await page.getByLabel("تاریخ داده").fill("1403-12-01");
+  await page.getByLabel("تقویم این تاریخ").selectOption("jalali");
+  await page.getByLabel(/تأیید شده می‌دانم/).check();
+  await page.getByRole("button", { name: "ذخیرهٔ این مورد" }).click();
+  await expect(page.getByText("ذخیره شد؛ وضعیت: تأییدشده.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /بارندگی/ }).click();
+  await expect(page.getByTestId("env-status")).toHaveAttribute("data-status", "verified");
+  await expect(page.getByLabel("محلی که داده به آن مربوط است")).toHaveValue("ایستگاه تبریز");
+
   // Archive and restore.
   await page.getByRole("button", { name: "بایگانی پروژه" }).click();
   await expect(page.getByText("این پروژه بایگانی شده و فقط‌خواندنی است.")).toBeVisible();
@@ -169,6 +190,7 @@ test("owner and guest complete the account, project and invitation workflow", as
   await expect(guest.getByRole("button", { name: "ذخیرهٔ این بخش" })).toBeVisible();
   await expect(guest.getByRole("button", { name: "ذخیرهٔ این ضابطه" })).toBeVisible();
   await expect(guest.getByRole("button", { name: "ذخیرهٔ نیازمندی‌ها" })).toBeVisible();
+  await expect(guest.getByRole("button", { name: "ذخیرهٔ این مورد" })).toBeVisible();
 
   await guestContext.close();
 });

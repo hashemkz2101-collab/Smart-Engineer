@@ -15,8 +15,9 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-07 | Staged project intake: identity, location, people, land-status notes | INP-001, INP-002 | merged |
 | P1-08 | Site/land data: parcel geometry and area report, access/orientation, terrain, surroundings, optional soil | SITE-001, SITE-002 | merged |
 | P1-09 | Zoning/building-control inputs with source, date and verification; unverified values stay unknown / needs inquiry | RULE-DATA-001 | merged |
-| P1-10 | Client requirements: space program, preferences/constraints, reference examples (label + explanation + link) | REQ-001, REQ-002, REQ-003 | in review |
-| P1-11+ | Environment (ENV), files (DEC-023, image upload for references), security | ENV-001, FILE-001, SEC-002 | planned |
+| P1-10 | Client requirements: space program, preferences/constraints, reference examples (label + explanation + link) | REQ-001, REQ-002, REQ-003 | merged |
+| P1-11 | Environmental and technical conditions with source, location and date | ENV-001 | in review |
+| P1-12+ | Files (DEC-023, image upload for references), security | FILE-001, SEC-002 | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys

@@ -26,6 +26,7 @@ export const OWNER_PERMISSIONS = [
   "project.site.edit",
   "project.zoning.edit",
   "project.requirements.edit",
+  "project.environment.edit",
   "project.update",
   "project.archive",
   "project.restore",
@@ -154,6 +155,20 @@ export async function mockApi(page, state = {}, overrides = {}) {
             missing: [],
             not_provided: state.requirements?.[section]?.not_provided ?? [],
             version: state.requirements?.[section]?.version ?? 0,
+            updated_at: null,
+          })),
+        });
+      case `GET /projects/${PROJECT.id}/environment`:
+        return json(route, 200, {
+          records: [
+            "climate", "solar", "wind", "rainfall", "design_temperature", "hazards",
+            "seismicity", "water", "electricity", "gas", "sewer", "telecom", "energy",
+          ].map((field) => ({
+            field,
+            data: state.environment?.[field]?.data ?? {},
+            status: state.environment?.[field]?.status ?? "unknown",
+            source_missing: state.environment?.[field]?.source_missing ?? [],
+            version: state.environment?.[field]?.version ?? 0,
             updated_at: null,
           })),
         });

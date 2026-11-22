@@ -31,6 +31,7 @@ const errorMessages: Record<string, string> = {
   owner_role_fixed: "نقش مالک سازمان قابل تغییر نیست.",
   invalid_site: "برخی فیلدهای داده‌های زمین درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_requirements: "برخی فیلدهای نیازمندی‌ها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
+  invalid_environment: "برخی فیلدهای شرایط محیطی درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_zoning: "برخی فیلدهای ضوابط درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_intake: "برخی فیلدها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   version_conflict:
@@ -74,6 +75,7 @@ export const activityLabels: Record<string, string> = {
   "project.member_role_changed": "نقش یک عضو تغییر کرد",
   "project.member_removed": "عضوی از پروژه حذف شد",
   "project.requirements_saved": "نیازمندی‌های کارفرما ذخیره شد",
+  "project.environment_saved": "شرایط محیطی ذخیره شد",
   "project.zoning_saved": "ضوابط شهرسازی ذخیره شد",
   "project.site_saved": "داده‌های زمین ذخیره شد",
   "project.intake_saved": "اطلاعات ورودی پروژه ذخیره شد",
@@ -92,6 +94,7 @@ export const fieldReasonMessages: Record<string, string> = {
   invalid_choice: "یکی از گزینه‌های موجود را انتخاب کنید.",
   unknown_field: "این فیلد شناخته‌شده نیست.",
   coordinates_need_both: "عرض و طول جغرافیایی باید با هم وارد شوند.",
+  winter_above_summer: "دمای طراحی زمستان نباید از دمای تابستان بیشتر باشد.",
   range_inverted: "حداقل نباید از حداکثر بیشتر باشد.",
   currency_required: "با مبلغ، واحد آن را هم انتخاب کنید.",
   invalid_url: "پیوند باید با http:// یا https:// شروع شود.",

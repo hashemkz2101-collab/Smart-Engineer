@@ -33,6 +33,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from ..roles import (
     AUTH_TOKEN_PURPOSES,
+    ENV_FIELDS,
     INTAKE_STEPS,
     INVITABLE_ORG_ROLES,
     ORG_ROLES,
@@ -426,6 +427,38 @@ class RequirementSection(Base):
     complete: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class EnvironmentRecord(Base):
+    """One environmental / technical-condition category with its source (ENV-001).
+
+    ``data`` holds the user-entered values plus source, location and date. Status is
+    derived on read; nothing is stored as fact without a source.
+    """
+
+    __tablename__ = "environment_records"
+    __table_args__ = (
+        UniqueConstraint("project_id", "field_key"),
+        CheckConstraint(sql_in("field_key", ENV_FIELDS), name="field_key_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    field_key: Mapped[str] = mapped_column(String(30), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"), nullable=False

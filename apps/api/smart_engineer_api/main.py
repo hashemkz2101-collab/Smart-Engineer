@@ -6,6 +6,9 @@ from .auth_routes import auth_error_handler
 from .auth_routes import router as auth_router
 from .config import Settings
 from .db.session import create_db_engine, create_session_factory
+from .environment_routes import environment_error_handler, environment_validation_handler
+from .environment_routes import router as environment_router
+from .environment_service import EnvironmentError_, EnvironmentValidationError
 from .errors import register_exception_handlers
 from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
@@ -66,6 +69,8 @@ def create_app(
     app.add_exception_handler(IntakeValidationError, intake_validation_handler)
     app.add_exception_handler(SiteError, site_error_handler)
     app.add_exception_handler(SiteValidationError, site_validation_handler)
+    app.add_exception_handler(EnvironmentError_, environment_error_handler)
+    app.add_exception_handler(EnvironmentValidationError, environment_validation_handler)
     app.add_exception_handler(RequirementsError, requirements_error_handler)
     app.add_exception_handler(RequirementsValidationError, requirements_validation_handler)
     app.add_exception_handler(ZoningError, zoning_error_handler)
@@ -77,6 +82,7 @@ def create_app(
     app.include_router(project_router, prefix=API_V1_PREFIX)
     app.include_router(intake_router, prefix=API_V1_PREFIX)
     app.include_router(site_router, prefix=API_V1_PREFIX)
+    app.include_router(environment_router, prefix=API_V1_PREFIX)
     app.include_router(requirements_router, prefix=API_V1_PREFIX)
     app.include_router(zoning_router, prefix=API_V1_PREFIX)
     return app
