@@ -35,7 +35,7 @@ _MESSAGES = {
     "empty_file": "The file is empty.",
     "invalid_kind": "Unknown file kind.",
     "invalid_date": "The document date is not valid.",
-    "invalid_name": "The file name is not valid.",
+    "invalid_file_name": "The file name is not valid.",
     "invalid_ownership": "The ownership text is too long.",
     "too_many_files": "This project has reached the file count limit.",
     "not_available": "This file is not available for download.",

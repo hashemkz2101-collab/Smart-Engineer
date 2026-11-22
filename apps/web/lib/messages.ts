@@ -42,7 +42,7 @@ const errorMessages: Record<string, string> = {
   empty_file: "فایل خالی است.",
   invalid_kind: "نوع سند را انتخاب کنید.",
   invalid_date: "تاریخ سند معتبر نیست؛ به شکل میلادی سال-ماه-روز وارد کنید.",
-  invalid_name: "نام فایل معتبر نیست.",
+  invalid_file_name: "نام فایل معتبر نیست.",
   invalid_ownership: "متن مالکیت بیش از حد طولانی است.",
   too_many_files: "تعداد فایل‌های این پروژه به سقف مجاز رسیده است.",
   not_available: "این فایل برای دانلود در دسترس نیست.",

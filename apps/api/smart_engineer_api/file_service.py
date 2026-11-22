@@ -93,7 +93,7 @@ def upload_file(
         raise FileError("invalid_ownership")
     name = clean_filename(filename)
     if name is None:
-        raise FileError("invalid_name")
+        raise FileError("invalid_file_name")
     if not content:
         raise FileError("empty_file")
     if len(content) > MAX_FILE_BYTES:

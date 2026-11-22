@@ -139,7 +139,7 @@ class FileChecks:
             (dict(name="a.exe", content=b"MZ\x90"), "unsupported_type"),
             (dict(name="a.png", content=PDF), "extension_mismatch"),
             (dict(name="a.pdf", content=PDF, kind="nope"), "invalid_kind"),
-            (dict(name="...", content=PDF), "invalid_name"),
+            (dict(name="...", content=PDF), "invalid_file_name"),
             (dict(name="a.pdf", content=PDF, document_date="2026-13-40"), "invalid_date"),
             (dict(name="a.pdf", content=PDF + b"0" * file_policy.MAX_FILE_BYTES), "file_too_large"),
         ]
