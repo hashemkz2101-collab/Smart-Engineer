@@ -63,3 +63,52 @@ class CorrelationIdMiddleware:
                 },
             )
             correlation_id_var.reset(token)
+
+
+_BASE_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+# The API only returns JSON and downloads, never pages, so it can forbid everything.
+_API_ONLY_HEADERS = {
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Cache-Control": "no-store",
+}
+HSTS_VALUE = "max-age=31536000; includeSubDomains"
+
+
+class SecurityHeadersMiddleware:
+    """Adds defensive response headers (SEC-001).
+
+    Headers a route already set (for example a download's ``Cache-Control``) win.
+    HSTS is sent only in production, where the service sits behind TLS; sending it
+    during local HTTP development would pin browsers to HTTPS for no benefit.
+    """
+
+    def __init__(self, app, *, hsts: bool = False) -> None:
+        self.app = app
+        self.hsts = hsts
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        is_api = scope.get("path", "").startswith("/api/")
+
+        async def send_with_headers(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                wanted = dict(_BASE_SECURITY_HEADERS)
+                if is_api:
+                    wanted.update(_API_ONLY_HEADERS)
+                if self.hsts:
+                    wanted["Strict-Transport-Security"] = HSTS_VALUE
+                for name, value in wanted.items():
+                    if name not in headers:
+                        headers[name] = value
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)

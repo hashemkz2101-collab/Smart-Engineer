@@ -5,6 +5,18 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-15: hardening. The API adds `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy`, `Permissions-Policy` to every
+  response, plus `Cache-Control: no-store` and a deny-all CSP on `/api/*`, and HSTS only in
+  production; headers a route sets itself (file downloads) are kept. The web app sends
+  nosniff, frame denial, a referrer policy, a permissions policy and a CSP limited to
+  `frame-ancestors`, `base-uri`, `form-action` and `object-src`; script sources stay open
+  because Next.js inline scripts would need per-request nonces (not done). HSTS for the
+  web site belongs to the TLS terminator. CORS stays unconfigured on purpose: the browser
+  uses one origin through the `/api` proxy and state changes are guarded by the origin check
+  and CSRF token. A new CI job scans tracked files for well-known credential shapes
+  (`scripts/check-secrets.mjs`, fixtures opt out with `secret-scan:allow`); it is a guard
+  against accidents, not a full scanner. No feature status changed.
 - P1-14: project invitations (FLOW-001 refinement). A project owner can invite someone who is
   not yet in the organization by email, with one bounded project role. Accepting the
   one-time link (7 days, only the account with that email) makes the person a plain
