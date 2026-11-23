@@ -31,6 +31,17 @@ WEBP = b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"\x00" * 16
 PDF_WITH_SCRIPT = b"%PDF-1.4\n<< /JavaScript (app.alert(1)) >>\n"
 
 
+def _zip(parts: dict[str, str]) -> bytes:
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, data in parts.items():
+            archive.writestr(name, data)
+    return buffer.getvalue()
+
+
 class PolicyTests(unittest.TestCase):
     def test_type_is_decided_from_content(self) -> None:
         self.assertEqual(
@@ -39,6 +50,43 @@ class PolicyTests(unittest.TestCase):
         )
         for blob in (b"", b"MZ\x90\x00", b"<html></html>", b"#!/bin/sh\n", b"PK\x03\x04", b"GIF89a"):
             self.assertIsNone(file_policy.detect_type(blob))
+
+    def test_new_engineering_and_office_formats_are_detected(self) -> None:
+        cases = {
+            "dxf": b"0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1027\n0\nENDSEC\n0\nEOF\n",
+            "dwg": b"AC1032\x00\x00\x00\x00\x00\x0f" + b"\x00" * 32,
+            "ifc": b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n",
+            "csv": "نام,مقدار\nبتن,۱۲\n".encode(),
+            "docx": _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>"}),
+            "xlsx": _zip({"[Content_Types].xml": "<Types/>", "xl/workbook.xml": "<w/>"}),
+            "doc": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + "WordDocument".encode("utf-16-le") + b"\x00" * 16,
+            "xls": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + "Workbook".encode("utf-16-le") + b"\x00" * 16,
+        }
+        for expected, blob in cases.items():
+            self.assertEqual(file_policy.detect_type(blob), expected, expected)
+
+    def test_macro_files_and_unsafe_archives_are_refused(self) -> None:
+        macro = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                      "word/vbaProject.bin": "x"})
+        self.assertEqual(file_policy.classify(macro).reason, "macro_not_allowed")
+        macro_ct = _zip({"[Content_Types].xml": "application/vnd.ms-word.document.macroEnabled.main+xml",
+                         "word/document.xml": "<w/>"})
+        self.assertEqual(file_policy.classify(macro_ct).reason, "macro_not_allowed")
+        ole_macro = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + "WordDocument".encode("utf-16-le") + "Macros".encode("utf-16-le")
+        self.assertEqual(file_policy.classify(ole_macro).reason, "macro_not_allowed")
+        traversal = _zip({"[Content_Types].xml": "<Types/>", "../evil.xml": "x", "word/document.xml": "<w/>"})
+        self.assertEqual(file_policy.classify(traversal).reason, "unsafe_archive")
+
+    def test_office_files_with_embedded_or_external_content_are_quarantined(self) -> None:
+        embedded = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                         "word/embeddings/oleObject1.bin": "x"})
+        self.assertEqual(file_policy.builtin_scan(embedded, "docx").verdict, "quarantined")
+        linked = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                       "word/_rels/document.xml.rels":
+                       '<Relationship Type="x/attachedTemplate" Target="http://e/x" TargetMode="External"/>'})
+        self.assertEqual(file_policy.builtin_scan(linked, "docx").verdict, "quarantined")
+        clean = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>"})
+        self.assertEqual(file_policy.builtin_scan(clean, "docx").verdict, "clean")
 
     def test_names_are_reduced_to_a_safe_display_name(self) -> None:
         self.assertEqual(file_policy.clean_filename("../../etc/pass\x00wd.pdf"), "passwd.pdf")
@@ -141,7 +189,7 @@ class FileChecks:
             (dict(name="a.pdf", content=PDF, kind="nope"), "invalid_kind"),
             (dict(name="...", content=PDF), "invalid_file_name"),
             (dict(name="a.pdf", content=PDF, document_date="2026-13-40"), "invalid_date"),
-            (dict(name="a.pdf", content=PDF + b"0" * file_policy.MAX_FILE_BYTES), "file_too_large"),
+            (dict(name="a.pdf", content=PDF + b"0" * file_policy.MAX_UPLOAD_BYTES), "file_too_large"),
         ]
         for kwargs, code in cases:
             with self.assertRaises(file_service.FileError) as raised:
@@ -266,8 +314,14 @@ class FileChecks:
         bad = client.post(url, params={"filename": "x.exe", "kind": "survey"}, headers=headers,
                           content=b"MZ")
         self.assertEqual((bad.status_code, bad.json()["error"]["code"]), (415, "unsupported_type"))
+        macro = client.post(
+            url, params={"filename": "m.docx", "kind": "survey"}, headers=headers,
+            content=_zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                          "word/vbaProject.bin": "x"}),
+        )
+        self.assertEqual((macro.status_code, macro.json()["error"]["code"]), (415, "macro_not_allowed"))
         big = client.post(url, params=params, headers=headers,
-                          content=PDF + b"0" * file_policy.MAX_FILE_BYTES)
+                          content=PDF + b"0" * file_policy.MAX_UPLOAD_BYTES)
         self.assertEqual((big.status_code, big.json()["error"]["code"]), (413, "file_too_large"))
         ok = client.post(url, params=params, headers=headers, content=PDF)
         self.assertEqual((ok.status_code, ok.json()["scan_status"]), (201, "clean"))

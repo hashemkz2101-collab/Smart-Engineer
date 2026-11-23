@@ -11,11 +11,12 @@ from .access import authorize_project
 from .db import ActivityEvent, ProjectFile, User
 from .file_policy import (
     CONTENT_TYPES,
-    MAX_FILE_BYTES,
+    MAX_BYTES_BY_TYPE,
     MAX_FILES_PER_PROJECT,
+    MAX_UPLOAD_BYTES,
     builtin_scan,
     clean_filename,
-    detect_type,
+    classify,
     extension_matches,
 )
 from .file_storage import FileStorage
@@ -96,11 +97,14 @@ def upload_file(
         raise FileError("invalid_file_name")
     if not content:
         raise FileError("empty_file")
-    if len(content) > MAX_FILE_BYTES:
+    if len(content) > MAX_UPLOAD_BYTES:
         raise FileError("file_too_large")
-    detected = detect_type(content)
-    if detected is None:
-        raise FileError("unsupported_type")
+    classified = classify(content)
+    if classified.type is None:
+        raise FileError(classified.reason or "unsupported_type")
+    detected = classified.type
+    if len(content) > MAX_BYTES_BY_TYPE[detected]:
+        raise FileError("file_too_large")
     if not extension_matches(name, detected):
         raise FileError("extension_mismatch")
     count = session.scalar(select(func.count()).select_from(_live_files(project_id).subquery()))

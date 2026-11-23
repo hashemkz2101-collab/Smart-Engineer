@@ -5,6 +5,15 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-19: file formats and upload safety (DEC-023, owner-approved 2026-11-24). Uploads now
+  accept DXF, DWG, IFC, XLSX, XLS, CSV, DOCX and DOC besides PDF and images, with the type
+  decided from the file bytes. Macro-enabled files (DOCM/XLSM, legacy macro documents) and
+  OOXML archives with path traversal, too many entries or huge expansion are refused;
+  Office files with embedded objects, ActiveX or external template/workbook links are
+  quarantined. Size limits are per type (25 MiB documents, 50 MiB CAD/BIM). Migration 0015
+  widens the stored-type check. Extraction, cross-file comparison and file versioning are
+  not implemented yet; see docs/FILE_REQUIREMENTS_GAP_ANALYSIS.md.
+
 - P1-16: email authentication (DEC-010). Real email delivery over SMTP (any provider,
   STARTTLS/SSL/none, sent from a background thread so timing does not reveal accounts;
   failures are logged without address or token). Registration sends a confirmation link

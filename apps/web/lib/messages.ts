@@ -42,8 +42,11 @@ const errorMessages: Record<string, string> = {
   invalid_intake: "برخی فیلدها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   version_conflict:
     "این مرحله در جای دیگری تغییر کرده است. اطلاعات را دوباره بارگذاری کنید.",
-  file_too_large: "حجم فایل از حد مجاز (۱۰ مگابایت) بیشتر است.",
-  unsupported_type: "این نوع فایل مجاز نیست. فقط PDF، PNG، JPEG و WebP پذیرفته می‌شود.",
+  file_too_large: "حجم فایل از حد مجاز برای این نوع فایل بیشتر است.",
+  unsupported_type:
+    "این نوع فایل مجاز نیست. فقط PDF، DXF، DWG، IFC، Excel، Word و تصویر پذیرفته می‌شود.",
+  macro_not_allowed: "فایل‌های دارای ماکرو (مانند DOCM و XLSM) فعلاً پذیرفته نمی‌شوند.",
+  unsafe_archive: "ساختار داخلی فایل غیرمجاز یا مشکوک است و پذیرفته نشد.",
   extension_mismatch: "پسوند فایل با محتوای آن یکی نیست.",
   empty_file: "فایل خالی است.",
   invalid_kind: "نوع سند را انتخاب کنید.",

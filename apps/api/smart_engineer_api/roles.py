@@ -49,7 +49,20 @@ FILE_KINDS = (
     "reference_image",
     "other",
 )
-FILE_TYPES = ("pdf", "png", "jpeg", "webp")
+FILE_TYPES = (
+    "pdf",
+    "png",
+    "jpeg",
+    "webp",
+    "dxf",
+    "dwg",
+    "ifc",
+    "xlsx",
+    "xls",
+    "csv",
+    "docx",
+    "doc",
+)
 FILE_SCAN_STATUSES = ("pending", "clean", "quarantined")
 
 # Environmental / technical condition inputs (ENV-001, master spec 3.5).
