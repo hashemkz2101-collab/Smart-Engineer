@@ -59,8 +59,9 @@ test("a bootstrapped administrator manages users and sees the audit trail", asyn
   await expect(page.getByRole("button", { name: "فعال‌سازی کاربر عادی" })).toBeVisible();
 
   // A deactivated account is locked out at once.
-  await memberPage.goto("/admin");
-  await expect(memberPage).toHaveURL(/\/login/, { timeout: 15_000 });
+  // Checked at the API, where the guarantee lives: the member's own cookie is refused.
+  const me = await memberContext.request.get("/api/v1/auth/me");
+  expect(me.status()).toBe(401);
 
   await page.getByRole("button", { name: "ممیزی" }).click();
   await expect(page.getByText("حساب کاربر غیرفعال شد")).toBeVisible();
