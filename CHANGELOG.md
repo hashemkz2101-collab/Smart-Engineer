@@ -5,6 +5,13 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-20: file versions (FILE-002). An upload can be a new version of an existing file; earlier
+  versions and their bytes are kept with uploader and time. A version can be restored (as a
+  new version, nothing is overwritten) and two versions compared by recorded facts (identical
+  content, size change, type change). Owner and quantity surveyor can mark the version that
+  takeoff/estimate work is based on; the list warns when a newer version exists. Migration
+  0016; new permission `project.files.set_basis`. Content-level comparison is FILE-003.
+
 - P1-17: invitation emails. Creating an organization or project invitation now also emails
   the invited address (Persian text naming the inviter, the organization or project, the
   role and a 7-day accept link). Nothing is sent when the invitation is refused. The
