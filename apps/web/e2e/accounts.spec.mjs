@@ -958,7 +958,10 @@ test.describe("email verification", () => {
           .fulfill({
             status: 201,
             contentType: "application/json",
-            body: JSON.stringify({ user: USER, verification_required: true }),
+            body: JSON.stringify({
+              user: { id: "u-1", email: "ali@example.com", display_name: "علی", is_system_admin: false },
+              verification_required: true,
+            }),
           })
           .then(() => true),
       "POST /auth/email-verification/request": (route) =>
@@ -1025,6 +1028,6 @@ test.describe("email verification", () => {
     await expect(page.getByRole("link", { name: "رفتن به ورود" })).toBeVisible();
 
     await page.goto("/verify-email");
-    await expect(page.getByRole("alert")).toContainText("ناقص");
+    await expect(page.getByRole("alert").filter({ hasText: "ناقص" })).toBeVisible();
   });
 });
