@@ -31,10 +31,6 @@ export function ForgotPasswordForm() {
 
   return (
     <form className="form-panel" onSubmit={submit} noValidate>
-      <p className="field-hint">
-        ارسال ایمیل بازیابی هنوز در این نسخه فعال نیست؛ تا فعال‌شدن آن، برای
-        بازیابی رمز با مدیر سامانه تماس بگیرید.
-      </p>
       <FormField id="forgot-email" label="ایمیل">
         <input
           id="forgot-email"

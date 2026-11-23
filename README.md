@@ -77,9 +77,18 @@ HttpOnly `se_session` cookie (Secure in production); state-changing requests tha
 use the session must send the `X-CSRF-Token` value returned by `login`/`me`.
 A browser `Origin` that is not the API's own host is rejected unless listed in
 `SMART_ENGINEER_ALLOWED_ORIGINS` (comma-separated, e.g. `http://localhost:3000`).
-Password-reset emails are not sent yet (DEC-010); in production the API requires
-verified email, and no verification flow exists yet, so production login stays
-disabled until it does.
+Also: `email-verification/request` (always answers 202; a repeat inside 60 seconds is
+ignored) and `email-verification/confirm`. Registration sends a confirmation link when
+email verification is required (production), and login stays refused until the link
+is used (24 hours, single use).
+
+Email is sent over any SMTP server (DEC-010): set `SMART_ENGINEER_SMTP_HOST`,
+`SMART_ENGINEER_MAIL_FROM` and `SMART_ENGINEER_PUBLIC_URL` (the site's address, used in
+links), plus `SMART_ENGINEER_SMTP_PORT` (default 587), `SMART_ENGINEER_SMTP_SECURITY`
+(`starttls` default, `ssl`, `none`), `SMART_ENGINEER_SMTP_USERNAME` and
+`SMART_ENGINEER_SMTP_PASSWORD`. Without them, development and tests keep messages in
+memory only, and production refuses to start (verified email is required there).
+Delivery failures are logged without the address or token and never shown to the caller.
 
 ### Running the web app together with the API (development)
 

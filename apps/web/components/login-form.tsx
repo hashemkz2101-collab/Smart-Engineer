@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-import { toApiError } from "../lib/api";
+import { ApiError, toApiError } from "../lib/api";
 import { useAuth } from "./auth-provider";
 import { FormError, FormField } from "./form-field";
+import { ResendVerification } from "./resend-verification";
 
 // Only same-site paths are accepted, so a crafted link cannot send people elsewhere.
 function safeNext(next: string | undefined): string {
@@ -19,17 +20,20 @@ export function LoginForm({ next }: { next?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [unverified, setUnverified] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    setUnverified(false);
     try {
       await signIn(email, password);
       router.replace(safeNext(next));
     } catch (failure) {
       setError(toApiError(failure).userMessage);
+      setUnverified(failure instanceof ApiError && failure.code === "email_not_verified");
       setBusy(false);
     }
   }
@@ -59,6 +63,7 @@ export function LoginForm({ next }: { next?: string }) {
         />
       </FormField>
       <FormError message={error} />
+      {unverified ? <ResendVerification email={email} /> : null}
       <button className="button" type="submit" disabled={busy}>
         {busy ? "در حال ورود…" : "ورود"}
       </button>

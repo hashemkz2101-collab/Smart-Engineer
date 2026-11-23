@@ -7,7 +7,7 @@ from .admin_routes import router as admin_router
 from .admin_service import AdminError
 from .auth_routes import auth_error_handler
 from .auth_routes import router as auth_router
-from .config import Settings
+from .config import ConfigurationError, Settings
 from .db.session import create_db_engine, create_session_factory
 from .environment_routes import environment_error_handler, environment_validation_handler
 from .environment_routes import router as environment_router
@@ -21,6 +21,7 @@ from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
 from .logging_config import configure_logging
+from .mail import SmtpMailer
 from .middleware import CorrelationIdMiddleware, SecurityHeadersMiddleware
 from .org_routes import access_denied_handler, org_error_handler
 from .org_routes import router as org_router
@@ -65,8 +66,20 @@ def create_app(
     app.state.auth_policy = auth_policy or auth_service.AuthPolicy(
         require_email_verification=settings.environment == "production"
     )
-    # Real email delivery is blocked on DEC-010; the outbox only keeps messages in memory.
-    app.state.mailer = mailer or auth_service.OutboxMailer()
+    if mailer is None:
+        if settings.mail_configured:
+            mailer = SmtpMailer(settings)
+        elif settings.environment == "production":
+            # Production requires verified emails, so without a mail server nobody could
+            # sign in. Fail at startup rather than lock everyone out.
+            raise ConfigurationError(
+                "Production needs SMART_ENGINEER_SMTP_HOST, SMART_ENGINEER_MAIL_FROM "
+                "and SMART_ENGINEER_PUBLIC_URL"
+            )
+        else:
+            # Development and tests: messages are only kept in memory.
+            mailer = auth_service.OutboxMailer()
+    app.state.mailer = mailer
     app.state.file_storage = file_storage or FileStorage(settings.file_storage_dir)
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.environment == "production")

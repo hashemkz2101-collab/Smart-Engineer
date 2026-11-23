@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 ENVIRONMENTS = ("development", "test", "production")
+SMTP_SECURITY_MODES = ("starttls", "ssl", "none")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 POSTGRESQL_URL_PREFIX = "postgresql+psycopg://"
 SQLITE_URL_PREFIX = "sqlite://"
@@ -30,6 +31,20 @@ class Settings:
     allowed_origins: tuple[str, ...] = ()
     # Private directory for uploaded project files. Never served statically (SEC-002).
     file_storage_dir: str = "var/files"
+    # Email delivery (DEC-010: account confirmation and recovery go through email).
+    # Any SMTP provider works; nothing here is provider specific. The password is
+    # excluded from repr() and never logged.
+    public_url: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = field(default=None, repr=False)
+    smtp_security: str = "starttls"
+    mail_from: str | None = None
+
+    @property
+    def mail_configured(self) -> bool:
+        return bool(self.smtp_host and self.mail_from and self.public_url)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -69,8 +84,37 @@ class Settings:
             if origin.strip()
         )
 
+        smtp_security = source.get("SMART_ENGINEER_SMTP_SECURITY", "starttls").strip().lower()
+        if smtp_security not in SMTP_SECURITY_MODES:
+            raise ConfigurationError(
+                "SMART_ENGINEER_SMTP_SECURITY must be one of: " + ", ".join(SMTP_SECURITY_MODES)
+            )
+        try:
+            smtp_port = int(source.get("SMART_ENGINEER_SMTP_PORT", "").strip() or 587)
+        except ValueError:
+            raise ConfigurationError("SMART_ENGINEER_SMTP_PORT must be a number") from None
+        if not 1 <= smtp_port <= 65535:
+            raise ConfigurationError("SMART_ENGINEER_SMTP_PORT must be between 1 and 65535")
+        public_url = source.get("SMART_ENGINEER_PUBLIC_URL", "").strip().rstrip("/") or None
+        if public_url is not None and not public_url.startswith(("http://", "https://")):
+            raise ConfigurationError("SMART_ENGINEER_PUBLIC_URL must start with http:// or https://")
+        smtp_host = source.get("SMART_ENGINEER_SMTP_HOST", "").strip() or None
+        mail_from = source.get("SMART_ENGINEER_MAIL_FROM", "").strip() or None
+        if smtp_host and not (mail_from and public_url):
+            raise ConfigurationError(
+                "SMART_ENGINEER_SMTP_HOST also needs SMART_ENGINEER_MAIL_FROM "
+                "and SMART_ENGINEER_PUBLIC_URL (links in emails)"
+            )
+
         return cls(
             environment=environment,
+            public_url=public_url,
+            smtp_host=smtp_host,
+            smtp_port=smtp_port,
+            smtp_username=source.get("SMART_ENGINEER_SMTP_USERNAME", "").strip() or None,
+            smtp_password=source.get("SMART_ENGINEER_SMTP_PASSWORD", "") or None,
+            smtp_security=smtp_security,
+            mail_from=mail_from,
             log_level=log_level,
             database_url=database_url,
             allowed_origins=allowed_origins,

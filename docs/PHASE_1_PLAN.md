@@ -20,8 +20,9 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-12 | Project file attachments: type/size/count limits, private storage, quarantine, authorized download (DEC-023 development defaults) | FILE-001, SEC-002 | merged |
 | P1-13 | System administration: user list/search, activate/deactivate, system-admin grant/revoke, project access management (metadata and roles only), append-only admin audit log, command-line bootstrap of the first administrator | ADMIN-001 | merged |
 | P1-14 | Project invitations (FLOW-001 refinement): owner invites an outsider by email straight into a project with a bounded project role; no access before acceptance; every step recorded in project activity | FLOW-001 | in review |
-| P1-15 | Hardening: defensive security headers on API and web (CSP frame/base/form/object limits, nosniff, no-store for API, HSTS in production), tracked-file secret scan in CI | SEC-001, SEC-005 | in review |
-| P1-16+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
+| P1-15 | Hardening: defensive security headers on API and web (CSP frame/base/form/object limits, nosniff, no-store for API, HSTS in production), tracked-file secret scan in CI | SEC-001, SEC-005 | merged |
+| P1-16 | Email authentication (DEC-010 owner answer): SMTP delivery, email verification at registration and resend, recovery email, production fails closed without a mail server | IAM-001, BILL-001 | in review |
+| P1-17+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys
