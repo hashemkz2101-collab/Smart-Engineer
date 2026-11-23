@@ -5,6 +5,13 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-17: invitation emails. Creating an organization or project invitation now also emails
+  the invited address (Persian text naming the inviter, the organization or project, the
+  role and a 7-day accept link). Nothing is sent when the invitation is refused. The
+  one-time link is still returned to the inviter, and the response says whether email is
+  configured (`email_sent`), so the page tells the inviter whether to share the link by
+  hand. Without SMTP configuration (development, tests) messages stay in memory. No
+  feature status changed.
 - P1-16: email authentication (DEC-010). Real email delivery over SMTP (any provider,
   STARTTLS/SSL/none, sent from a background thread so timing does not reveal accounts;
   failures are logged without address or token). Registration sends a confirmation link

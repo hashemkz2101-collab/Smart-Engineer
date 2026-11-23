@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from . import org_service
 from .auth_routes import Authenticated, check_origin, csrf_protected, current_auth, get_db
+from .auth_service import InvitationNotice
+from .db import Organization
 from .errors import _correlation_id, _envelope
 from .permissions import AccessDenied
 
@@ -104,14 +106,27 @@ def members(
 def invite(
     organization_id: uuid.UUID,
     body: InviteBody,
+    request: Request,
     current: Authenticated = Depends(csrf_protected),
     db: Session = Depends(get_db),
 ) -> dict:
     invitation, token = org_service.create_invitation(
         db, current.user, organization_id, email=body.email, org_role=body.org_role
     )
-    # The token is returned once so the inviter can share a link (no mailer yet).
+    organization = db.get(Organization, organization_id)
+    request.app.state.mailer.send_invitation(
+        invitation.email,
+        token,
+        InvitationNotice(
+            kind="organization",
+            inviter_name=current.user.display_name,
+            target_name=organization.name if organization else "",
+            role=invitation.org_role,
+        ),
+    )
+    # The token is also returned once so the inviter can share the link by hand.
     return {
+        "email_sent": request.app.state.settings.mail_configured,
         "invitation": {
             "id": str(invitation.id),
             "email": invitation.email,

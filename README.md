@@ -89,6 +89,7 @@ links), plus `SMART_ENGINEER_SMTP_PORT` (default 587), `SMART_ENGINEER_SMTP_SECU
 `SMART_ENGINEER_SMTP_PASSWORD`. Without them, development and tests keep messages in
 memory only, and production refuses to start (verified email is required there).
 Delivery failures are logged without the address or token and never shown to the caller.
+Organization and project invitations are emailed too (the inviter also still gets the link).
 
 ### Running the web app together with the API (development)
 
