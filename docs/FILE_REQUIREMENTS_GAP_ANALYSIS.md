@@ -13,5 +13,5 @@ status was changed by this document.
 | 5 | Software independent of uploads | implemented | Nothing in project, requirement or calculation flows requires a file. Reference items are not yet linked to files (REQ-003). |
 | 6 | Real type check, scan, block suspicious, unsafe structures, safe originals | partial | Byte-level type check, EICAR/PDF-active/OOXML-active-content quarantine, archive limits, private storage exist. A real antivirus engine is still missing: outside development files stay `pending`. |
 
-Proposed (not added) registry rows, awaiting owner decision on phase placement:
-file extraction pipeline, cross-file reconciliation, file versioning with takeoff basis.
+Registry rows added with the owner's approval (2026-11-24): FILE-002 versioning (Phase 1, P1-20),
+FILE-003 extraction (Phase 3), FILE-004 cross-file reconciliation (Phase 5). All NOT STARTED.

@@ -5,6 +5,8 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- Registry: FILE-002 (versions, Phase 1), FILE-003 (extraction, Phase 3) and FILE-004 (cross-file
+  reconciliation, Phase 5) added as NOT STARTED per the owner's file decisions.
 - P1-19: file formats and upload safety (DEC-023, owner-approved 2026-11-24). Uploads now
   accept DXF, DWG, IFC, XLSX, XLS, CSV, DOCX and DOC besides PDF and images, with the type
   decided from the file bytes. Macro-enabled files (DOCM/XLSM, legacy macro documents) and

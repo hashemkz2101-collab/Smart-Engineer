@@ -51,6 +51,9 @@ is maintained in [`REQUIREMENT_TRACEABILITY.md`](REQUIREMENT_TRACEABILITY.md).
 | REQ-003 | 1 | Reference images/examples with labels and explanations | REQ-001 | 3.4 | NOT STARTED |
 | ENV-001 | 1 | Sourced climate, sun, wind, rainfall, comfort/design temperature, natural hazards/seismicity, utilities and energy constraints | SITE-001 | 3.5 | NOT STARTED |
 | FILE-001 | 1 | Secure attachment upload and metadata: type, date, ownership; controlled storage/access | PRJ-001, IAM-002 | 3.2, 14 | NOT STARTED |
+| FILE-002 | 1 | File versions: keep prior versions, record upload time and uploader, compare versions, restore a prior version, mark the version used as takeoff/estimate basis (owner requirement, DEC-023) | FILE-001, CORE-003 | 3.2, 16 | NOT STARTED |
+| FILE-003 | 3 | Per-type content extraction from uploaded PDF, DXF/DWG, IFC, Excel and Word files (text, tables, layers, dimensions, storeys, spaces, formulas); optional, never a prerequisite | FILE-001, AI-003 | 4, 5, 11 | NOT STARTED |
+| FILE-004 | 5 | Cross-file reconciliation (PDF vs DWG, IFC vs drawings, Excel vs drawing quantities, Word vs specifications) with discrepancies flagged for engineer review and impact of a changed file on earlier calculations | FILE-002, FILE-003, BIM-003 | 5, 11 | NOT STARTED |
 | GEOM-001 | 2 | Rectangular, polygonal, irregular parcel boundary and geometry calculations | SITE-001 | 3.2, 4, 17.2 | NOT STARTED |
 | GEOM-002 | 2 | Explicit coordinate systems, units/conversions, orientation and declared/computed area discrepancy | GEOM-001 | 3.2, 5, 17.2 | NOT STARTED |
 | GEOM-003 | 2 | Apply recorded setbacks and derive buildable envelope | GEOM-001, RULE-DATA-001 | 3.3, 4.1, 8 | NOT STARTED |
