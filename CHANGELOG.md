@@ -5,6 +5,13 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-17: invitation emails. Creating an organization or project invitation now also emails
+  the invited address (Persian text naming the inviter, the organization or project, the
+  role and a 7-day accept link). Nothing is sent when the invitation is refused. The
+  one-time link is still returned to the inviter, and the response says whether email is
+  configured (`email_sent`), so the page tells the inviter whether to share the link by
+  hand. Without SMTP configuration (development, tests) messages stay in memory. No
+  feature status changed.
 - Registry: FILE-002 (versions, Phase 1), FILE-003 (extraction, Phase 3) and FILE-004 (cross-file
   reconciliation, Phase 5) added as NOT STARTED per the owner's file decisions.
 - P1-19: file formats and upload safety (DEC-023, owner-approved 2026-11-24). Uploads now

@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from . import project_service
 from .access import ARCHIVE_RECOVERY_ACTIONS, authorize_project
 from .auth_routes import Authenticated, check_origin, csrf_protected, current_auth, get_db
+from .auth_service import InvitationNotice
+from .db import Project
 from .errors import _correlation_id, _envelope
 from .permissions import PROJECT_ACTION_ROLES, project_role_can
 
@@ -235,14 +237,30 @@ def project_invitations(
 def invite_to_project(
     project_id: uuid.UUID,
     body: AddMemberBody,
+    request: Request,
     current: Authenticated = Depends(csrf_protected),
     db: Session = Depends(get_db),
 ) -> dict:
     invitation, token = project_service.invite_to_project(
         db, current.user, project_id, email=body.email, role=body.role
     )
-    # The token is returned once so the inviter can share a link (no mailer yet).
-    return {"invitation": _invitation_payload(invitation), "token": token}
+    project = db.get(Project, project_id)
+    request.app.state.mailer.send_invitation(
+        invitation.email,
+        token,
+        InvitationNotice(
+            kind="project",
+            inviter_name=current.user.display_name,
+            target_name=project.name if project else "",
+            role=invitation.project_role,
+        ),
+    )
+    # The token is also returned once so the inviter can share the link by hand.
+    return {
+        "invitation": _invitation_payload(invitation),
+        "token": token,
+        "email_sent": request.app.state.settings.mail_configured,
+    }
 
 
 @router.delete("/projects/{project_id}/invitations/{invitation_id}", status_code=204)

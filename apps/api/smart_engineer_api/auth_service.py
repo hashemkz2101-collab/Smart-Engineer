@@ -55,10 +55,22 @@ class AuthPolicy:
     scrypt: ScryptParams = field(default=DEFAULT_SCRYPT)
 
 
+@dataclass(frozen=True, slots=True)
+class InvitationNotice:
+    """What an invitation email says. The accept link is built from the token."""
+
+    kind: str  # "organization" or "project"
+    inviter_name: str
+    target_name: str  # organization or project name
+    role: str  # internal role id; the mailer turns it into Persian text
+
+
 class Mailer(Protocol):
     def send_password_reset(self, email: str, token: str) -> None: ...
 
     def send_email_verification(self, email: str, token: str) -> None: ...
+
+    def send_invitation(self, email: str, token: str, notice: InvitationNotice) -> None: ...
 
 
 @dataclass(slots=True)
@@ -67,12 +79,16 @@ class OutboxMailer:
 
     password_resets: list[tuple[str, str]] = field(default_factory=list)
     email_verifications: list[tuple[str, str]] = field(default_factory=list)
+    invitations: list[tuple[str, str, InvitationNotice]] = field(default_factory=list)
 
     def send_password_reset(self, email: str, token: str) -> None:
         self.password_resets.append((email, token))
 
     def send_email_verification(self, email: str, token: str) -> None:
         self.email_verifications.append((email, token))
+
+    def send_invitation(self, email: str, token: str, notice: InvitationNotice) -> None:
+        self.invitations.append((email, token, notice))
 
 
 @dataclass(frozen=True, slots=True)
