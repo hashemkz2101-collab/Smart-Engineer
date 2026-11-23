@@ -5,6 +5,9 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-18: the project intake panel applies the saved response at once, so text typed while
+  the step list reloads after a save is no longer discarded by the late refetch (the form
+  is keyed by version). Regression test with a delayed refetch. No feature status changed.
 - P1-16: email authentication (DEC-010). Real email delivery over SMTP (any provider,
   STARTTLS/SSL/none, sent from a background thread so timing does not reveal accounts;
   failures are logged without address or token). Registration sends a confirmation link

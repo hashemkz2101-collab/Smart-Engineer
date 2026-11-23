@@ -94,7 +94,7 @@ function StepForm({
   def: StepDef;
   state: StepState;
   canEdit: boolean;
-  onSaved: (message: string) => void;
+  onSaved: (message: string, saved: StepState) => void;
   onConflict: () => void;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -121,6 +121,7 @@ function StepForm({
         saved.complete
           ? "ذخیره شد؛ این مرحله کامل است."
           : `ذخیره شد. برای تکمیل این مرحله لازم است: ${labels.join("، ")}.`,
+        saved,
       );
     } catch (failure) {
       const apiError = toApiError(failure);
@@ -181,9 +182,17 @@ export function IntakePanel({
     version + reload,
   );
   const bump = () => setReload((current) => current + 1);
+  // The saved response replaces the form at once, so edits made while the list reloads
+  // are never thrown away by a late refetch (the form is keyed by version).
+  const [saved, setSaved] = useState<Record<string, StepState>>({});
+  const latest = (key: string) => {
+    const fetched = intake.data?.steps.find((item) => item.step === key);
+    const local = saved[key];
+    return local && (!fetched || local.version >= fetched.version) ? local : fetched;
+  };
 
   const def = intakeSteps.find((step) => step.key === selected) ?? intakeSteps[0];
-  const state = intake.data?.steps.find((step) => step.step === def.key);
+  const state = latest(def.key);
 
   return (
     <section className="detail-section" aria-labelledby="intake-title">
@@ -198,7 +207,7 @@ export function IntakePanel({
       ) : null}
       <div className="tabs" role="group" aria-label="مراحل اطلاعات ورودی">
         {intakeSteps.map((step) => {
-          const info = intake.data?.steps.find((item) => item.step === step.key);
+          const info = latest(step.key);
           const status = !info || info.version === 0 ? "شروع نشده" : info.complete ? "کامل" : "پیش‌نویس";
           return (
             <button
@@ -224,7 +233,8 @@ export function IntakePanel({
           def={def}
           state={state}
           canEdit={canEdit}
-          onSaved={(message) => {
+          onSaved={(message, payload) => {
+            setSaved((current) => ({ ...current, [def.key]: payload }));
             setNotice(message);
             bump();
           }}
