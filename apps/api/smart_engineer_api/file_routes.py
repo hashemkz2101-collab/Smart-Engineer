@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from . import file_service
 from .auth_routes import Authenticated, check_origin, csrf_protected, current_auth, get_db
 from .errors import _correlation_id, _envelope
-from .file_policy import CONTENT_TYPES, MAX_FILE_BYTES
+from .file_policy import CONTENT_TYPES, MAX_UPLOAD_BYTES
 from .file_storage import FileStorage
 
 router = APIRouter(tags=["files"], dependencies=[Depends(check_origin)])
@@ -24,6 +24,8 @@ _STATUS = {
     "not_found": 404,
     "file_too_large": 413,
     "unsupported_type": 415,
+    "macro_not_allowed": 415,
+    "unsafe_archive": 415,
     "not_available": 409,
     "too_many_files": 409,
 }
@@ -31,6 +33,8 @@ _MESSAGES = {
     "not_found": "Not Found",
     "file_too_large": "The file is larger than the allowed size.",
     "unsupported_type": "This file type is not allowed.",
+    "macro_not_allowed": "Files with macros are not allowed.",
+    "unsafe_archive": "The file structure is not allowed.",
     "extension_mismatch": "The file extension does not match the file content.",
     "empty_file": "The file is empty.",
     "invalid_kind": "Unknown file kind.",
@@ -75,12 +79,12 @@ async def upload_project_file(
     storage: FileStorage = Depends(get_storage),
 ) -> dict:
     declared = request.headers.get("content-length")
-    if declared is not None and declared.isdigit() and int(declared) > MAX_FILE_BYTES:
+    if declared is not None and declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES:
         raise file_service.FileError("file_too_large")
     received = bytearray()
     async for chunk in request.stream():
         received.extend(chunk)
-        if len(received) > MAX_FILE_BYTES:
+        if len(received) > MAX_UPLOAD_BYTES:
             raise file_service.FileError("file_too_large")
     return file_service.upload_file(
         db,

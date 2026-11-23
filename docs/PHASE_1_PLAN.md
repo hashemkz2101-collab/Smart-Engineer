@@ -23,7 +23,9 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-15 | Hardening: defensive security headers on API and web (CSP frame/base/form/object limits, nosniff, no-store for API, HSTS in production), tracked-file secret scan in CI | SEC-001, SEC-005 | merged |
 | P1-16 | Email authentication (DEC-010 owner answer): SMTP delivery, email verification at registration and resend, recovery email, production fails closed without a mail server | IAM-001, BILL-001 | merged |
 | P1-17 | Invitation emails: organization and project invitations are emailed (the one-time link is still shown to the inviter as a fallback) | FLOW-001, IAM-001 | in review |
-| P1-18+ | Remaining hardening (intake panel refetch race, REQ-003 file links), later AI features | — | planned |
+| P1-19 | File formats and upload safety (DEC-023 owner decisions): DXF, DWG, IFC, XLSX/XLS/CSV, DOCX/DOC by content; macro files and unsafe archives refused; embedded/linked Office content quarantined; per-type size limits | FILE-001, SEC-002 | in review |
+| P1-20 | File versions: keep, compare, restore, takeoff basis marker (FILE-002) | FILE-002 | planned |
+| P1-21+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys

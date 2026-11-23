@@ -122,7 +122,7 @@ export function FilesPanel({
     <section className="detail-section" aria-labelledby="files-title">
       <h2 id="files-title">فایل‌ها و مدارک</h2>
       <p className="field-hint">
-        فقط PDF، PNG، JPEG و WebP تا ۱۰ مگابایت. فایل‌ها خصوصی نگه داشته می‌شوند و فقط اعضای
+        نقشه و مدرک: PDF، DXF، DWG، IFC، Excel (XLSX، XLS، CSV)، Word (DOCX، DOC) و تصویر (PNG، JPEG، WebP) تا ۲۵ تا ۵۰ مگابایت بسته به نوع. فایل‌های دارای ماکرو (DOCM، XLSM) پذیرفته نمی‌شوند. فایل‌ها خصوصی نگه داشته می‌شوند و فقط اعضای
         پروژه می‌توانند دانلودشان کنند.
       </p>
       {files.error ? (
@@ -137,7 +137,7 @@ export function FilesPanel({
               key={inputKey}
               id="file-input"
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.dxf,.dwg,.ifc,.xlsx,.xls,.csv,.docx,.doc"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
           </FormField>
