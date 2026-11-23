@@ -898,7 +898,11 @@ test.describe("project invitations", () => {
           .fulfill({
             status: 201,
             contentType: "application/json",
-            body: JSON.stringify({ invitation: state.invitations[0], token: "tok-1" }),
+            body: JSON.stringify({
+              invitation: state.invitations[0],
+              token: "tok-1",
+              email_sent: true,
+            }),
           })
           .then(() => true);
       },
@@ -917,6 +921,7 @@ test.describe("project invitations", () => {
     await page.getByLabel("نقش فرد دعوت‌شده در پروژه").first().selectOption("structural_engineer");
     await page.getByRole("button", { name: "ساخت دعوت‌نامهٔ پروژه" }).click();
     await expect(page.locator("#project-invite-link")).toHaveValue(/\/invitations\/accept\?token=tok-1$/);
+    await expect(page.getByText("ایمیل دعوت ارسال شد.")).toBeVisible();
     const created = state.requests.filter((r) => r.key === `POST /projects/${PROJECT.id}/invitations`).at(-1);
     expect(created.body).toEqual({ email: "new@example.com", role: "structural_engineer" });
     expect(created.headers["x-csrf-token"]).toBe("csrf-1");
