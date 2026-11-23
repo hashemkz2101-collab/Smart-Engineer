@@ -108,7 +108,8 @@ def _classify_zip(content: bytes) -> Classification:
         return Classification(None)
     with archive:
         infos = archive.infolist()
-        if len(infos) > MAX_ARCHIVE_ENTRIES or sum(i.file_size for i in infos) > MAX_ARCHIVE_UNCOMPRESSED:
+        expanded = sum(i.file_size for i in infos)
+        if len(infos) > MAX_ARCHIVE_ENTRIES or expanded > MAX_ARCHIVE_UNCOMPRESSED:
             return Classification(None, "unsafe_archive")
         names = [i.filename for i in infos]
         for name in names:

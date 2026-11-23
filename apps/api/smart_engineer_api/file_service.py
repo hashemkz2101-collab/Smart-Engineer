@@ -15,8 +15,8 @@ from .file_policy import (
     MAX_FILES_PER_PROJECT,
     MAX_UPLOAD_BYTES,
     builtin_scan,
-    clean_filename,
     classify,
+    clean_filename,
     extension_matches,
 )
 from .file_storage import FileStorage

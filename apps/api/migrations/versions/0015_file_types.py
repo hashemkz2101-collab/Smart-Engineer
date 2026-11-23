@@ -24,7 +24,7 @@ def _in(values: tuple[str, ...]) -> str:
 
 def _swap(values: tuple[str, ...]) -> None:
     with op.batch_alter_table("project_files", naming_convention=NAMING_CONVENTION) as batch:
-        batch.drop_constraint("ck_project_files_detected_type_valid", type_="check")
+        batch.drop_constraint(op.f("ck_project_files_detected_type_valid"), type_="check")
         batch.create_check_constraint(
             op.f("ck_project_files_detected_type_valid"), _in(values)
         )
