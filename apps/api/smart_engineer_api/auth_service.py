@@ -47,6 +47,10 @@ class AuthPolicy:
     max_failures: int = 5
     failure_window: timedelta = timedelta(minutes=15)
     reset_ttl: timedelta = timedelta(hours=1)
+    verification_ttl: timedelta = timedelta(hours=24)
+    # A repeated "send again" inside this window is ignored, so the endpoint cannot be
+    # used to flood a mailbox.
+    verification_cooldown: timedelta = timedelta(seconds=60)
     require_email_verification: bool = False
     scrypt: ScryptParams = field(default=DEFAULT_SCRYPT)
 
@@ -54,15 +58,21 @@ class AuthPolicy:
 class Mailer(Protocol):
     def send_password_reset(self, email: str, token: str) -> None: ...
 
+    def send_email_verification(self, email: str, token: str) -> None: ...
+
 
 @dataclass(slots=True)
 class OutboxMailer:
-    """Collects messages in memory. Real delivery waits for DEC-010."""
+    """Collects messages in memory: used in tests and when no SMTP server is configured."""
 
     password_resets: list[tuple[str, str]] = field(default_factory=list)
+    email_verifications: list[tuple[str, str]] = field(default_factory=list)
 
     def send_password_reset(self, email: str, token: str) -> None:
         self.password_resets.append((email, token))
+
+    def send_email_verification(self, email: str, token: str) -> None:
+        self.email_verifications.append((email, token))
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,4 +320,70 @@ def reset_password(
     record.used_at = now
     _revoke_sessions(session, user.id, now)
     session.execute(delete(LoginFailure).where(LoginFailure.email == user.email))
+    session.commit()
+
+
+def request_email_verification(
+    session: Session,
+    policy: AuthPolicy,
+    mailer: Mailer,
+    *,
+    email: str,
+    now: datetime | None = None,
+) -> None:
+    """Send a confirmation link. Never reveals whether the email exists or is verified."""
+    now = now or utcnow()
+    user = session.scalar(select(User).where(User.email == normalize_email(email)))
+    if user is None or not user.is_active or user.email_verified_at is not None:
+        return
+    recent = session.scalar(
+        select(AuthToken.id).where(
+            AuthToken.user_id == user.id,
+            AuthToken.purpose == "email_verification",
+            AuthToken.used_at.is_(None),
+            AuthToken.created_at > now - policy.verification_cooldown,
+        )
+    )
+    if recent is not None:
+        return
+    session.execute(
+        update(AuthToken)
+        .where(
+            AuthToken.user_id == user.id,
+            AuthToken.purpose == "email_verification",
+            AuthToken.used_at.is_(None),
+        )
+        .values(used_at=now)
+    )
+    token = new_token()
+    session.add(
+        AuthToken(
+            user_id=user.id,
+            purpose="email_verification",
+            token_hash=token_digest(token),
+            created_at=now,
+            expires_at=now + policy.verification_ttl,
+        )
+    )
+    session.commit()
+    mailer.send_email_verification(user.email, token)
+
+
+def confirm_email(session: Session, *, token: str, now: datetime | None = None) -> None:
+    """Mark the address verified. Unknown, used, expired tokens all look the same."""
+    now = now or utcnow()
+    record = session.scalar(
+        select(AuthToken).where(
+            AuthToken.token_hash == token_digest(token),
+            AuthToken.purpose == "email_verification",
+        )
+    )
+    if record is None or record.used_at is not None or aware(record.expires_at) <= now:
+        raise AuthError("invalid_token")
+    user = session.get(User, record.user_id)
+    if user is None or not user.is_active:
+        raise AuthError("invalid_token")
+    if user.email_verified_at is None:
+        user.email_verified_at = now
+    record.used_at = now
     session.commit()

@@ -946,3 +946,85 @@ test.describe("project invitations", () => {
     );
   });
 });
+
+test.describe("email verification", () => {
+  test("registration asks the person to confirm the email instead of signing in", async ({
+    page,
+  }) => {
+    const state = { loggedIn: false };
+    await mockApi(page, state, {
+      "POST /auth/register": (route) =>
+        route
+          .fulfill({
+            status: 201,
+            contentType: "application/json",
+            body: JSON.stringify({ user: USER, verification_required: true }),
+          })
+          .then(() => true),
+      "POST /auth/email-verification/request": (route) =>
+        route.fulfill({ status: 202, contentType: "application/json", body: '{"status":"accepted"}' }).then(() => true),
+    });
+    await page.goto("/register");
+    await page.getByLabel("نام و نام خانوادگی").fill("علی");
+    await page.getByLabel("ایمیل").fill("ali@example.com");
+    await page.getByLabel("رمز عبور").fill("a long passphrase 1");
+    await page.getByRole("button", { name: "ایجاد حساب" }).click();
+    await expect(page.getByText(/پیوند تأیید به ali@example.com ارسال شد/)).toBeVisible();
+    expect(state.requests.some((r) => r.key === "POST /auth/login")).toBe(false);
+
+    await page.getByRole("button", { name: "ارسال دوباره ایمیل تأیید" }).click();
+    await expect(page.getByText(/اگر این ایمیل تأییدنشده باشد/)).toBeVisible();
+    const resend = state.requests.find((r) => r.key === "POST /auth/email-verification/request");
+    expect(resend.body).toEqual({ email: "ali@example.com" });
+  });
+
+  test("an unverified login offers to resend the confirmation email", async ({ page }) => {
+    await mockApi(page, { loggedIn: false }, {
+      "POST /auth/login": (route) =>
+        route
+          .fulfill({
+            status: 403,
+            contentType: "application/json",
+            body: JSON.stringify(error("email_not_verified")),
+          })
+          .then(() => true),
+      "POST /auth/email-verification/request": (route) =>
+        route.fulfill({ status: 202, contentType: "application/json", body: '{"status":"accepted"}' }).then(() => true),
+    });
+    await page.goto("/login");
+    await page.getByLabel("ایمیل").fill("ali@example.com");
+    await page.getByLabel("رمز عبور").fill("a long passphrase 1");
+    await page.getByRole("button", { name: "ورود", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "تأیید نشده" })).toBeVisible();
+    await page.getByRole("button", { name: "ارسال دوباره ایمیل تأیید" }).click();
+    await expect(page.getByText(/پیوند تأیید دوباره/)).toBeVisible();
+  });
+
+  test("the confirmation link needs a click and shows API refusals", async ({ page }) => {
+    const state = { loggedIn: false };
+    await mockApi(page, state, {
+      "POST /auth/email-verification/confirm": (route, request) => {
+        const ok = request.postDataJSON().token === "good";
+        return route
+          .fulfill(
+            ok
+              ? { status: 204 }
+              : { status: 400, contentType: "application/json", body: JSON.stringify(error("invalid_token")) },
+          )
+          .then(() => true);
+      },
+    });
+    await page.goto("/verify-email?token=bad");
+    expect(state.requests.some((r) => r.key.includes("email-verification/confirm"))).toBe(false);
+    await page.getByRole("button", { name: "تأیید ایمیل" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "نامعتبر" })).toBeVisible();
+
+    await page.goto("/verify-email?token=good");
+    await page.getByRole("button", { name: "تأیید ایمیل" }).click();
+    await expect(page.getByText("ایمیل شما تأیید شد.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "رفتن به ورود" })).toBeVisible();
+
+    await page.goto("/verify-email");
+    await expect(page.getByRole("alert")).toContainText("ناقص");
+  });
+});

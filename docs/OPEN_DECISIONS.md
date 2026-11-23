@@ -128,3 +128,12 @@ revisited before RELEASE-001. Any item can be reversed by the owner.
   outside development a clean verdict is not granted and files stay pending until a real
   scanner is selected. CAD/BIM formats (DEC-004), extraction (AI-002/DEC-027), retention
   periods and encryption at rest remain undecided.
+
+- **DEC-010 (partly answered by the owner, 2026-11-23).** Account confirmation and
+  password recovery go through email. Delivery is plain SMTP, so any provider can be
+  used by configuration (still to be chosen and contracted by the owner; nothing is
+  provider specific in code). Subscription payment will use the Zibal gateway
+  (Phase 10, BILL-003); the owner holds the Zibal merchant code. It is a server-side
+  secret: it must never be committed, put in the frontend, or pasted in chat. Nothing
+  of Zibal is built in Phase 1. Still open under DEC-010: SMS provider, AI provider,
+  and the legal/contract review of the gateway and the mail provider.

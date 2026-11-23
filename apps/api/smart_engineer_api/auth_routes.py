@@ -150,7 +150,37 @@ def register(body: RegisterBody, request: Request, db: Session = Depends(get_db)
         display_name=body.display_name,
         password=body.password,
     )
-    return {"user": user_payload(user)}
+    policy = request.app.state.auth_policy
+    if policy.require_email_verification:
+        auth.request_email_verification(
+            db, policy, request.app.state.mailer, email=user.email
+        )
+    return {
+        "user": user_payload(user),
+        "verification_required": policy.require_email_verification,
+    }
+
+
+@router.post("/email-verification/request", status_code=202)
+def email_verification_request(
+    body: ResetRequestBody, request: Request, db: Session = Depends(get_db)
+) -> dict:
+    auth.request_email_verification(
+        db, request.app.state.auth_policy, request.app.state.mailer, email=body.email
+    )
+    return {"status": "accepted"}
+
+
+class EmailConfirmBody(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+
+
+@router.post("/email-verification/confirm", status_code=204)
+def email_verification_confirm(
+    body: EmailConfirmBody, request: Request, db: Session = Depends(get_db)
+) -> Response:
+    auth.confirm_email(db, token=body.token)
+    return Response(status_code=204)
 
 
 @router.post("/login")

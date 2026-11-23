@@ -5,6 +5,17 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-16: email authentication (DEC-010). Real email delivery over SMTP (any provider,
+  STARTTLS/SSL/none, sent from a background thread so timing does not reveal accounts;
+  failures are logged without address or token). Registration sends a confirmation link
+  when verification is required, login stays refused until it is used (24 hours, single
+  use, one click on the confirmation page so mail scanners cannot burn the token), and
+  "send again" is neutral and rate-limited to once a minute. Password-reset emails are
+  now delivered too. Production refuses to start without SMTP host, sender and public
+  URL; development and tests keep messages in memory. Persian pages: confirm email,
+  resend from login and registration. DEC-010 answer recorded: Zibal for subscription
+  payment in Phase 10 (merchant code is a server secret, nothing built yet). Organization
+  and project invitations are still shared as links, not emailed. No feature status changed.
 - P1-15: hardening. The API adds `X-Content-Type-Options`, `X-Frame-Options: DENY`,
   `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy`, `Permissions-Policy` to every
   response, plus `Cache-Control: no-store` and a deny-all CSP on `/api/*`, and HSTS only in

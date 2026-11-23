@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 import { api, toApiError } from "../lib/api";
 import { useAuth } from "./auth-provider";
 import { FormError, FormField } from "./form-field";
+import { ResendVerification } from "./resend-verification";
 
 export function RegisterForm() {
   const { signIn } = useAuth();
@@ -15,6 +16,7 @@ export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -22,11 +24,17 @@ export function RegisterForm() {
     setBusy(true);
     setError(null);
     try {
-      await api.post("/auth/register", {
+      const created = await api.post<{ verification_required?: boolean }>("/auth/register", {
         email,
         display_name: displayName,
         password,
       });
+      if (created.verification_required) {
+        // No automatic sign-in: the address must be confirmed first.
+        setSentTo(email);
+        setBusy(false);
+        return;
+      }
     } catch (failure) {
       setError(toApiError(failure).userMessage);
       setBusy(false);
@@ -41,6 +49,20 @@ export function RegisterForm() {
       setError(toApiError(failure).userMessage);
       setBusy(false);
     }
+  }
+
+  if (sentTo) {
+    return (
+      <div className="form-panel">
+        <p className="alert alert-success" role="status">
+          حساب ساخته شد. پیوند تأیید به {sentTo} ارسال شد؛ پس از تأیید می‌توانید وارد شوید.
+        </p>
+        <ResendVerification email={sentTo} />
+        <Link className="button" href="/login">
+          رفتن به ورود
+        </Link>
+      </div>
+    );
   }
 
   return (
