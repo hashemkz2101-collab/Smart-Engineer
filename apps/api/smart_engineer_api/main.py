@@ -21,7 +21,7 @@ from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
 from .logging_config import configure_logging
-from .middleware import CorrelationIdMiddleware
+from .middleware import CorrelationIdMiddleware, SecurityHeadersMiddleware
 from .org_routes import access_denied_handler, org_error_handler
 from .org_routes import router as org_router
 from .org_service import OrgError
@@ -69,6 +69,7 @@ def create_app(
     app.state.mailer = mailer or auth_service.OutboxMailer()
     app.state.file_storage = file_storage or FileStorage(settings.file_storage_dir)
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.environment == "production")
     register_exception_handlers(app)
     app.add_exception_handler(auth_service.AuthError, auth_error_handler)
     app.add_exception_handler(OrgError, org_error_handler)

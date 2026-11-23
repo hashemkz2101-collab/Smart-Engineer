@@ -14,7 +14,7 @@ from smart_engineer_api.logging_config import (
 )
 from smart_engineer_api.main import create_app
 
-SECRET_DETAIL = "secret-internal-detail-7731"
+SECRET_DETAIL = "secret-internal-detail-7731"  # secret-scan:allow (test fixture)
 
 
 def build_client() -> TestClient:

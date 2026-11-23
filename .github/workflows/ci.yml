@@ -13,6 +13,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secrets:
+    name: Secret scan (tracked files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Test the scanner
+        run: node --test scripts/check-secrets.test.mjs
+
+      - name: Scan tracked files for credentials
+        run: node scripts/check-secrets.mjs
+
   api:
     name: API tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

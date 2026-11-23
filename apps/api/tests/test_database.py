@@ -157,7 +157,7 @@ class DatabaseSettingsTests(unittest.TestCase):
                 self.assertEqual(settings.database_url, url)
 
     def test_unknown_scheme_is_rejected_without_echoing_the_value(self) -> None:
-        secret = "mysql://user:hunter2@host/db"
+        secret = "mysql://user:hunter2@host/db"  # secret-scan:allow (test fixture)
 
         with self.assertRaises(ConfigurationError) as context:
             Settings.from_env({"SMART_ENGINEER_DATABASE_URL": secret})
