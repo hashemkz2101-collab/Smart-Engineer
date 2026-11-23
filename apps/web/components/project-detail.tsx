@@ -491,6 +491,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           projectId={projectId}
           canUpload={can("project.files.upload")}
           canDelete={can("project.files.delete")}
+          canSetBasis={can("project.files.set_basis")}
           version={version}
         />
       )}

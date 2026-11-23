@@ -11,7 +11,7 @@ from sqlalchemy import select
 from smart_engineer_api import auth_service as auth
 from smart_engineer_api import file_policy, file_service, org_service, project_service
 from smart_engineer_api.config import Settings
-from smart_engineer_api.db import Membership
+from smart_engineer_api.db import ActivityEvent, Membership
 from smart_engineer_api.db.session import create_db_engine, create_session_factory
 from smart_engineer_api.file_storage import FileStorage
 from smart_engineer_api.main import create_app
@@ -237,6 +237,120 @@ class FileChecks:
         quarantined = self.upload(owner, project, "e.pdf", PDF + file_policy.EICAR_SIGNATURE,
                                   authoritative=False)
         self.assertEqual(quarantined["scan_status"], "quarantined")
+
+    def _qs(self, owner, project):
+        qs = self.user("qs")
+        _, token = org_service.create_invitation(
+            self.session, owner, self.org_of(owner), email=qs.email, org_role="member")
+        org_service.accept_invitation(self.session, qs, token)
+        project_service.add_member(
+            self.session, owner, project.id, email=qs.email, role="quantity_surveyor")
+        return qs
+
+    def test_new_versions_keep_earlier_ones_and_record_who_and_when(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        self.assertEqual((first["version_number"], first["is_latest"]), (1, True))
+        second = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%v2",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        self.assertEqual(
+            (second["series_id"], second["version_number"]), (first["series_id"], 2))
+        listed = {f["version_number"]: f for f in file_service.list_files(
+            self.session, owner, project.id)}
+        self.assertEqual(set(listed), {1, 2})
+        self.assertEqual((listed[1]["is_latest"], listed[2]["is_latest"]), (False, True))
+        self.assertEqual(listed[1]["uploaded_by_name"], owner.display_name)
+        self.assertTrue(listed[1]["created_at"])
+        # Both versions' bytes are still stored.
+        self.assertEqual(
+            file_service.download_file(
+                self.session, self.storage, owner, project.id, uuid.UUID(first["id"]))[1], PDF)
+        # An unrelated upload starts its own series.
+        other = self.upload(owner, project, "other.pdf", PDF)
+        self.assertNotEqual(other["series_id"], first["series_id"])
+
+    def test_restore_creates_a_new_version_without_overwriting(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%v2",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        restored = file_service.restore_version(
+            self.session, self.storage, owner, project.id, uuid.UUID(first["id"]),
+            builtin_scan_is_authoritative=True)
+        self.assertEqual(
+            (restored["version_number"], restored["restored_from_file_id"], restored["sha256"]),
+            (3, first["id"], first["sha256"]))
+        self.assertEqual(len(file_service.list_files(self.session, owner, project.id)), 3)
+
+    def test_compare_reports_recorded_differences_within_one_series_only(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        second = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%more",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        result = file_service.compare_versions(
+            self.session, owner, project.id, uuid.UUID(first["id"]), uuid.UUID(second["id"]))
+        self.assertEqual(
+            (result["identical_content"], result["size_delta_bytes"], result["type_changed"]),
+            (False, len(b"\n%more"), False))
+        other = self.upload(owner, project, "other.pdf", PDF)
+        with self.assertRaises(file_service.FileError) as wrong:
+            file_service.compare_versions(
+                self.session, owner, project.id, uuid.UUID(first["id"]), uuid.UUID(other["id"]))
+        self.assertEqual(wrong.exception.code, "different_series")
+
+    def test_takeoff_basis_is_single_per_series_and_goes_stale_on_a_newer_version(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        qs = self._qs(owner, project)
+        mep_denied = self.user("mep")
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        marked = file_service.set_basis(
+            self.session, qs, project.id, uuid.UUID(first["id"]), is_basis=True)
+        self.assertEqual((marked["is_basis"], marked["basis_outdated"]), (True, False))
+        second = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%v2",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        by_version = {f["version_number"]: f for f in file_service.list_files(
+            self.session, qs, project.id)}
+        self.assertEqual(
+            (by_version[1]["is_basis"], by_version[1]["basis_outdated"]), (True, True))
+        file_service.set_basis(
+            self.session, owner, project.id, uuid.UUID(second["id"]), is_basis=True)
+        by_version = {f["version_number"]: f for f in file_service.list_files(
+            self.session, qs, project.id)}
+        self.assertEqual(
+            (by_version[1]["is_basis"], by_version[2]["is_basis"],
+             by_version[2]["basis_outdated"]), (False, True, False))
+        with self.assertRaises(AccessDenied):
+            file_service.set_basis(
+                self.session, mep_denied, project.id, uuid.UUID(first["id"]), is_basis=True)
+        actions = {e.action for e in self.session.scalars(select(ActivityEvent))}
+        self.assertIn("project.file_basis_set", actions)
+
+    def test_quarantined_files_cannot_be_the_basis_or_be_restored(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        bad = self.upload(owner, project, "bad.pdf", PDF + file_policy.EICAR_SIGNATURE)
+        for action in (
+            lambda: file_service.set_basis(
+                self.session, owner, project.id, uuid.UUID(bad["id"]), is_basis=True),
+            lambda: file_service.restore_version(
+                self.session, self.storage, owner, project.id, uuid.UUID(bad["id"]),
+                builtin_scan_is_authoritative=True),
+        ):
+            with self.assertRaises(file_service.FileError) as refused:
+                action()
+            self.assertEqual(refused.exception.code, "not_available")
 
     def test_roles_upload_read_and_delete_rules(self) -> None:
         owner, mep, qs, stranger = (self.user(n) for n in ("owner", "mep", "qs", "stranger"))

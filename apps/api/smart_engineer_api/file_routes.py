@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from . import file_service
@@ -27,6 +28,7 @@ _STATUS = {
     "macro_not_allowed": 415,
     "unsafe_archive": 415,
     "not_available": 409,
+    "different_series": 409,
     "too_many_files": 409,
 }
 _MESSAGES = {
@@ -43,6 +45,7 @@ _MESSAGES = {
     "invalid_ownership": "The ownership text is too long.",
     "too_many_files": "This project has reached the file count limit.",
     "not_available": "This file is not available for download.",
+    "different_series": "The two files are not versions of the same document.",
 }
 
 
@@ -74,6 +77,7 @@ async def upload_project_file(
     kind: str,
     document_date: str | None = None,
     ownership: str | None = None,
+    new_version_of: uuid.UUID | None = None,
     current: Authenticated = Depends(csrf_protected),
     db: Session = Depends(get_db),
     storage: FileStorage = Depends(get_storage),
@@ -96,6 +100,7 @@ async def upload_project_file(
         document_date=document_date,
         ownership=ownership,
         content=bytes(received),
+        new_version_of=new_version_of,
         builtin_scan_is_authoritative=request.app.state.settings.environment != "production",
     )
 
@@ -130,3 +135,50 @@ def delete_project_file(
 ) -> Response:
     file_service.delete_file(db, storage, current.user, project_id, file_id)
     return Response(status_code=204)
+
+
+class BasisBody(BaseModel):
+    is_basis: bool
+
+
+@router.post("/projects/{project_id}/files/{file_id}/restore", status_code=201)
+def restore_project_file(
+    project_id: uuid.UUID,
+    file_id: uuid.UUID,
+    request: Request,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+    storage: FileStorage = Depends(get_storage),
+) -> dict:
+    return file_service.restore_version(
+        db,
+        storage,
+        current.user,
+        project_id,
+        file_id,
+        builtin_scan_is_authoritative=request.app.state.settings.environment != "production",
+    )
+
+
+@router.put("/projects/{project_id}/files/{file_id}/basis")
+def set_project_file_basis(
+    project_id: uuid.UUID,
+    file_id: uuid.UUID,
+    body: BasisBody,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> dict:
+    return file_service.set_basis(
+        db, current.user, project_id, file_id, is_basis=body.is_basis
+    )
+
+
+@router.get("/projects/{project_id}/files/{file_id}/compare/{other_id}")
+def compare_project_files(
+    project_id: uuid.UUID,
+    file_id: uuid.UUID,
+    other_id: uuid.UUID,
+    current: Authenticated = Depends(current_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    return file_service.compare_versions(db, current.user, project_id, file_id, other_id)

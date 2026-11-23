@@ -29,9 +29,22 @@ class FileError(Exception):
         self.code = code
 
 
-def file_payload(row: ProjectFile, uploader_name: str | None) -> dict:
+def file_payload(
+    row: ProjectFile, uploader_name: str | None, latest_version: int | None = None
+) -> dict:
+    latest = latest_version if latest_version is not None else row.version_number
     return {
         "id": str(row.id),
+        "series_id": str(row.series_id),
+        "version_number": row.version_number,
+        "is_latest": row.version_number >= latest,
+        "is_basis": row.is_basis,
+        # The takeoff basis is outdated once a newer version of the same file exists:
+        # earlier quantities may no longer match the drawing.
+        "basis_outdated": row.is_basis and row.version_number < latest,
+        "restored_from_file_id": str(row.restored_from_file_id)
+        if row.restored_from_file_id
+        else None,
         "original_name": row.original_name,
         "kind": row.kind,
         "document_date": row.document_date.isoformat() if row.document_date else None,
@@ -64,7 +77,13 @@ def list_files(session: Session, actor: User, project_id: uuid.UUID) -> list[dic
             select(User).where(User.id.in_({row.uploaded_by_user_id for row in rows}))
         )
     }
-    return [file_payload(row, names.get(row.uploaded_by_user_id)) for row in rows]
+    latest: dict[uuid.UUID, int] = {}
+    for row in rows:
+        latest[row.series_id] = max(latest.get(row.series_id, 0), row.version_number)
+    return [
+        file_payload(row, names.get(row.uploaded_by_user_id), latest[row.series_id])
+        for row in rows
+    ]
 
 
 def upload_file(
@@ -79,8 +98,23 @@ def upload_file(
     ownership: str | None,
     content: bytes,
     builtin_scan_is_authoritative: bool,
+    new_version_of: uuid.UUID | None = None,
+    restored_from: ProjectFile | None = None,
 ) -> dict:
     authorize_project(session, actor, project_id, "project.files.upload")
+    series_id = uuid.uuid4()
+    version_number = 1
+    if new_version_of is not None:
+        previous = _get_live(session, project_id, new_version_of)
+        series_id = previous.series_id
+        version_number = (
+            session.scalar(
+                select(func.max(ProjectFile.version_number)).where(
+                    ProjectFile.series_id == series_id
+                )
+            )
+            or 0
+        ) + 1
     if kind not in FILE_KINDS:
         raise FileError("invalid_kind")
     parsed_date: date | None = None
@@ -123,6 +157,9 @@ def upload_file(
     storage.save(key, content)
     row = ProjectFile(
         project_id=project_id,
+        series_id=series_id,
+        version_number=version_number,
+        restored_from_file_id=restored_from.id if restored_from else None,
         original_name=name,
         kind=kind,
         document_date=parsed_date,
@@ -142,8 +179,14 @@ def upload_file(
             ActivityEvent(
                 project_id=project_id,
                 actor_user_id=actor.id,
-                action="project.file_uploaded",
-                detail={"file_id": str(row.id), "kind": kind, "scan_status": status},
+                action="project.file_restored" if restored_from else "project.file_uploaded",
+                detail={
+                    "file_id": str(row.id),
+                    "kind": kind,
+                    "scan_status": status,
+                    "series_id": str(series_id),
+                    "version_number": version_number,
+                },
             )
         )
         session.commit()
@@ -152,7 +195,7 @@ def upload_file(
         storage.delete(key)
         raise
     session.refresh(row)
-    return file_payload(row, actor.display_name)
+    return file_payload(row, actor.display_name, row.version_number)
 
 
 def _get_live(session: Session, project_id: uuid.UUID, file_id: uuid.UUID) -> ProjectFile:
@@ -189,6 +232,7 @@ def delete_file(
     storage.delete(row.storage_key)
     row.deleted_at = datetime.now(UTC)
     row.deleted_by_user_id = actor.id
+    row.is_basis = False
     session.add(
         ActivityEvent(
             project_id=project_id,
@@ -198,3 +242,113 @@ def delete_file(
         )
     )
     session.commit()
+
+
+def restore_version(
+    session: Session,
+    storage: FileStorage,
+    actor: User,
+    project_id: uuid.UUID,
+    file_id: uuid.UUID,
+    *,
+    builtin_scan_is_authoritative: bool,
+) -> dict:
+    """Make an earlier version current again as a *new* version (nothing is overwritten)."""
+    authorize_project(session, actor, project_id, "project.files.upload")
+    row = _get_live(session, project_id, file_id)
+    if row.scan_status != "clean":
+        raise FileError("not_available")
+    return upload_file(
+        session,
+        storage,
+        actor,
+        project_id,
+        filename=row.original_name,
+        kind=row.kind,
+        document_date=row.document_date.isoformat() if row.document_date else None,
+        ownership=row.ownership,
+        content=storage.read(row.storage_key),
+        builtin_scan_is_authoritative=builtin_scan_is_authoritative,
+        new_version_of=row.id,
+        restored_from=row,
+    )
+
+
+def set_basis(
+    session: Session,
+    actor: User,
+    project_id: uuid.UUID,
+    file_id: uuid.UUID,
+    *,
+    is_basis: bool,
+) -> dict:
+    """Record (or clear) which version of a file takeoff and estimate work is based on."""
+    authorize_project(session, actor, project_id, "project.files.set_basis")
+    row = _get_live(session, project_id, file_id)
+    if is_basis and row.scan_status != "clean":
+        raise FileError("not_available")
+    if row.is_basis != is_basis:
+        if is_basis:
+            for other in session.scalars(
+                _live_files(project_id).where(
+                    ProjectFile.series_id == row.series_id, ProjectFile.id != row.id
+                )
+            ):
+                other.is_basis = False
+        row.is_basis = is_basis
+        session.add(
+            ActivityEvent(
+                project_id=project_id,
+                actor_user_id=actor.id,
+                action="project.file_basis_set" if is_basis else "project.file_basis_cleared",
+                detail={
+                    "file_id": str(row.id),
+                    "series_id": str(row.series_id),
+                    "version_number": row.version_number,
+                },
+            )
+        )
+        session.commit()
+        session.refresh(row)
+    latest = session.scalar(
+        select(func.max(ProjectFile.version_number)).where(
+            ProjectFile.series_id == row.series_id, ProjectFile.deleted_at.is_(None)
+        )
+    )
+    uploader = session.get(User, row.uploaded_by_user_id)
+    return file_payload(row, uploader.display_name if uploader else None, latest)
+
+
+def compare_versions(
+    session: Session,
+    actor: User,
+    project_id: uuid.UUID,
+    file_id: uuid.UUID,
+    other_id: uuid.UUID,
+) -> dict:
+    """Compare two versions of one file by their recorded facts.
+
+    Content-level comparison needs per-type extraction (FILE-003) and is not done here.
+    """
+    authorize_project(session, actor, project_id, "project.view")
+    first = _get_live(session, project_id, file_id)
+    second = _get_live(session, project_id, other_id)
+    if first.series_id != second.series_id:
+        raise FileError("different_series")
+    names = {
+        user.id: user.display_name
+        for user in session.scalars(
+            select(User).where(User.id.in_({first.uploaded_by_user_id, second.uploaded_by_user_id}))
+        )
+    }
+    latest = max(first.version_number, second.version_number)
+    return {
+        "from": file_payload(first, names.get(first.uploaded_by_user_id), latest),
+        "to": file_payload(second, names.get(second.uploaded_by_user_id), latest),
+        "identical_content": first.sha256 == second.sha256,
+        "size_delta_bytes": second.size_bytes - first.size_bytes,
+        "type_changed": first.detected_type != second.detected_type,
+        "name_changed": first.original_name != second.original_name,
+        "document_date_changed": first.document_date != second.document_date,
+        "ownership_changed": first.ownership != second.ownership,
+    }
