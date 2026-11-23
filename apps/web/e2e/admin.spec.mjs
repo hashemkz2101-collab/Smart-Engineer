@@ -94,8 +94,8 @@ test.describe("system administration", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("مدیریت سیستم");
     await expect(page.getByText("حساب شما")).toBeVisible();
 
-    await page.getByRole("button", { name: "غیرفعال‌سازی سارا احمدی" }).click();
-    await expect(page.getByRole("button", { name: "فعال‌سازی سارا احمدی" })).toBeVisible();
+    await page.getByRole("button", { name: "غیرفعال‌سازی سارا احمدی", exact: true }).click();
+    await expect(page.getByRole("button", { name: "فعال‌سازی سارا احمدی", exact: true })).toBeVisible();
     const call = state.requests.find((r) => r.key === "PUT /admin/users/u-2/active");
     expect(call.body).toEqual({ active: false });
     expect(call.headers["x-csrf-token"]).toBe("csrf-1");
