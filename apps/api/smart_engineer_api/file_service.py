@@ -20,8 +20,8 @@ from .file_policy import (
     extension_matches,
 )
 from .file_storage import FileStorage
-from .scanner import ContentScanner, ScannerUnavailable
 from .roles import FILE_KINDS
+from .scanner import ContentScanner, ScannerUnavailable
 
 
 class FileError(Exception):

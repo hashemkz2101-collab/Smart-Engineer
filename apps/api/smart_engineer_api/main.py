@@ -22,7 +22,6 @@ from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
 from .logging_config import configure_logging
 from .mail import SmtpMailer
-from .scanner import ClamdScanner, ContentScanner
 from .middleware import CorrelationIdMiddleware, SecurityHeadersMiddleware
 from .org_routes import access_denied_handler, org_error_handler
 from .org_routes import router as org_router
@@ -35,6 +34,7 @@ from .requirements_routes import requirements_error_handler, requirements_valida
 from .requirements_routes import router as requirements_router
 from .requirements_service import RequirementsError, RequirementsValidationError
 from .routes import API_V1_PREFIX, operational_router, v1_router
+from .scanner import ClamdScanner, ContentScanner
 from .site_routes import router as site_router
 from .site_routes import site_error_handler, site_validation_handler
 from .site_service import SiteError, SiteValidationError
