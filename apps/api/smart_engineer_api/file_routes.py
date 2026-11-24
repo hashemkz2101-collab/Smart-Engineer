@@ -102,6 +102,7 @@ async def upload_project_file(
         content=bytes(received),
         new_version_of=new_version_of,
         builtin_scan_is_authoritative=request.app.state.settings.environment != "production",
+        scanner=request.app.state.scanner,
     )
 
 
@@ -157,6 +158,7 @@ def restore_project_file(
         project_id,
         file_id,
         builtin_scan_is_authoritative=request.app.state.settings.environment != "production",
+        scanner=request.app.state.scanner,
     )
 
 

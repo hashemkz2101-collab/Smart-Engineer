@@ -22,6 +22,7 @@ from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
 from .logging_config import configure_logging
 from .mail import SmtpMailer
+from .scanner import ClamdScanner, ContentScanner
 from .middleware import CorrelationIdMiddleware, SecurityHeadersMiddleware
 from .org_routes import access_denied_handler, org_error_handler
 from .org_routes import router as org_router
@@ -49,6 +50,7 @@ def create_app(
     auth_policy: auth_service.AuthPolicy | None = None,
     mailer: auth_service.Mailer | None = None,
     file_storage: FileStorage | None = None,
+    scanner: ContentScanner | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     configure_logging(settings.log_level)
@@ -81,6 +83,14 @@ def create_app(
             mailer = auth_service.OutboxMailer()
     app.state.mailer = mailer
     app.state.file_storage = file_storage or FileStorage(settings.file_storage_dir)
+    if scanner is None and settings.clamav_configured:
+        scanner = ClamdScanner(
+            host=settings.clamav_host,
+            port=settings.clamav_port,
+            socket_path=settings.clamav_socket,
+            timeout=settings.clamav_timeout,
+        )
+    app.state.scanner = scanner
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.environment == "production")
     register_exception_handlers(app)

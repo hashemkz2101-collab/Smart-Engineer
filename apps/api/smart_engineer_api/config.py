@@ -41,6 +41,15 @@ class Settings:
     smtp_password: str | None = field(default=None, repr=False)
     smtp_security: str = "starttls"
     mail_from: str | None = None
+    # Malware scanning through a ClamAV daemon on the owner's server (SEC-002, DEC-023).
+    clamav_host: str | None = None
+    clamav_port: int = 3310
+    clamav_socket: str | None = None
+    clamav_timeout: float = 30.0
+
+    @property
+    def clamav_configured(self) -> bool:
+        return bool(self.clamav_host or self.clamav_socket)
 
     @property
     def mail_configured(self) -> bool:
@@ -106,8 +115,24 @@ class Settings:
                 "and SMART_ENGINEER_PUBLIC_URL (links in emails)"
             )
 
+        try:
+            clamav_port = int(source.get("SMART_ENGINEER_CLAMAV_PORT", "").strip() or 3310)
+            clamav_timeout = float(source.get("SMART_ENGINEER_CLAMAV_TIMEOUT", "").strip() or 30)
+        except ValueError:
+            raise ConfigurationError(
+                "SMART_ENGINEER_CLAMAV_PORT and SMART_ENGINEER_CLAMAV_TIMEOUT must be numbers"
+            ) from None
+        if not 1 <= clamav_port <= 65535:
+            raise ConfigurationError("SMART_ENGINEER_CLAMAV_PORT must be between 1 and 65535")
+        if not 1 <= clamav_timeout <= 600:
+            raise ConfigurationError("SMART_ENGINEER_CLAMAV_TIMEOUT must be 1 to 600 seconds")
+
         return cls(
             environment=environment,
+            clamav_host=source.get("SMART_ENGINEER_CLAMAV_HOST", "").strip() or None,
+            clamav_port=clamav_port,
+            clamav_socket=source.get("SMART_ENGINEER_CLAMAV_SOCKET", "").strip() or None,
+            clamav_timeout=clamav_timeout,
             public_url=public_url,
             smtp_host=smtp_host,
             smtp_port=smtp_port,

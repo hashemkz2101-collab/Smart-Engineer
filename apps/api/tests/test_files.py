@@ -16,6 +16,7 @@ from smart_engineer_api.db.session import create_db_engine, create_session_facto
 from smart_engineer_api.file_storage import FileStorage
 from smart_engineer_api.main import create_app
 from smart_engineer_api.permissions import AccessDenied
+from smart_engineer_api.scanner import ScannerUnavailable
 from smart_engineer_api.security import ScryptParams
 from tests.helpers import alembic_config
 
@@ -40,6 +41,20 @@ def _zip(parts: dict[str, str]) -> bytes:
         for name, data in parts.items():
             archive.writestr(name, data)
     return buffer.getvalue()
+
+
+class StubScanner:
+    """Stands in for ClamAV: a fixed verdict, or no answer when ``verdict`` is None."""
+
+    def __init__(self, verdict: str | None, detail: str | None = None) -> None:
+        self.verdict, self.detail = verdict, detail
+        self.calls = 0
+
+    def scan(self, content: bytes):
+        self.calls += 1
+        if self.verdict is None:
+            raise ScannerUnavailable
+        return file_policy.ScanResult(self.verdict, self.detail)
 
 
 class PolicyTests(unittest.TestCase):
@@ -351,6 +366,49 @@ class FileChecks:
             with self.assertRaises(file_service.FileError) as refused:
                 action()
             self.assertEqual(refused.exception.code, "not_available")
+
+    def _scanned_upload(self, owner, project, scanner, *, authoritative=False, name="s.pdf"):
+        return file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename=name, kind="survey",
+            document_date=None, ownership=None, content=PDF,
+            builtin_scan_is_authoritative=authoritative, scanner=scanner)
+
+    def test_a_configured_scanner_decides_even_in_production_mode(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        clean = self._scanned_upload(owner, project, StubScanner("clean"))
+        self.assertEqual((clean["scan_status"], clean["downloadable"]), ("clean", True))
+        infected = self._scanned_upload(
+            owner, project, StubScanner("quarantined", "clamav:Test.Sig"), authoritative=True)
+        self.assertEqual(
+            (infected["scan_status"], infected["scan_detail"], infected["downloadable"]),
+            ("quarantined", "clamav:Test.Sig", False))
+
+    def test_an_unavailable_scanner_leaves_files_pending_and_a_rescan_finishes_the_job(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        pending = self._scanned_upload(owner, project, StubScanner(None), authoritative=True)
+        self.assertEqual((pending["scan_status"], pending["downloadable"]), ("pending", False))
+        with self.assertRaises(file_service.FileError):
+            file_service.download_file(
+                self.session, self.storage, owner, project.id, uuid.UUID(pending["id"]))
+        still = file_service.rescan_pending(self.session, self.storage, StubScanner(None))
+        self.assertEqual(still, {"clean": 0, "quarantined": 0, "still_pending": 1})
+        done = file_service.rescan_pending(self.session, self.storage, StubScanner("clean"))
+        self.assertEqual(done, {"clean": 1, "quarantined": 0, "still_pending": 0})
+        row, content = file_service.download_file(
+            self.session, self.storage, owner, project.id, uuid.UUID(pending["id"]))
+        self.assertEqual((row.scan_status, content), ("clean", PDF))
+
+    def test_builtin_quarantine_wins_without_asking_the_scanner(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        scanner = StubScanner("clean")
+        saved = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="e.pdf", kind="other",
+            document_date=None, ownership=None, content=PDF + file_policy.EICAR_SIGNATURE,
+            builtin_scan_is_authoritative=True, scanner=scanner)
+        self.assertEqual((saved["scan_status"], scanner.calls), ("quarantined", 0))
 
     def test_roles_upload_read_and_delete_rules(self) -> None:
         owner, mep, qs, stranger = (self.user(n) for n in ("owner", "mep", "qs", "stranger"))

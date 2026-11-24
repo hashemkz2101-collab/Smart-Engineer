@@ -5,6 +5,13 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-21: real malware scanning (SEC-002, DEC-023). Uploads are streamed to a ClamAV daemon on
+  the owner's server (TCP or Unix socket, settings `SMART_ENGINEER_CLAMAV_*`). A clean verdict
+  makes the file downloadable even in production; a detection quarantines it with the
+  signature name; if the scanner cannot answer the file stays pending (fail closed) and
+  `manage.py rescan-files` finishes it later. The built-in EICAR/PDF/Office checks still run
+  first. Setup steps are in the README.
+
 - P1-20: file versions (FILE-002). An upload can be a new version of an existing file; earlier
   versions and their bytes are kept with uploader and time. A version can be restored (as a
   new version, nothing is overwritten) and two versions compared by recorded facts (identical
