@@ -504,11 +504,24 @@ class ProjectFile(Base):
         CheckConstraint(sql_in("detected_type", FILE_TYPES), name="detected_type_valid"),
         CheckConstraint(sql_in("scan_status", FILE_SCAN_STATUSES), name="scan_status_valid"),
         CheckConstraint("size_bytes > 0", name="size_positive"),
+        CheckConstraint("version_number >= 1", name="version_positive"),
+        UniqueConstraint("series_id", "version_number"),
         Index("ix_project_files_project_id", "project_id"),
+        Index("ix_project_files_series_id", "series_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    # Versions of the same document share a series; the first version's id is the series id.
+    series_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, default=uuid.uuid4)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Marks the version that takeoff/estimate work is based on (one per series).
+    is_basis: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    restored_from_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("project_files.id"), nullable=True
+    )
     original_name: Mapped[str] = mapped_column(String(200), nullable=False)
     kind: Mapped[str] = mapped_column(String(30), nullable=False)
     document_date: Mapped[date | None] = mapped_column(Date, nullable=True)

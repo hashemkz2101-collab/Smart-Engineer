@@ -9,12 +9,18 @@ import { FormField } from "./form-field";
 
 type ProjectFile = {
   id: string;
+  series_id: string;
+  version_number: number;
+  is_latest: boolean;
+  is_basis: boolean;
+  basis_outdated: boolean;
   original_name: string;
   kind: string;
   document_date: string | null;
   ownership: string | null;
   detected_type: string;
   size_bytes: number;
+  sha256: string;
   scan_status: "pending" | "clean" | "quarantined";
   scan_detail: string | null;
   uploaded_by_name: string | null;
@@ -48,11 +54,13 @@ export function FilesPanel({
   projectId,
   canUpload,
   canDelete,
+  canSetBasis,
   version,
 }: {
   projectId: string;
   canUpload: boolean;
   canDelete: boolean;
+  canSetBasis: boolean;
   version: number;
 }) {
   const [reload, setReload] = useState(0);
@@ -64,6 +72,8 @@ export function FilesPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newVersionOf, setNewVersionOf] = useState("");
+  const [comparison, setComparison] = useState<{ id: string; text: string } | null>(null);
   const files = useResource<{ files: ProjectFile[] }>(
     `/projects/${projectId}/files`,
     version + reload,
@@ -85,6 +95,7 @@ export function FilesPanel({
     const query = new URLSearchParams({ filename: file.name, kind });
     if (documentDate) query.set("document_date", documentDate);
     if (ownership.trim()) query.set("ownership", ownership.trim());
+    if (newVersionOf) query.set("new_version_of", newVersionOf);
     try {
       const saved = await api.upload<ProjectFile>(`/projects/${projectId}/files?${query}`, file);
       setNotice(
@@ -92,12 +103,15 @@ export function FilesPanel({
           ? "فایل ذخیره شد اما به‌دلیل نتیجهٔ اسکن در قرنطینه است و قابل دانلود نیست."
           : saved.scan_status === "pending"
             ? "فایل ذخیره شد و پس از اسکن قابل دانلود می‌شود."
-            : "فایل بارگذاری شد.",
+            : newVersionOf
+              ? `نسخهٔ ${saved.version_number} ثبت شد؛ نسخه‌های قبلی نگه داشته شد.`
+              : "فایل بارگذاری شد.",
       );
       setFile(null);
       setKind("");
       setDocumentDate("");
       setOwnership("");
+      setNewVersionOf("");
       setInputKey((current) => current + 1);
       setReload((current) => current + 1);
     } catch (failure) {
@@ -117,6 +131,62 @@ export function FilesPanel({
       setError(toApiError(failure).userMessage);
     }
   }
+
+  async function restore(item: ProjectFile) {
+    setError(null);
+    setNotice(null);
+    try {
+      const saved = await api.post<ProjectFile>(
+        `/projects/${projectId}/files/${item.id}/restore`,
+        {},
+      );
+      setNotice(`نسخهٔ ${item.version_number} به‌عنوان نسخهٔ ${saved.version_number} بازیابی شد.`);
+      setReload((current) => current + 1);
+    } catch (failure) {
+      setError(toApiError(failure).userMessage);
+    }
+  }
+
+  async function toggleBasis(item: ProjectFile) {
+    setError(null);
+    setNotice(null);
+    try {
+      await api.put<ProjectFile>(`/projects/${projectId}/files/${item.id}/basis`, {
+        is_basis: !item.is_basis,
+      });
+      setNotice(item.is_basis ? "علامت مبنای متره برداشته شد." : "به‌عنوان مبنای متره ثبت شد.");
+      setReload((current) => current + 1);
+    } catch (failure) {
+      setError(toApiError(failure).userMessage);
+    }
+  }
+
+  async function compare(item: ProjectFile, latest: ProjectFile) {
+    setError(null);
+    try {
+      const result = await api.get<{
+        identical_content: boolean;
+        size_delta_bytes: number;
+        type_changed: boolean;
+      }>(`/projects/${projectId}/files/${item.id}/compare/${latest.id}`);
+      const parts = [
+        result.identical_content ? "محتوا یکسان است" : "محتوا تغییر کرده است",
+        result.size_delta_bytes === 0
+          ? "حجم بدون تغییر"
+          : `تغییر حجم: ${result.size_delta_bytes > 0 ? "+" : "-"}${formatSize(Math.abs(result.size_delta_bytes))}`,
+      ];
+      if (result.type_changed) parts.push("نوع فایل تغییر کرده است");
+      setComparison({
+        id: item.id,
+        text: `نسخهٔ ${item.version_number} در برابر نسخهٔ ${latest.version_number}: ${parts.join("؛ ")}`,
+      });
+    } catch (failure) {
+      setError(toApiError(failure).userMessage);
+    }
+  }
+
+  const latestOf = (item: ProjectFile) =>
+    files.data?.files.find((other) => other.series_id === item.series_id && other.is_latest);
 
   return (
     <section className="detail-section" aria-labelledby="files-title">
@@ -172,6 +242,26 @@ export function FilesPanel({
               onChange={(event) => setOwnership(event.target.value)}
             />
           </FormField>
+          <FormField
+            id="file-new-version"
+            label="نسخهٔ جدید از فایل"
+            hint="اختیاری؛ برای جایگزینی بدون حذف نسخهٔ قبلی."
+          >
+            <select
+              id="file-new-version"
+              value={newVersionOf}
+              onChange={(event) => setNewVersionOf(event.target.value)}
+            >
+              <option value="">فایل تازه (نه نسخهٔ جدید)</option>
+              {files.data?.files
+                .filter((item) => item.is_latest)
+                .map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.original_name} (نسخهٔ {item.version_number})
+                  </option>
+                ))}
+            </select>
+          </FormField>
           <button className="button" type="submit" disabled={busy}>
             {busy ? "در حال بارگذاری…" : "بارگذاری فایل"}
           </button>
@@ -196,6 +286,17 @@ export function FilesPanel({
             <li className="file-item" key={item.id} data-scan={item.scan_status}>
               <strong dir="auto">{item.original_name}</strong>
               <span className="field-hint">
+                نسخهٔ {item.version_number}
+                {item.is_latest ? " (آخرین)" : ""}
+                {item.is_basis ? " · مبنای متره و برآورد" : ""}
+              </span>
+              {item.basis_outdated ? (
+                <span className="alert alert-error" role="status">
+                  نسخهٔ جدیدتری از این فایل آمده است؛ محاسبات متره بر پایهٔ نسخهٔ قبلی‌اند و باید
+                  بازبینی شوند.
+                </span>
+              ) : null}
+              <span className="field-hint">
                 {kindLabels[item.kind] ?? item.kind} · {formatSize(item.size_bytes)} ·{" "}
                 {scanLabels[item.scan_status]}
                 {item.document_date ? ` · تاریخ سند ${item.document_date}` : ""}
@@ -214,6 +315,40 @@ export function FilesPanel({
               ) : (
                 <span className="field-hint">قابل دانلود نیست</span>
               )}
+              {canUpload && !item.is_latest && item.downloadable ? (
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => void restore(item)}
+                >
+                  بازیابی نسخهٔ {item.version_number} از {item.original_name}
+                </button>
+              ) : null}
+              {!item.is_latest && latestOf(item) ? (
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => void compare(item, latestOf(item) as ProjectFile)}
+                >
+                  مقایسه نسخهٔ {item.version_number} با آخرین نسخهٔ {item.original_name}
+                </button>
+              ) : null}
+              {comparison?.id === item.id ? (
+                <span role="status" className="field-hint">
+                  {comparison.text}
+                </span>
+              ) : null}
+              {canSetBasis && item.downloadable ? (
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => void toggleBasis(item)}
+                >
+                  {item.is_basis
+                    ? `برداشتن مبنای متره از نسخهٔ ${item.version_number} ${item.original_name}`
+                    : `ثبت نسخهٔ ${item.version_number} ${item.original_name} به‌عنوان مبنای متره`}
+                </button>
+              ) : null}
               {canDelete ? (
                 <button
                   type="button"
