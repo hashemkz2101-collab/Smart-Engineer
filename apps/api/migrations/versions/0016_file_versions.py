@@ -39,7 +39,7 @@ def upgrade() -> None:
             op.f("ck_project_files_version_positive"), "version_number >= 1"
         )
         batch.create_unique_constraint(
-            op.f("uq_project_files_series_version"), ["series_id", "version_number"]
+            op.f("uq_project_files_series_id"), ["series_id", "version_number"]
         )
         batch.create_index("ix_project_files_series_id", ["series_id"], unique=False)
 
@@ -47,7 +47,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     with op.batch_alter_table("project_files", naming_convention=NAMING_CONVENTION) as batch:
         batch.drop_index("ix_project_files_series_id")
-        batch.drop_constraint(op.f("uq_project_files_series_version"), type_="unique")
+        batch.drop_constraint(op.f("uq_project_files_series_id"), type_="unique")
         batch.drop_constraint(op.f("ck_project_files_version_positive"), type_="check")
         batch.drop_constraint(
             op.f("fk_project_files_restored_from_file_id_project_files"), type_="foreignkey"

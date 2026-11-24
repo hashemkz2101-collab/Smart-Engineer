@@ -505,7 +505,7 @@ class ProjectFile(Base):
         CheckConstraint(sql_in("scan_status", FILE_SCAN_STATUSES), name="scan_status_valid"),
         CheckConstraint("size_bytes > 0", name="size_positive"),
         CheckConstraint("version_number >= 1", name="version_positive"),
-        UniqueConstraint("series_id", "version_number", name="series_version"),
+        UniqueConstraint("series_id", "version_number"),
         Index("ix_project_files_project_id", "project_id"),
         Index("ix_project_files_series_id", "series_id"),
     )
