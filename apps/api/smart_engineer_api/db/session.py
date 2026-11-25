@@ -1,6 +1,7 @@
 """Engine and session helpers. Nothing connects until an engine is used."""
 
 from sqlalchemy import Engine, create_engine, event
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 
@@ -27,6 +28,18 @@ def create_db_engine(database_url: str, **engine_options) -> Engine:
             cursor.execute("SET SESSION sql_mode = CONCAT(@@sql_mode, ',STRICT_ALL_TABLES')")
             cursor.execute("SET SESSION default_storage_engine = InnoDB")
             cursor.close()
+
+        @event.listens_for(engine, "handle_error")
+        def _check_violations_are_integrity_errors(context):
+            # PostgreSQL and SQLite report a failed CHECK as an integrity error; MySQL
+            # (3819) and MariaDB (4025) use a generic code. Make them the same so callers
+            # and tests do not care which database is behind the engine.
+            args = getattr(context.original_exception, "args", ())
+            if args and args[0] in (3819, 4025):
+                return IntegrityError(
+                    context.statement, context.parameters, context.original_exception
+                )
+            return None
 
     return engine
 
