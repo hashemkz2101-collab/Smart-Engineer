@@ -1,0 +1,26 @@
+{
+  "name": "Smart Engineer",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    // Docker inside the Codespace, used only for the throwaway PostgreSQL/MySQL databases.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/node:1": { "version": "24.22.3", "pnpmVersion": "12.16.1" }
+  },
+  "containerEnv": {
+    "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
+    "UV_LINK_MODE": "copy"
+  },
+  // Python 3.14.10 comes from uv (pinned in .python-version); dependencies come from the lock files.
+  "postCreateCommand": "bash scripts/dev/setup.sh",
+  // Starts the databases, applies migrations, adds demo data and starts the API and web app.
+  "postStartCommand": "bash scripts/dev/up.sh || true",
+  "postAttachCommand": "cat .dev/urls.txt 2>/dev/null || true",
+  "forwardPorts": [3000, 8000],
+  "portsAttributes": {
+    "3000": { "label": "Smart Engineer (open this one)", "onAutoForward": "notify", "visibility": "private" },
+    "8000": { "label": "Smart Engineer API", "onAutoForward": "silent", "visibility": "private" }
+  },
+  "customizations": {
+    "vscode": { "extensions": ["ms-python.python", "charliermarsh.ruff", "dbaeumer.vscode-eslint"] }
+  }
+}
