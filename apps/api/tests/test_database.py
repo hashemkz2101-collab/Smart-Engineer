@@ -1,7 +1,9 @@
 import os
 import tempfile
 import unittest
+import re
 import uuid
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 from alembic import command
@@ -9,7 +11,9 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from sqlalchemy import inspect, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.schema import CreateIndex, CreateTable
 
 from smart_engineer_api.config import ConfigurationError, Settings
 from smart_engineer_api.db import BackgroundJob, Base, FeatureFlag
@@ -38,6 +42,7 @@ EXPECTED_TABLES = {
     "admin_audit_events",
 }
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
+MYSQL_URL = os.environ.get("SMART_ENGINEER_TEST_MYSQL_DATABASE_URL")
 
 
 class MigrationChecks:
@@ -128,6 +133,59 @@ class MigrationChecks:
             engine.dispose()
 
 
+    def test_timestamps_are_stored_in_utc_and_read_back_aware(self) -> None:
+        command.upgrade(alembic_config(self.url), "head")
+        engine = create_db_engine(self.url)
+        try:
+            sessions = create_session_factory(engine)
+            exact = datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=UTC)
+            local = datetime(2026, 1, 2, 6, 34, 5, 123456, tzinfo=timezone(timedelta(hours=3.5)))
+            with sessions.begin() as session:
+                first = BackgroundJob(job_type="noop", created_at=exact)
+                second = BackgroundJob(job_type="noop", created_at=local)
+                third = BackgroundJob(job_type="noop")
+                session.add_all([first, second, third])
+                session.flush()
+                ids = (first.id, second.id, third.id)
+            with sessions() as session:
+                one, two, three = (session.get(BackgroundJob, key) for key in ids)
+                # Microseconds survive, and a +03:30 value is the same instant in UTC.
+                self.assertEqual(one.created_at, exact)
+                self.assertEqual(two.created_at, exact)
+                self.assertEqual(one.created_at.utcoffset(), timedelta(0))
+                # The database's own default clock is UTC too, whatever the server zone is.
+                self.assertLess(abs(datetime.now(UTC) - three.created_at), timedelta(minutes=5))
+        finally:
+            engine.dispose()
+
+    def test_text_keys_are_case_sensitive_like_postgresql(self) -> None:
+        command.upgrade(alembic_config(self.url), "head")
+        engine = create_db_engine(self.url)
+        try:
+            sessions = create_session_factory(engine)
+            with sessions.begin() as session:
+                session.add_all([FeatureFlag(key="Case"), FeatureFlag(key="case")])
+            with sessions() as session:
+                self.assertEqual(len(session.scalars(select(FeatureFlag)).all()), 2)
+                self.assertIsNone(session.get(FeatureFlag, "CASE"))
+        finally:
+            engine.dispose()
+
+    def test_persian_text_round_trips(self) -> None:
+        command.upgrade(alembic_config(self.url), "head")
+        engine = create_db_engine(self.url)
+        try:
+            sessions = create_session_factory(engine)
+            text_value = "پروژه ساختمانی \u200cمهندس 😀"
+            with sessions.begin() as session:
+                session.add(BackgroundJob(job_type="noop", payload={"name": text_value}))
+            with sessions() as session:
+                job = session.scalars(select(BackgroundJob)).one()
+                self.assertEqual(job.payload, {"name": text_value})
+        finally:
+            engine.dispose()
+
+
 class SqliteMigrationTests(MigrationChecks, unittest.TestCase):
     def setUp(self) -> None:
         self.directory = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -146,12 +204,48 @@ class PostgresMigrationTests(MigrationChecks, unittest.TestCase):
         command.downgrade(alembic_config(self.url), "base")
 
 
+@unittest.skipUnless(MYSQL_URL, "SMART_ENGINEER_TEST_MYSQL_DATABASE_URL is not set")
+class MysqlMigrationTests(MigrationChecks, unittest.TestCase):
+    def setUp(self) -> None:
+        self.url = MYSQL_URL
+        self.addCleanup(self.reset)
+        self.reset()
+
+    def reset(self) -> None:
+        command.downgrade(alembic_config(self.url), "base")
+
+
+class MysqlCompatibilityTests(unittest.TestCase):
+    """Rules MySQL imposes that need no running server to check."""
+
+    def test_constraint_and_index_names_fit_the_64_character_limit(self) -> None:
+        dialect = mysql.dialect()
+        names: list[str] = []
+        for table in Base.metadata.sorted_tables:
+            names += re.findall(r"CONSTRAINT\s+`?(\w+)`?", str(CreateTable(table).compile(dialect=dialect)))
+            for index in table.indexes:
+                names += re.findall(r"INDEX\s+`?(\w+)`?", str(CreateIndex(index).compile(dialect=dialect)))
+        self.assertTrue(names)
+        self.assertEqual([name for name in names if len(name) > 64], [])
+
+    def test_timestamps_get_microsecond_precision_on_mysql_only(self) -> None:
+        table = Base.metadata.tables["background_jobs"]
+        mysql_sql = str(CreateTable(table).compile(dialect=mysql.dialect()))
+        self.assertIn("created_at DATETIME(6)", mysql_sql)
+        self.assertIn("CURRENT_TIMESTAMP(6)", mysql_sql)
+
+
 class DatabaseSettingsTests(unittest.TestCase):
     def test_database_url_defaults_to_none(self) -> None:
         self.assertIsNone(Settings.from_env({}).database_url)
 
-    def test_postgresql_and_sqlite_urls_are_accepted(self) -> None:
-        for url in ("postgresql+psycopg://u:p@localhost/db", "sqlite:///x.db"):
+    def test_postgresql_mysql_and_sqlite_urls_are_accepted(self) -> None:
+        urls = (
+            "postgresql+psycopg://u:p@localhost/db",
+            "mysql+pymysql://u:p@localhost:3306/db",
+            "sqlite:///x.db",
+        )
+        for url in urls:
             with self.subTest(url=url):
                 settings = Settings.from_env({"SMART_ENGINEER_DATABASE_URL": url})
                 self.assertEqual(settings.database_url, url)
@@ -172,6 +266,17 @@ class DatabaseSettingsTests(unittest.TestCase):
                     "SMART_ENGINEER_DATABASE_URL": "sqlite:///x.db",
                 }
             )
+
+    def test_production_accepts_postgresql_and_mysql(self) -> None:
+        for url in ("postgresql+psycopg://u:p@h/db", "mysql+pymysql://u:p@h/db"):
+            with self.subTest(url=url):
+                settings = Settings.from_env(
+                    {"SMART_ENGINEER_ENV": "production", "SMART_ENGINEER_DATABASE_URL": url}
+                )
+                self.assertEqual(settings.database_url, url)
+
+    def test_mysql_repr_and_errors_hide_the_password(self) -> None:
+        self.assertNotIn("hunter2", repr(Settings(database_url="mysql+pymysql://u:hunter2@h/db")))
 
     def test_repr_hides_the_database_url(self) -> None:
         settings = Settings(database_url="postgresql+psycopg://u:hunter2@h/db")
