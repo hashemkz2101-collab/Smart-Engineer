@@ -129,7 +129,7 @@ class ServiceChecks:
                     "INSERT INTO background_jobs (id, job_type, status, payload, attempts) "
                     "VALUES (:id, 'legacy', 'queued', '{}', 0)"
                 ),
-                {"id": job_id.hex if self.engine.dialect.name == "sqlite" else job_id},
+                {"id": job_id.hex if self.engine.dialect.name in ("sqlite", "mysql") else job_id},
             )
 
         command.upgrade(self.config, "0002")
