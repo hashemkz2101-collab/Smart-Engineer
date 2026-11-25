@@ -1,0 +1,38 @@
+name: Lock tool (temporary)
+
+on:
+  push:
+    branches: [p1-22-lock-tool]
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv 0.13.8
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.8"
+
+      - name: Install Python 3.14.10
+        run: uv python install 3.14.10
+
+      - name: Add the MySQL driver and pin it exactly
+        run: |
+          if grep -q pymysql apps/api/pyproject.toml; then echo "already added"; exit 0; fi
+          uv add --package smart-engineer-api "pymysql>=1.1.0"
+          sed -i -E 's/"pymysql>=([0-9][0-9.]*)"/"pymysql==\1"/' apps/api/pyproject.toml
+          uv lock
+          grep -n pymysql apps/api/pyproject.toml
+
+      - name: Commit the result
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add apps/api/pyproject.toml uv.lock
+          git diff --cached --quiet || git commit -m "Add PyMySQL (lock generated in CI)"
+          git push
