@@ -29,7 +29,8 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-17 | Invitation emails: organization and project invitations are emailed (the one-time link is still shown to the inviter as a fallback) | FLOW-001, IAM-001 | in review |
 | P1-19 | File formats and upload safety (DEC-023 owner decisions): DXF, DWG, IFC, XLSX/XLS/CSV, DOCX/DOC by content; macro files and unsafe archives refused; embedded/linked Office content quarantined; per-type size limits | FILE-001, SEC-002 | in review |
 | P1-20 | File versions: new versions keep earlier ones with uploader and time, restore as a new version, recorded-fact comparison, takeoff basis marker (owner and quantity surveyor) with a stale warning when a newer version exists (FILE-002) | FILE-002 | in review |
-| P1-21+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
+| P1-21 | Real malware scanning through ClamAV on the owner's server, fail closed, rescan command (SEC-002, DEC-023) | SEC-002 | in review |
+| P1-22+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys

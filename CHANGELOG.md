@@ -20,6 +20,15 @@ does not imply that planned application features have been implemented.
   regression/reference/API tests and a new geometry full-stack browser scenario.
   Earlier tests are not rerun at the owner's request. Chromium installation was
   blocked by the CDN's regional HTTP 403; browser evidence is tracked explicitly.
+- P1-18: the project intake panel applies the saved response at once, so text typed while
+  the step list reloads after a save is no longer discarded by the late refetch (the form
+  is keyed by version). Regression test with a delayed refetch. No feature status changed.
+- P1-21: real malware scanning (SEC-002, DEC-023). Uploads are streamed to a ClamAV daemon on
+  the owner's server (TCP or Unix socket, settings `SMART_ENGINEER_CLAMAV_*`). A clean verdict
+  makes the file downloadable even in production; a detection quarantines it with the
+  signature name; if the scanner cannot answer the file stays pending (fail closed) and
+  `manage.py rescan-files` finishes it later. The built-in EICAR/PDF/Office checks still run
+  first. Setup steps are in the README.
 - P1-23: Codespaces trial environment. `.devcontainer` installs the pinned Python/Node and the
   locked dependencies; `scripts/dev/up.sh` starts a throwaway PostgreSQL, MySQL or SQLite
   database, applies migrations, seeds demo accounts (`manage.py seed-demo`, refuses non-local
