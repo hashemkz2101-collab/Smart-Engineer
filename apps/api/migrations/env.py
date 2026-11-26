@@ -6,10 +6,11 @@ printed because it may contain credentials.
 """
 
 from alembic import context
-from sqlalchemy import create_engine, pool
+from sqlalchemy import pool, text
 
 from smart_engineer_api.config import Settings
 from smart_engineer_api.db import Base
+from smart_engineer_api.db.session import create_db_engine
 
 config = context.config
 target_metadata = Base.metadata
@@ -36,10 +37,36 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _use_binary_collation(connection) -> None:
+    """MySQL compares text case-insensitively by default, PostgreSQL does not.
+
+    New tables inherit the database default, so make it binary (case-sensitive) before any
+    table is created. This keeps unique keys, the lowercase-email check and token lookups
+    identical on both engines. If the account may not alter the database, say so instead
+    of failing the migration.
+    """
+    name = connection.execute(text("SELECT DATABASE()")).scalar()
+    connection.commit()  # end the implicit transaction so Alembic starts its own
+    if not name or "`" in name:
+        return
+    try:
+        connection.execute(
+            text(f"ALTER DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin")
+        )
+    except Exception:  # noqa: BLE001 - only the type is reported; the message may hold secrets
+        print(
+            "Warning: could not set the database collation to utf8mb4_bin. Create the "
+            "database with that collation or text comparisons will ignore case."
+        )
+    connection.commit()
+
+
 def run_migrations_online() -> None:
-    engine = create_engine(_database_url(), poolclass=pool.NullPool)
+    engine = create_db_engine(_database_url(), poolclass=pool.NullPool)
     try:
         with engine.connect() as connection:
+            if connection.dialect.name == "mysql":
+                _use_binary_collation(connection)
             context.configure(
                 connection=connection,
                 target_metadata=target_metadata,

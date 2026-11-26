@@ -20,6 +20,11 @@ does not imply that planned application features have been implemented.
   regression/reference/API tests and a new geometry full-stack browser scenario.
   Earlier tests are not rerun at the owner's request. Chromium installation was
   blocked by the CDN's regional HTTP 403; browser evidence is tracked explicitly.
+- P1-23: Codespaces trial environment. `.devcontainer` installs the pinned Python/Node and the
+  locked dependencies; `scripts/dev/up.sh` starts a throwaway PostgreSQL, MySQL or SQLite
+  database, applies migrations, seeds demo accounts (`manage.py seed-demo`, refuses non-local
+  databases and production) and runs the API on 0.0.0.0:8000 and the web app on 0.0.0.0:3000.
+  Ports are forwarded privately. See docs/CODESPACES.md.
 
 - P1-20: file versions (FILE-002). An upload can be a new version of an existing file; earlier
   versions and their bytes are kept with uploader and time. A version can be restored (as a

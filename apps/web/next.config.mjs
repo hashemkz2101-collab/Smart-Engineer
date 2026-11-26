@@ -21,8 +21,12 @@ const securityHeaders = [
 ];
 
 /** @type {import('next').NextConfig} */
+const devOrigins = process.env.SMART_ENGINEER_DEV_ORIGINS?.split(",").filter(Boolean);
+
 const nextConfig = {
   poweredByHeader: false,
+  // Only for the Next.js dev server opened through a forwarded Codespaces address.
+  ...(devOrigins?.length ? { allowedDevOrigins: devOrigins } : {}),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

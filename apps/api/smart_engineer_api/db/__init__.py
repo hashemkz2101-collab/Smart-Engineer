@@ -1,3 +1,4 @@
+from . import mysql_compat  # noqa: F401  (MySQL DDL rules used by models and migrations)
 from .base import Base
 from .identity_models import (
     ActivityEvent,
