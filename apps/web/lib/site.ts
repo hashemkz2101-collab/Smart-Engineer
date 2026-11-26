@@ -5,7 +5,7 @@
 export type SiteField = {
   name: string;
   label: string;
-  kind: "text" | "textarea" | "choice" | "number" | "boolean";
+  kind: "text" | "textarea" | "choice" | "number" | "boolean" | "file";
   choices?: { value: string; label: string }[];
   ltr?: boolean;
   required?: boolean;

@@ -160,7 +160,7 @@ export const requirementSections: SiteSectionDef[] = [
     key: "references",
     title: "نمونه‌های مرجع",
     intro:
-      "برای هر نمونه برچسب و توضیح بنویسید و در صورت وجود پیوند آن را بدهید. بارگذاری فایل تصویر در مرحلهٔ مدیریت فایل‌ها اضافه می‌شود.",
+      "برای هر نمونه برچسب و توضیح بنویسید و در صورت وجود پیوند آن را بدهید. می‌توانید یکی از فایل‌های بارگذاری‌شدهٔ همین پروژه (بخش فایل‌ها) را هم به نمونه وصل کنید.",
     fields: [],
     lists: [
       {
@@ -176,6 +176,7 @@ export const requirementSections: SiteSectionDef[] = [
             ["other", "سایر"],
           ]),
           { name: "url", label: "پیوند", kind: "text", ltr: true },
+          { name: "file_id", label: "فایل بارگذاری‌شده", kind: "file" },
         ],
       },
     ],
