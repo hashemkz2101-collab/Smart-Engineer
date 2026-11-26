@@ -41,6 +41,7 @@ const errorMessages: Record<string, string> = {
   invalid_environment: "برخی فیلدهای شرایط محیطی درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_zoning: "برخی فیلدهای ضوابط درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_intake: "برخی فیلدها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
+  program_incomplete: "ابتدا بخش «برنامه» را در نیازمندی‌ها کامل ذخیره کنید.",
   version_conflict:
     "این مرحله در جای دیگری تغییر کرده است. اطلاعات را دوباره بارگذاری کنید.",
   file_too_large: "حجم فایل از حد مجاز برای این نوع فایل بیشتر است.",
@@ -102,6 +103,7 @@ export const activityLabels: Record<string, string> = {
   "project.zoning_saved": "ضوابط شهرسازی ذخیره شد",
   "project.file_uploaded": "فایل بارگذاری شد",
   "project.file_deleted": "فایل حذف شد",
+  "project.space_schedule_generated": "فهرست فضاها از برنامه ساخته شد",
   "project.site_saved": "داده‌های زمین ذخیره شد",
   "project.intake_saved": "اطلاعات ورودی پروژه ذخیره شد",
 };

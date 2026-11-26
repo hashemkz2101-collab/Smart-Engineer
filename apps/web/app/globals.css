@@ -786,3 +786,23 @@ textarea[aria-invalid="true"] {
 .file-item[data-scan="quarantined"] {
   border-inline-start: 4px solid currentColor;
 }
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrap th,
+.table-wrap td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border, currentColor);
+  text-align: start;
+}
+
+.flag-list {
+  padding-inline-start: 1.25rem;
+}

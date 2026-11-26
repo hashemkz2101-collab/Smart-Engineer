@@ -18,6 +18,7 @@ import { EnvironmentPanel } from "./environment-panel";
 import { FilesPanel } from "./files-panel";
 import { RequirementsPanel } from "./requirements-panel";
 import { SitePanel } from "./site-panel";
+import { SpaceSchedulePanel } from "./space-schedule-panel";
 import { ZoningPanel } from "./zoning-panel";
 
 type ProjectResponse = { project: Project; my_role: string; permissions: string[] };
@@ -472,6 +473,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
       {myRole === "org_admin" ? null : (
         <RequirementsPanel
+          projectId={projectId}
+          canEdit={can("project.requirements.edit")}
+          version={version}
+        />
+      )}
+
+      {myRole === "org_admin" ? null : (
+        <SpaceSchedulePanel
           projectId={projectId}
           canEdit={can("project.requirements.edit")}
           version={version}

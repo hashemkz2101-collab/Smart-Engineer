@@ -5,6 +5,14 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-26, Phase 3 started by explicit owner authorization (ARCH-001 first slice). The
+  saved physical program now produces a persisted, versioned space schedule: one entry per
+  counted space with stable IDs, the given target/range areas, net-area lower/upper totals and
+  flags for everything unmet (missing count or area, target outside its range, program larger
+  or smaller than the stated target area, counts not multiplied by units). A schedule built
+  from an older program is shown as stale. Migration 0017, endpoints `GET
+  /projects/{id}/space-schedule` and `POST .../space-schedule/generate`, a project-page panel
+  and tests. No layout, geometry or rule check is claimed. See docs/PHASE_3_PLAN.md.
 - P1-24: reference examples can link to an uploaded file (REQ-003). A reference item may carry
   `file_id`; the API accepts only a live, non-quarantined file of the same project (a file of
   another project is reported exactly like a missing one) and returns each linked file's name
