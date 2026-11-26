@@ -5,6 +5,13 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-24: reference examples can link to an uploaded file (REQ-003). A reference item may carry
+  `file_id`; the API accepts only a live, non-quarantined file of the same project (a file of
+  another project is reported exactly like a missing one) and returns each linked file's name
+  and whether it is still available. If the file is later deleted the reference keeps its label
+  and explanation and is shown as "file deleted". The form offers a "no file" choice, so files
+  stay optional.
+
 - 2026-11-25, Phase 1 stabilization: all five versioned document services now use
   database-atomic compare-and-swap writes, including duplicate first-save conflicts;
   failed writes do not add activity. Comparing two old file versions now uses the

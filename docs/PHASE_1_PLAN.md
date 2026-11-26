@@ -32,7 +32,8 @@ Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 | P1-21 | Real malware scanning through ClamAV on the owner's server, fail closed, rescan command (SEC-002, DEC-023) | SEC-002 | merged |
 | P1-22 | PostgreSQL and MySQL/MariaDB support through `SMART_ENGINEER_DATABASE_URL`; migrations and tests on both engines (ADR-0002) | — | merged |
 | P1-23 | GitHub Codespaces trial environment: throwaway database, demo accounts, API and web on forwarded ports | — | merged |
-| P1-24+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
+| P1-24 | Reference examples link to an uploaded file of the same project; deleted files are reported, not silently dropped | REQ-003 | in review |
+| P1-25+ | Later AI features and remaining hardening (see CHANGELOG) | — | planned |
 
 ## Data model (P1-01)
 users, organizations, memberships, projects, project_members. Foreign keys
