@@ -8,6 +8,37 @@ does not imply that planned application features have been implemented.
 - P1-18: the project intake panel applies the saved response at once, so text typed while
   the step list reloads after a save is no longer discarded by the late refetch (the form
   is keyed by version). Regression test with a delayed refetch. No feature status changed.
+- P1-23: Codespaces trial environment. `.devcontainer` installs the pinned Python/Node and the
+  locked dependencies; `scripts/dev/up.sh` starts a throwaway PostgreSQL, MySQL or SQLite
+  database, applies migrations, seeds demo accounts (`manage.py seed-demo`, refuses non-local
+  databases and production) and runs the API on 0.0.0.0:8000 and the web app on 0.0.0.0:3000.
+  Ports are forwarded privately. See docs/CODESPACES.md.
+
+- P1-20: file versions (FILE-002). An upload can be a new version of an existing file; earlier
+  versions and their bytes are kept with uploader and time. A version can be restored (as a
+  new version, nothing is overwritten) and two versions compared by recorded facts (identical
+  content, size change, type change). Owner and quantity surveyor can mark the version that
+  takeoff/estimate work is based on; the list warns when a newer version exists. Migration
+  0016; new permission `project.files.set_basis`. Content-level comparison is FILE-003.
+
+- P1-17: invitation emails. Creating an organization or project invitation now also emails
+  the invited address (Persian text naming the inviter, the organization or project, the
+  role and a 7-day accept link). Nothing is sent when the invitation is refused. The
+  one-time link is still returned to the inviter, and the response says whether email is
+  configured (`email_sent`), so the page tells the inviter whether to share the link by
+  hand. Without SMTP configuration (development, tests) messages stay in memory. No
+  feature status changed.
+- Registry: FILE-002 (versions, Phase 1), FILE-003 (extraction, Phase 3) and FILE-004 (cross-file
+  reconciliation, Phase 5) added as NOT STARTED per the owner's file decisions.
+- P1-19: file formats and upload safety (DEC-023, owner-approved 2026-11-24). Uploads now
+  accept DXF, DWG, IFC, XLSX, XLS, CSV, DOCX and DOC besides PDF and images, with the type
+  decided from the file bytes. Macro-enabled files (DOCM/XLSM, legacy macro documents) and
+  OOXML archives with path traversal, too many entries or huge expansion are refused;
+  Office files with embedded objects, ActiveX or external template/workbook links are
+  quarantined. Size limits are per type (25 MiB documents, 50 MiB CAD/BIM). Migration 0015
+  widens the stored-type check. Extraction, cross-file comparison and file versioning are
+  not implemented yet; see docs/FILE_REQUIREMENTS_GAP_ANALYSIS.md.
+
 - P1-16: email authentication (DEC-010). Real email delivery over SMTP (any provider,
   STARTTLS/SSL/none, sent from a background thread so timing does not reveal accounts;
   failures are logged without address or token). Registration sends a confirmation link

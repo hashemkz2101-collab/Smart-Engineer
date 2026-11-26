@@ -256,6 +256,7 @@ function ProjectInvitations({
   const [role, setRole] = useState("architect");
   const [error, setError] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [emailed, setEmailed] = useState(false);
 
   async function run(action: () => Promise<unknown>) {
     setError(null);
@@ -271,14 +272,16 @@ function ProjectInvitations({
   async function invite(event: FormEvent) {
     event.preventDefault();
     setInviteLink(null);
+    setEmailed(false);
     await run(async () => {
-      const result = await api.post<{ token: string }>(`/projects/${projectId}/invitations`, {
+      const result = await api.post<{ token: string; email_sent?: boolean }>(`/projects/${projectId}/invitations`, {
         email,
         role,
       });
       setInviteLink(
         `${window.location.origin}/invitations/accept?token=${encodeURIComponent(result.token)}`,
       );
+      setEmailed(Boolean(result.email_sent));
       setEmail("");
     });
   }
@@ -288,8 +291,9 @@ function ProjectInvitations({
       <h3 id="project-invite-title">دعوت از بیرون سازمان</h3>
       <p className="field-hint">
         برای کسی که هنوز عضو سازمان نیست. تا پذیرش دعوت هیچ دسترسی‌ای ندارد؛ با پذیرش، عضو
-        ساده‌ٔ سازمان می‌شود و فقط همین نقش پروژه را می‌گیرد. ارسال ایمیل هنوز فعال نیست؛
-        پیوند را خودتان بفرستید (یک بار نمایش داده می‌شود و ۷ روز اعتبار دارد).
+        ساده‌ٔ سازمان می‌شود و فقط همین نقش پروژه را می‌گیرد. پیوند به ایمیل
+        فرد فرستاده می‌شود (اگر ارسال ایمیل روی سرور تنظیم شده باشد)؛ همان پیوند یک بار اینجا هم
+        نمایش داده می‌شود و ۷ روز اعتبار دارد.
       </p>
       <ul className="card-list">
         {pending.data?.invitations.map((invitation) => (
@@ -336,6 +340,11 @@ function ProjectInvitations({
         </button>
         {inviteLink ? (
           <div role="status" className="alert alert-success">
+            <p>
+              {emailed
+                ? "ایمیل دعوت ارسال شد. اگر نرسید، پیوند زیر را خودتان بفرستید."
+                : "ارسال ایمیل روی این سرور فعال نیست؛ پیوند زیر را خودتان بفرستید."}
+            </p>
             <label htmlFor="project-invite-link">پیوند دعوت پروژه:</label>
             <input id="project-invite-link" type="text" dir="ltr" readOnly value={inviteLink} />
           </div>
@@ -482,6 +491,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           projectId={projectId}
           canUpload={can("project.files.upload")}
           canDelete={can("project.files.delete")}
+          canSetBasis={can("project.files.set_basis")}
           version={version}
         />
       )}

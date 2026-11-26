@@ -24,6 +24,7 @@ PROJECT_ACTION_ROLES: dict[str, frozenset[str]] = {
     "project.files.upload": frozenset(
         {"owner", "architect", "structural_engineer", "mep_engineer"}
     ),
+    "project.files.set_basis": frozenset({"owner", "quantity_surveyor"}),
     "project.files.delete": frozenset({"owner", "architect"}),
     "project.architect_input.edit": frozenset({"architect"}),
     "project.space_review": frozenset({"architect"}),

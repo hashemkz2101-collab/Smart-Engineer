@@ -7,7 +7,8 @@ and project documentation in Iran.
 ## Approved architecture baseline
 
 The approved P0-01 direction is a **Next.js + TypeScript** frontend, a
-**FastAPI + Python** backend, and **PostgreSQL**, organized as a **Modular
+**FastAPI + Python** backend, and **PostgreSQL or MySQL/MariaDB** (chosen per
+installation, ADR-0002), organized as a **Modular
 Monolith**. The frontend and backend communicate through a **REST API documented
 with OpenAPI**.
 
@@ -89,6 +90,7 @@ links), plus `SMART_ENGINEER_SMTP_PORT` (default 587), `SMART_ENGINEER_SMTP_SECU
 `SMART_ENGINEER_SMTP_PASSWORD`. Without them, development and tests keep messages in
 memory only, and production refuses to start (verified email is required there).
 Delivery failures are logged without the address or token and never shown to the caller.
+Organization and project invitations are emailed too (the inviter also still gets the link).
 
 ### Running the web app together with the API (development)
 
@@ -106,10 +108,18 @@ Run the migrations first (see below). Pages: `/register`, `/login`, `/projects`,
 `/organization`. The browser tests use a mocked API (they check the interface, not
 the backend); a full web + API + database run is a manual check for now.
 
+### Try it in a browser (GitHub Codespaces)
+
+Create a Codespace on this repository and the app starts by itself with demo accounts; see
+[docs/CODESPACES.md](docs/CODESPACES.md). The same scripts work on any Linux machine with
+Docker: `scripts/dev/setup.sh` once, then `scripts/dev/up.sh`.
+
 ### Database migrations
 
-The database URL comes from `SMART_ENGINEER_DATABASE_URL` (PostgreSQL:
-`postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME`). It is not needed to run
+The database URL comes from `SMART_ENGINEER_DATABASE_URL`: PostgreSQL
+(`postgresql+psycopg://USER:PASSWORD@HOST:5432/DBNAME`) or MySQL/MariaDB
+(`mysql+pymysql://USER:PASSWORD@HOST:3306/DBNAME`); setup details, requirements and
+limits of each are in [docs/DATABASES.md](docs/DATABASES.md). It is not needed to run
 the API or its health endpoints. To apply or roll back migrations, from the
 repository root:
 
@@ -120,8 +130,10 @@ uv run --package smart-engineer-api alembic -c apps/api/alembic.ini downgrade ba
 
 The migration tests run on SQLite by default. To also run them against your own
 disposable PostgreSQL database (they drop its tables), set
-`SMART_ENGINEER_TEST_DATABASE_URL` before running the API tests. How PostgreSQL
-should be run during development is still undecided (DEC-009).
+`SMART_ENGINEER_TEST_DATABASE_URL`; for MySQL or MariaDB set
+`SMART_ENGINEER_TEST_MYSQL_DATABASE_URL`. A database whose variable is not set is reported
+as skipped, never as passed. CI runs PostgreSQL 17, MySQL 8.0 and MariaDB 10.11. How a
+database should be run during development is still undecided (DEC-009).
 
 Run the API tests from the repository root:
 

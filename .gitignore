@@ -25,6 +25,9 @@ playwright-report/
 test-results/
 test-results-fullstack/
 
+# Local trial runs (scripts/dev)
+.dev/
+
 # Windows validation output
 windows-validation-*/
 

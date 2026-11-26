@@ -29,6 +29,7 @@ export const OWNER_PERMISSIONS = [
   "project.environment.edit",
   "project.files.upload",
   "project.files.delete",
+  "project.files.set_basis",
   "project.update",
   "project.archive",
   "project.restore",

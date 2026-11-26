@@ -18,6 +18,7 @@ function OrganizationDetail({ organization }: { organization: Organization }) {
   const [role, setRole] = useState("member");
   const [error, setError] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [emailed, setEmailed] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
 
   const canInvite = organization.org_role === "owner" || organization.org_role === "admin";
@@ -36,14 +37,16 @@ function OrganizationDetail({ organization }: { organization: Organization }) {
   async function invite(event: FormEvent) {
     event.preventDefault();
     setInviteLink(null);
+    setEmailed(false);
     await run(async () => {
-      const result = await api.post<{ token: string }>(
+      const result = await api.post<{ token: string; email_sent?: boolean }>(
         `/orgs/${organization.id}/invitations`,
         { email, org_role: role },
       );
       setInviteLink(
         `${window.location.origin}/invitations/accept?token=${encodeURIComponent(result.token)}`,
       );
+      setEmailed(Boolean(result.email_sent));
       setEmail("");
     });
   }
@@ -120,8 +123,8 @@ function OrganizationDetail({ organization }: { organization: Organization }) {
         <form className="form-panel" onSubmit={invite} noValidate aria-labelledby="invite-title">
           <h2 id="invite-title">دعوت عضو</h2>
           <p className="field-hint">
-            ارسال ایمیل هنوز فعال نیست؛ پس از ساخت دعوت، پیوند را خودتان برای فرد
-            دعوت‌شده بفرستید. این پیوند فقط یک بار نمایش داده می‌شود و ۷ روز اعتبار دارد.
+            پیوند دعوت به ایمیل فرد فرستاده می‌شود (اگر ارسال ایمیل روی سرور تنظیم شده باشد).
+            همان پیوند فقط یک بار اینجا هم نمایش داده می‌شود و ۷ روز اعتبار دارد.
           </p>
           <FormField id="invite-email" label="ایمیل فرد دعوت‌شده">
             <input
@@ -144,6 +147,11 @@ function OrganizationDetail({ organization }: { organization: Organization }) {
           </button>
           {inviteLink ? (
             <div role="status" className="alert alert-success">
+              <p>
+                {emailed
+                  ? "ایمیل دعوت ارسال شد. اگر نرسید، پیوند زیر را خودتان بفرستید."
+                  : "ارسال ایمیل روی این سرور فعال نیست؛ پیوند زیر را خودتان بفرستید."}
+              </p>
               <label htmlFor="invite-link">پیوند دعوت:</label>
               <input id="invite-link" type="text" dir="ltr" readOnly value={inviteLink} />
             </div>

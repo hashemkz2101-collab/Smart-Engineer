@@ -120,9 +120,13 @@ revisited before RELEASE-001. Any item can be reversed by the owner.
 - **DEC-003 (first project types).** residential_house, residential_apartment,
   commercial, mixed_use, other; single-family residential is the first
   acceptance scenario. Assistant assumption; more types need only a migration.
-- **DEC-023 (development defaults only; the decision stays OPEN).** Uploads allow PDF,
-  PNG, JPEG and WebP, detected from the file bytes with a matching extension; 10 MiB per
-  file and 100 files per project. Files are stored privately (not served statically) and
+- **DEC-023 (formats and requirements answered by the owner, 2026-11-24; scanner, retention
+  and encryption stay OPEN).** Allowed: PDF, DXF, DWG, IFC, XLSX (and XLS, CSV), DOCX (and
+  DOC), plus PNG/JPEG/WebP; macro files (DOCM, XLSM) excluded for now. Detected from the
+  file bytes with a matching extension; per-type size limits (25 MiB documents, 50 MiB
+  CAD/BIM, development defaults) and 100 files per project. The owner also requires
+  extraction, cross-file reconciliation and versioning later, and that the software never
+  depends on uploads (see docs/FILE_REQUIREMENTS_GAP_ANALYSIS.md). Files are stored privately (not served statically) and
   downloaded only through an authorized endpoint. The built-in scanner flags the EICAR
   test signature and PDFs with active content into quarantine, but is not an antivirus:
   outside development a clean verdict is not granted and files stay pending until a real

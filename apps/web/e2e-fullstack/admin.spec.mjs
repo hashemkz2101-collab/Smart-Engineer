@@ -55,13 +55,18 @@ test("a bootstrapped administrator manages users and sees the audit trail", asyn
 
   await page.getByLabel("جست‌وجوی کاربر").fill(memberEmail);
   await page.getByRole("button", { name: "جست‌وجو" }).click();
-  await page.getByRole("button", { name: "غیرفعال‌سازی کاربر عادی" }).click();
-  await expect(page.getByRole("button", { name: "فعال‌سازی کاربر عادی" })).toBeVisible();
+  await page.getByRole("button", { name: "غیرفعال‌سازی کاربر عادی", exact: true }).click();
+  // exact: "فعال‌سازی کاربر عادی" is a substring of "غیرفعال‌سازی کاربر عادی", so without it
+  // this passed before the request finished and the next step raced the deactivation.
+  await expect(
+    page.getByRole("button", { name: "فعال‌سازی کاربر عادی", exact: true }),
+  ).toBeVisible();
 
-  // A deactivated account is locked out at once.
-  // Checked at the API, where the guarantee lives: the member's own cookie is refused.
+  // A deactivated account is locked out at once, in the API and in the browser.
   const me = await memberContext.request.get("/api/v1/auth/me");
   expect(me.status()).toBe(401);
+  await memberPage.goto("/admin");
+  await expect(memberPage).toHaveURL(/\/login/);
 
   await page.getByRole("button", { name: "ممیزی" }).click();
   await expect(page.getByText("حساب کاربر غیرفعال شد")).toBeVisible();

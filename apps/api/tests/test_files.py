@@ -11,7 +11,7 @@ from sqlalchemy import select
 from smart_engineer_api import auth_service as auth
 from smart_engineer_api import file_policy, file_service, org_service, project_service
 from smart_engineer_api.config import Settings
-from smart_engineer_api.db import Membership
+from smart_engineer_api.db import ActivityEvent, Membership
 from smart_engineer_api.db.session import create_db_engine, create_session_factory
 from smart_engineer_api.file_storage import FileStorage
 from smart_engineer_api.main import create_app
@@ -20,6 +20,7 @@ from smart_engineer_api.security import ScryptParams
 from tests.helpers import alembic_config
 
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
+MYSQL_URL = os.environ.get("SMART_ENGINEER_TEST_MYSQL_DATABASE_URL")
 POLICY = auth.AuthPolicy(scrypt=ScryptParams(n=2**4, r=8, p=1))
 PASSWORD = "correct horse battery"
 V1 = "/api/v1"
@@ -31,6 +32,17 @@ WEBP = b"RIFF\x24\x00\x00\x00WEBPVP8 " + b"\x00" * 16
 PDF_WITH_SCRIPT = b"%PDF-1.4\n<< /JavaScript (app.alert(1)) >>\n"
 
 
+def _zip(parts: dict[str, str]) -> bytes:
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, data in parts.items():
+            archive.writestr(name, data)
+    return buffer.getvalue()
+
+
 class PolicyTests(unittest.TestCase):
     def test_type_is_decided_from_content(self) -> None:
         self.assertEqual(
@@ -39,6 +51,43 @@ class PolicyTests(unittest.TestCase):
         )
         for blob in (b"", b"MZ\x90\x00", b"<html></html>", b"#!/bin/sh\n", b"PK\x03\x04", b"GIF89a"):
             self.assertIsNone(file_policy.detect_type(blob))
+
+    def test_new_engineering_and_office_formats_are_detected(self) -> None:
+        cases = {
+            "dxf": b"0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1027\n0\nENDSEC\n0\nEOF\n",
+            "dwg": b"AC1032\x00\x00\x00\x00\x00\x0f" + b"\x00" * 32,
+            "ifc": b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n",
+            "csv": "نام,مقدار\nبتن,۱۲\n".encode(),
+            "docx": _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>"}),
+            "xlsx": _zip({"[Content_Types].xml": "<Types/>", "xl/workbook.xml": "<w/>"}),
+            "doc": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + "WordDocument".encode("utf-16-le") + b"\x00" * 16,
+            "xls": b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + "Workbook".encode("utf-16-le") + b"\x00" * 16,
+        }
+        for expected, blob in cases.items():
+            self.assertEqual(file_policy.detect_type(blob), expected, expected)
+
+    def test_macro_files_and_unsafe_archives_are_refused(self) -> None:
+        macro = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                      "word/vbaProject.bin": "x"})
+        self.assertEqual(file_policy.classify(macro).reason, "macro_not_allowed")
+        macro_ct = _zip({"[Content_Types].xml": "application/vnd.ms-word.document.macroEnabled.main+xml",
+                         "word/document.xml": "<w/>"})
+        self.assertEqual(file_policy.classify(macro_ct).reason, "macro_not_allowed")
+        ole_macro = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + "WordDocument".encode("utf-16-le") + "Macros".encode("utf-16-le")
+        self.assertEqual(file_policy.classify(ole_macro).reason, "macro_not_allowed")
+        traversal = _zip({"[Content_Types].xml": "<Types/>", "../evil.xml": "x", "word/document.xml": "<w/>"})
+        self.assertEqual(file_policy.classify(traversal).reason, "unsafe_archive")
+
+    def test_office_files_with_embedded_or_external_content_are_quarantined(self) -> None:
+        embedded = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                         "word/embeddings/oleObject1.bin": "x"})
+        self.assertEqual(file_policy.builtin_scan(embedded, "docx").verdict, "quarantined")
+        linked = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                       "word/_rels/document.xml.rels":
+                       '<Relationship Type="x/attachedTemplate" Target="http://e/x" TargetMode="External"/>'})
+        self.assertEqual(file_policy.builtin_scan(linked, "docx").verdict, "quarantined")
+        clean = _zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>"})
+        self.assertEqual(file_policy.builtin_scan(clean, "docx").verdict, "clean")
 
     def test_names_are_reduced_to_a_safe_display_name(self) -> None:
         self.assertEqual(file_policy.clean_filename("../../etc/pass\x00wd.pdf"), "passwd.pdf")
@@ -141,7 +190,7 @@ class FileChecks:
             (dict(name="a.pdf", content=PDF, kind="nope"), "invalid_kind"),
             (dict(name="...", content=PDF), "invalid_file_name"),
             (dict(name="a.pdf", content=PDF, document_date="2026-13-40"), "invalid_date"),
-            (dict(name="a.pdf", content=PDF + b"0" * file_policy.MAX_FILE_BYTES), "file_too_large"),
+            (dict(name="a.pdf", content=PDF + b"0" * file_policy.MAX_UPLOAD_BYTES), "file_too_large"),
         ]
         for kwargs, code in cases:
             with self.assertRaises(file_service.FileError) as raised:
@@ -189,6 +238,120 @@ class FileChecks:
         quarantined = self.upload(owner, project, "e.pdf", PDF + file_policy.EICAR_SIGNATURE,
                                   authoritative=False)
         self.assertEqual(quarantined["scan_status"], "quarantined")
+
+    def _qs(self, owner, project):
+        qs = self.user("qs")
+        _, token = org_service.create_invitation(
+            self.session, owner, self.org_of(owner), email=qs.email, org_role="member")
+        org_service.accept_invitation(self.session, qs, token)
+        project_service.add_member(
+            self.session, owner, project.id, email=qs.email, role="quantity_surveyor")
+        return qs
+
+    def test_new_versions_keep_earlier_ones_and_record_who_and_when(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        self.assertEqual((first["version_number"], first["is_latest"]), (1, True))
+        second = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%v2",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        self.assertEqual(
+            (second["series_id"], second["version_number"]), (first["series_id"], 2))
+        listed = {f["version_number"]: f for f in file_service.list_files(
+            self.session, owner, project.id)}
+        self.assertEqual(set(listed), {1, 2})
+        self.assertEqual((listed[1]["is_latest"], listed[2]["is_latest"]), (False, True))
+        self.assertEqual(listed[1]["uploaded_by_name"], owner.display_name)
+        self.assertTrue(listed[1]["created_at"])
+        # Both versions' bytes are still stored.
+        self.assertEqual(
+            file_service.download_file(
+                self.session, self.storage, owner, project.id, uuid.UUID(first["id"]))[1], PDF)
+        # An unrelated upload starts its own series.
+        other = self.upload(owner, project, "other.pdf", PDF)
+        self.assertNotEqual(other["series_id"], first["series_id"])
+
+    def test_restore_creates_a_new_version_without_overwriting(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%v2",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        restored = file_service.restore_version(
+            self.session, self.storage, owner, project.id, uuid.UUID(first["id"]),
+            builtin_scan_is_authoritative=True)
+        self.assertEqual(
+            (restored["version_number"], restored["restored_from_file_id"], restored["sha256"]),
+            (3, first["id"], first["sha256"]))
+        self.assertEqual(len(file_service.list_files(self.session, owner, project.id)), 3)
+
+    def test_compare_reports_recorded_differences_within_one_series_only(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        second = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%more",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        result = file_service.compare_versions(
+            self.session, owner, project.id, uuid.UUID(first["id"]), uuid.UUID(second["id"]))
+        self.assertEqual(
+            (result["identical_content"], result["size_delta_bytes"], result["type_changed"]),
+            (False, len(b"\n%more"), False))
+        other = self.upload(owner, project, "other.pdf", PDF)
+        with self.assertRaises(file_service.FileError) as wrong:
+            file_service.compare_versions(
+                self.session, owner, project.id, uuid.UUID(first["id"]), uuid.UUID(other["id"]))
+        self.assertEqual(wrong.exception.code, "different_series")
+
+    def test_takeoff_basis_is_single_per_series_and_goes_stale_on_a_newer_version(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        qs = self._qs(owner, project)
+        mep_denied = self.user("mep")
+        first = self.upload(owner, project, "plan.pdf", PDF)
+        marked = file_service.set_basis(
+            self.session, qs, project.id, uuid.UUID(first["id"]), is_basis=True)
+        self.assertEqual((marked["is_basis"], marked["basis_outdated"]), (True, False))
+        second = file_service.upload_file(
+            self.session, self.storage, owner, project.id, filename="plan.pdf", kind="survey",
+            document_date=None, ownership=None, content=PDF + b"\n%v2",
+            builtin_scan_is_authoritative=True, new_version_of=uuid.UUID(first["id"]))
+        by_version = {f["version_number"]: f for f in file_service.list_files(
+            self.session, qs, project.id)}
+        self.assertEqual(
+            (by_version[1]["is_basis"], by_version[1]["basis_outdated"]), (True, True))
+        file_service.set_basis(
+            self.session, owner, project.id, uuid.UUID(second["id"]), is_basis=True)
+        by_version = {f["version_number"]: f for f in file_service.list_files(
+            self.session, qs, project.id)}
+        self.assertEqual(
+            (by_version[1]["is_basis"], by_version[2]["is_basis"],
+             by_version[2]["basis_outdated"]), (False, True, False))
+        with self.assertRaises(AccessDenied):
+            file_service.set_basis(
+                self.session, mep_denied, project.id, uuid.UUID(first["id"]), is_basis=True)
+        actions = {e.action for e in self.session.scalars(select(ActivityEvent))}
+        self.assertIn("project.file_basis_set", actions)
+
+    def test_quarantined_files_cannot_be_the_basis_or_be_restored(self) -> None:
+        owner = self.user("owner")
+        project = self.project(owner)
+        bad = self.upload(owner, project, "bad.pdf", PDF + file_policy.EICAR_SIGNATURE)
+        for action in (
+            lambda: file_service.set_basis(
+                self.session, owner, project.id, uuid.UUID(bad["id"]), is_basis=True),
+            lambda: file_service.restore_version(
+                self.session, self.storage, owner, project.id, uuid.UUID(bad["id"]),
+                builtin_scan_is_authoritative=True),
+        ):
+            with self.assertRaises(file_service.FileError) as refused:
+                action()
+            self.assertEqual(refused.exception.code, "not_available")
 
     def test_roles_upload_read_and_delete_rules(self) -> None:
         owner, mep, qs, stranger = (self.user(n) for n in ("owner", "mep", "qs", "stranger"))
@@ -266,8 +429,14 @@ class FileChecks:
         bad = client.post(url, params={"filename": "x.exe", "kind": "survey"}, headers=headers,
                           content=b"MZ")
         self.assertEqual((bad.status_code, bad.json()["error"]["code"]), (415, "unsupported_type"))
+        macro = client.post(
+            url, params={"filename": "m.docx", "kind": "survey"}, headers=headers,
+            content=_zip({"[Content_Types].xml": "<Types/>", "word/document.xml": "<w/>",
+                          "word/vbaProject.bin": "x"}),
+        )
+        self.assertEqual((macro.status_code, macro.json()["error"]["code"]), (415, "macro_not_allowed"))
         big = client.post(url, params=params, headers=headers,
-                          content=PDF + b"0" * file_policy.MAX_FILE_BYTES)
+                          content=PDF + b"0" * file_policy.MAX_UPLOAD_BYTES)
         self.assertEqual((big.status_code, big.json()["error"]["code"]), (413, "file_too_large"))
         ok = client.post(url, params=params, headers=headers, content=PDF)
         self.assertEqual((ok.status_code, ok.json()["scan_status"]), (201, "clean"))
@@ -303,6 +472,15 @@ class SqliteFileTests(FileChecks, unittest.TestCase):
 class PostgresFileTests(FileChecks, unittest.TestCase):
     def setUp(self) -> None:
         self.url = POSTGRES_URL
+        command.downgrade(alembic_config(self.url), "base")
+        self.addCleanup(lambda: command.downgrade(alembic_config(self.url), "base"))
+        super().setUp()
+
+
+@unittest.skipUnless(MYSQL_URL, "SMART_ENGINEER_TEST_MYSQL_DATABASE_URL is not set")
+class MysqlFileTests(FileChecks, unittest.TestCase):
+    def setUp(self) -> None:
+        self.url = MYSQL_URL
         command.downgrade(alembic_config(self.url), "base")
         self.addCleanup(lambda: command.downgrade(alembic_config(self.url), "base"))
         super().setUp()

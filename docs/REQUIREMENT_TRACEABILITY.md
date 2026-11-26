@@ -82,6 +82,7 @@ Observable acceptance tests are in
 | 3.2.i | Trees, wells, channels, existing utilities, and easements | SITE-002 | 1 |
 | 3.2.j | Optional soil/geotechnical information | SITE-002 | 1 |
 | 3.2.k | Photos/documents/files retain type, date, and ownership | FILE-001 | 1 |
+| 3.2.k+ | File versions, extraction and cross-file reconciliation (owner decision 2026-11-24) | FILE-002, FILE-003, FILE-004 | 1, 3, 5 |
 | 3.3.a | Land use and zoning | RULE-DATA-001 | 1 |
 | 3.3.b | Permitted site coverage | RULE-DATA-001 | 1 |
 | 3.3.c | Density and permitted gross floor area | RULE-DATA-001 | 1 |

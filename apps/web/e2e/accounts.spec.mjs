@@ -811,6 +811,12 @@ test.describe("project files", () => {
   const url = `/projects/${PROJECT.id}`;
   const stored = (extra = {}) => ({
     id: "f-1",
+    series_id: "s-1",
+    version_number: 1,
+    is_latest: true,
+    is_basis: false,
+    basis_outdated: false,
+    sha256: "a".repeat(64),
     original_name: "survey.pdf",
     kind: "survey",
     document_date: "2026-05-01",
@@ -917,6 +923,57 @@ test.describe("project files", () => {
     expect(del.headers["x-csrf-token"]).toBe("csrf-1");
   });
 
+  test("versions: a new version, restore, comparison and the takeoff basis", async ({ page }) => {
+    const v1 = stored({ id: "f-1", version_number: 1, is_latest: false, is_basis: true,
+      basis_outdated: true });
+    const v2 = stored({ id: "f-2", version_number: 2 });
+    const state = { loggedIn: true, files: [v2, v1] };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/files`]: (route) =>
+        route
+          .fulfill({ status: 201, contentType: "application/json",
+            body: JSON.stringify(stored({ id: "f-3", version_number: 3 })) })
+          .then(() => true),
+      [`POST /projects/${PROJECT.id}/files/f-1/restore`]: (route) =>
+        route
+          .fulfill({ status: 201, contentType: "application/json",
+            body: JSON.stringify(stored({ id: "f-4", version_number: 3 })) })
+          .then(() => true),
+      [`PUT /projects/${PROJECT.id}/files/f-2/basis`]: (route) =>
+        route
+          .fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(v2) })
+          .then(() => true),
+      [`GET /projects/${PROJECT.id}/files/f-1/compare/f-2`]: (route) =>
+        route
+          .fulfill({ status: 200, contentType: "application/json",
+            body: JSON.stringify({ identical_content: false, size_delta_bytes: 1024,
+              type_changed: false }) })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await expect(page.getByText("نسخهٔ جدیدتری از این فایل آمده است", { exact: false })).toBeVisible();
+    await expect(page.getByText("مبنای متره و برآورد", { exact: false })).toBeVisible();
+
+    await page.getByRole("button", { name: "مقایسه نسخهٔ 1", exact: false }).click();
+    await expect(page.getByText("محتوا تغییر کرده است", { exact: false })).toBeVisible();
+
+    await page.getByRole("button", { name: "ثبت نسخهٔ 2", exact: false }).click();
+    expect(state.requests.find((r) => r.key.startsWith("PUT")).body).toEqual({ is_basis: true });
+
+    await page.getByRole("button", { name: "بازیابی نسخهٔ 1", exact: false }).click();
+    await expect(page.getByText("بازیابی شد", { exact: false })).toBeVisible();
+
+    await page.getByLabel("فایل", { exact: true }).setInputFiles({
+      name: "survey.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 v3"),
+    });
+    await page.getByLabel("نوع سند").selectOption("survey");
+    await page.getByLabel("نسخهٔ جدید از فایل").selectOption("f-2");
+    await page.getByRole("button", { name: "بارگذاری فایل" }).click();
+    await expect(page.getByText("نسخه‌های قبلی نگه داشته شد", { exact: false })).toBeVisible();
+    const post = state.requests.find((r) => r.key === `POST /projects/${PROJECT.id}/files`);
+    expect(new URLSearchParams(post.query).get("new_version_of")).toBe("f-2");
+  });
+
   test("members without upload permission see the list but no upload form", async ({ page }) => {
     await mockApi(page, { loggedIn: true, permissions: ["project.view"], files: [stored()] });
     await page.goto(url);
@@ -950,7 +1007,11 @@ test.describe("project invitations", () => {
           .fulfill({
             status: 201,
             contentType: "application/json",
-            body: JSON.stringify({ invitation: state.invitations[0], token: "tok-1" }),
+            body: JSON.stringify({
+              invitation: state.invitations[0],
+              token: "tok-1",
+              email_sent: true,
+            }),
           })
           .then(() => true);
       },
@@ -969,6 +1030,7 @@ test.describe("project invitations", () => {
     await page.getByLabel("نقش فرد دعوت‌شده در پروژه").first().selectOption("structural_engineer");
     await page.getByRole("button", { name: "ساخت دعوت‌نامهٔ پروژه" }).click();
     await expect(page.locator("#project-invite-link")).toHaveValue(/\/invitations\/accept\?token=tok-1$/);
+    await expect(page.getByText("ایمیل دعوت ارسال شد.")).toBeVisible();
     const created = state.requests.filter((r) => r.key === `POST /projects/${PROJECT.id}/invitations`).at(-1);
     expect(created.body).toEqual({ email: "new@example.com", role: "structural_engineer" });
     expect(created.headers["x-csrf-token"]).toBe("csrf-1");
