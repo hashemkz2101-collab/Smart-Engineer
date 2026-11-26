@@ -104,6 +104,7 @@ export const activityLabels: Record<string, string> = {
   "project.file_uploaded": "فایل بارگذاری شد",
   "project.file_deleted": "فایل حذف شد",
   "project.space_schedule_generated": "فهرست فضاها از برنامه ساخته شد",
+  "project.layouts_generated": "گزینه‌های چیدمان مفهومی ساخته شد",
   "project.site_saved": "داده‌های زمین ذخیره شد",
   "project.intake_saved": "اطلاعات ورودی پروژه ذخیره شد",
 };

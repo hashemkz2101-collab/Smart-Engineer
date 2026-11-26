@@ -13,6 +13,7 @@ import {
 import type { ActivityEvent, Project, ProjectInvitation, ProjectMember } from "../lib/types";
 import { useResource } from "../lib/use-resource";
 import { FormError, FormField, FormNotice } from "./form-field";
+import { LayoutsPanel } from "./layouts-panel";
 import { IntakePanel } from "./intake-panel";
 import { EnvironmentPanel } from "./environment-panel";
 import { FilesPanel } from "./files-panel";
@@ -481,6 +482,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
       {myRole === "org_admin" ? null : (
         <SpaceSchedulePanel
+          projectId={projectId}
+          canEdit={can("project.requirements.edit")}
+          version={version}
+        />
+      )}
+
+      {myRole === "org_admin" ? null : (
+        <LayoutsPanel
           projectId={projectId}
           canEdit={can("project.requirements.edit")}
           version={version}

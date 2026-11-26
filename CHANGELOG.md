@@ -5,6 +5,14 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-26, Phase 3 (ARCH-002): conceptual layout alternatives. From the buildable
+  envelope and the space schedule the API produces, persisted and versioned, either at
+  least two distinct alternatives (axis-aligned space blocks per floor, with the criteria
+  applied, assumptions, what was not evaluated and limitations) or a specific infeasibility
+  result. Unplaceable spaces are reported with a reason; results go stale when the parcel,
+  setbacks, coverage or schedule change. Migration 0018, `GET /projects/{id}/layouts`,
+  `POST .../layouts/generate`, a project-page panel with an SVG view, and tests. Not a plan,
+  not a rule check, not an approved design. See docs/PHASE_3_PLAN.md.
 - 2026-11-26, Phase 3 started by explicit owner authorization (ARCH-001 first slice). The
   saved physical program now produces a persisted, versioned space schedule: one entry per
   counted space with stable IDs, the given target/range areas, net-area lower/upper totals and
