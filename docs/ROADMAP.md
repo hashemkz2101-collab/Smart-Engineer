@@ -8,8 +8,9 @@ preceding phase's exit criteria pass, unless the product owner explicitly
 authorizes a change and records it.
 
 All phase dependencies below are gates in addition to the feature-level
-dependencies in [`FEATURE_REGISTRY.md`](FEATURE_REGISTRY.md). Phase 0 is in
-progress; later phases remain **NOT STARTED**. See
+dependencies in [`FEATURE_REGISTRY.md`](FEATURE_REGISTRY.md). Phase 1 core
+stabilization and Phase 2 implementation are in progress under the owner's explicit
+2026-11-25 request; outstanding acceptance gates are recorded, not silently closed. See
 [`PHASE_STATUS.md`](PHASE_STATUS.md).
 
 ## Phase 0 — Infrastructure and development standards

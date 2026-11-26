@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 
 import { api, ApiError, toApiError } from "../lib/api";
 import { fieldReasonMessages } from "../lib/messages";
@@ -13,6 +13,8 @@ import {
 } from "../lib/site";
 import { useResource } from "../lib/use-resource";
 import { FormField } from "./form-field";
+import { GeometryEditor } from "./geometry-editor";
+import "../app/geometry.css";
 
 type Row = Record<string, string | boolean>;
 type Derived = {
@@ -286,6 +288,23 @@ function SectionForm({
   const [listErrors, setListErrors] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const canonical = useRef<{ key: string; data: Record<string, unknown> } | null>(null);
+  const draft = useMemo(() => {
+    const out: Record<string, unknown> = { ...values };
+    for (const list of def.lists) {
+      const rows = payloadRows(lists[list.name]);
+      if (rows.length > 0 || list.always) out[list.name] = rows;
+    }
+    return out;
+  }, [values, lists, def]);
+
+  function updateDraft(next: Record<string, unknown>) {
+    setValues(Object.fromEntries(def.fields.map((field) => [field.name, String(next[field.name] ?? "")])));
+    setLists(Object.fromEntries(def.lists.map((list) => [list.name, toRows(list, next[list.name])])));
+    setDirty(true);
+  }
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -293,11 +312,7 @@ function SectionForm({
     setError(null);
     setFieldErrors({});
     setListErrors({});
-    const data: Record<string, unknown> = { ...values };
-    for (const list of def.lists) {
-      const rows = payloadRows(lists[list.name]);
-      if (rows.length > 0 || list.always) data[list.name] = rows;
-    }
+    const data = canonical.current?.key === JSON.stringify(draft) ? canonical.current.data : draft;
     try {
       const saved = await api.put<SectionState>(`/projects/${projectId}/site/${def.key}`, {
         data,
@@ -316,17 +331,22 @@ function SectionForm({
       setFieldErrors(parsed.scalar);
       setListErrors(parsed.list);
       setError(apiError.userMessage);
-      if (apiError.code === "version_conflict") onConflict();
+      if (apiError.code === "version_conflict") setConflict(true);
     }
     setBusy(false);
   }
 
   const titleId = "site-section-title";
   return (
-    <form className="form-panel" onSubmit={save} noValidate aria-labelledby={titleId}>
+    <form className={`form-panel${def.key === "parcel" ? " site-parcel-form" : ""}`} onSubmit={save} noValidate aria-labelledby={titleId}>
       <h3 id={titleId}>{def.title}</h3>
       {def.intro ? <p className="field-hint">{def.intro}</p> : null}
-      {def.key === "parcel" && state.derived ? <AreaReport derived={state.derived} /> : null}
+      {def.key === "parcel" && state.derived && !dirty ? <AreaReport derived={state.derived} /> : null}
+      {dirty ? <p role="status" className="alert alert-notice">تغییرات این بخش هنوز ذخیره نشده‌اند.</p> : null}
+      {def.key === "parcel" ? (
+        <GeometryEditor projectId={projectId} data={draft} canEdit={canEdit} disabled={busy || conflict}
+          onChange={updateDraft} onCanonical={(key, data) => { canonical.current = { key, data }; }} />
+      ) : null}
       {def.key === "soil" ? (
         <p className="field-hint" data-testid="soil-not-provided">
           {state.not_provided.length === 0
@@ -334,7 +354,7 @@ function SectionForm({
             : `ثبت‌نشده: ${state.not_provided.map((name) => fieldLabel(def, name)).join("، ")}.`}
         </p>
       ) : null}
-      <fieldset className="plain-fieldset" disabled={!canEdit || busy}>
+      <fieldset className="plain-fieldset" disabled={!canEdit || busy || conflict}>
         <legend className="visually-hidden">{def.title}</legend>
         {def.fields.map((field) => (
           <ScalarInput
@@ -343,17 +363,26 @@ function SectionForm({
             value={values[field.name]}
             error={fieldErrors[field.name]}
             disabled={!canEdit}
-            onChange={(next) => setValues((current) => ({ ...current, [field.name]: next }))}
+            onChange={(next) => {
+              setValues((current) => ({ ...current, [field.name]: next }));
+              if (field.name === "shape") setLists((current) => ({ ...current, setback_edges: [],
+                ...(next === "rectangular" ? { vertices: [] } : {}) }));
+              setDirty(true);
+            }}
           />
         ))}
-        {def.lists.map((list) => (
+        {def.lists.filter((list) => list.name !== "setback_edges").map((list) => (
           <ListEditor
             key={list.name}
             list={list}
             rows={lists[list.name]}
             errors={[...(listErrors[list.name] ?? []), ...(fieldErrors[list.name] ? [fieldErrors[list.name]] : [])]}
             disabled={!canEdit}
-            onChange={(rows) => setLists((current) => ({ ...current, [list.name]: rows }))}
+            onChange={(rows) => {
+              setLists((current) => ({ ...current, [list.name]: rows,
+                ...(list.name === "vertices" ? { setback_edges: [] } : {}) }));
+              setDirty(true);
+            }}
           />
         ))}
       </fieldset>
@@ -362,8 +391,12 @@ function SectionForm({
           {error}
         </div>
       ) : null}
+      {conflict ? <div className="alert alert-notice">
+        <p>پیش‌نویس شما حفظ شده است. برای دیدن نسخهٔ جدید باید پیش‌نویس را کنار بگذارید.</p>
+        <button type="button" className="button button-secondary" onClick={onConflict}>بارگیری نسخهٔ جدید و کنار گذاشتن پیش‌نویس</button>
+      </div> : null}
       {canEdit ? (
-        <button className="button" type="submit" disabled={busy}>
+        <button className="button" type="submit" disabled={busy || conflict}>
           {busy ? "در حال ذخیره…" : "ذخیرهٔ این بخش"}
         </button>
       ) : (

@@ -5,6 +5,21 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-25, Phase 1 stabilization: all five versioned document services now use
+  database-atomic compare-and-swap writes, including duplicate first-save conflicts;
+  failed writes do not add activity. Comparing two old file versions now uses the
+  actual latest undeleted version of their series for latest/stale-basis flags.
+- Phase 2 (GEOM-001–004): independent Shapely 2.2.0 local-plane engine, explicit
+  m/cm/mm conversion, validated parcel metrics and source-versioned, per-edge
+  setback clearance envelopes; missing/unverified/expired sources remain unknown.
+  The parcel form now includes an accessible SVG drawing/editing sheet with
+  numeric, pointer and keyboard editing, unit switching, grid/snap and read-only
+  mode. No geographic projection, automated legal compliance, design generation,
+  or construction approval is claimed. See docs/PHASE_2_PLAN.md for evidence.
+- Development: disposable migrated-database preview launcher, new targeted
+  regression/reference/API tests and a new geometry full-stack browser scenario.
+  Earlier tests are not rerun at the owner's request. Chromium installation was
+  blocked by the CDN's regional HTTP 403; browser evidence is tracked explicitly.
 - P1-18: the project intake panel applies the saved response at once, so text typed while
   the step list reloads after a save is no longer discarded by the late refetch (the form
   is keyed by version). Regression test with a delayed refetch. No feature status changed.

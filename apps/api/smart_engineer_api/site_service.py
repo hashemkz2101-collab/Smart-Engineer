@@ -20,6 +20,7 @@ from .site_schema import (
     not_provided,
     validate_section,
 )
+from .versioned_documents import write_document
 
 
 class SiteError(Exception):
@@ -74,30 +75,12 @@ def save_section(
     if errors:
         raise SiteValidationError(errors)
 
-    row = session.scalar(
-        select(SiteSection).where(
-            SiteSection.project_id == project_id, SiteSection.section_key == section
-        )
-    )
-    if expected_version != (row.version if row else 0):
-        raise SiteError("version_conflict")
-
     complete = not missing_required(section, cleaned)
-    if row is None:
-        row = SiteSection(
-            project_id=project_id,
-            section_key=section,
-            data=cleaned,
-            complete=complete,
-            version=1,
-            updated_by_user_id=actor.id,
-        )
-        session.add(row)
-    else:
-        row.data = cleaned
-        row.complete = complete
-        row.version += 1
-        row.updated_by_user_id = actor.id
+    row = write_document(
+        session, SiteSection, {"project_id": project_id, "section_key": section},
+        data=cleaned, actor_id=actor.id, expected_version=expected_version,
+        complete=complete, conflict=lambda: SiteError("version_conflict"),
+    )
     session.add(
         ActivityEvent(
             project_id=project_id,

@@ -13,6 +13,7 @@ from .access import authorize_project
 from .db import ActivityEvent, IntakeStep, User
 from .intake_schema import SCHEMA, missing_required, validate_step
 from .roles import INTAKE_STEPS
+from .versioned_documents import write_document
 
 
 class IntakeError(Exception):
@@ -63,30 +64,12 @@ def save_step(
     if errors:
         raise IntakeValidationError(errors)
 
-    row = session.scalar(
-        select(IntakeStep).where(
-            IntakeStep.project_id == project_id, IntakeStep.step_key == step
-        )
-    )
-    if expected_version != (row.version if row else 0):
-        raise IntakeError("version_conflict")
-
     complete = not missing_required(step, cleaned)
-    if row is None:
-        row = IntakeStep(
-            project_id=project_id,
-            step_key=step,
-            data=cleaned,
-            complete=complete,
-            version=1,
-            updated_by_user_id=actor.id,
-        )
-        session.add(row)
-    else:
-        row.data = cleaned
-        row.complete = complete
-        row.version += 1
-        row.updated_by_user_id = actor.id
+    row = write_document(
+        session, IntakeStep, {"project_id": project_id, "step_key": step},
+        data=cleaned, actor_id=actor.id, expected_version=expected_version,
+        complete=complete, conflict=lambda: IntakeError("version_conflict"),
+    )
     session.add(
         ActivityEvent(
             project_id=project_id,

@@ -15,6 +15,7 @@ Rules:
 import math
 from dataclasses import dataclass, field
 
+from . import geometry
 from .intake_schema import Field, _clean
 from .roles import SITE_SECTIONS
 
@@ -77,6 +78,12 @@ SCHEMA: dict[str, dict[str, Field | ListField]] = {
         ),
         "survey_reference": Field("text", max_length=500),
         "coordinate_system": Field("text", max_length=100),
+        "geometry_reference": Field("choice", choices=("local_cartesian",)),
+        "setback_edges": ListField(
+            {"edge_index": _int(0, 199, True),
+             "role": Field("choice", choices=geometry.EDGE_ROLES, required=True)},
+            max_items=200,
+        ),
         "survey_points": ListField(
             {
                 "label": Field("text", max_length=100),
@@ -178,45 +185,12 @@ def _clean_list(spec: ListField, value: object, name: str, errors: dict[str, str
 
 
 def polygon_area(points: list[tuple[float, float]]) -> float:
-    """Absolute area by the shoelace formula (square units of the input)."""
-    total = 0.0
-    for (x1, y1), (x2, y2) in zip(points, points[1:] + points[:1], strict=True):
-        total += x1 * y2 - x2 * y1
-    return abs(total) / 2
-
-
-def _cross(o, a, b) -> float:
-    return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-
-
-def _on_segment(p, q, r) -> bool:
-    return min(p[0], r[0]) <= q[0] <= max(p[0], r[0]) and min(p[1], r[1]) <= q[1] <= max(p[1], r[1])
-
-
-def _segments_intersect(p1, p2, p3, p4) -> bool:
-    d1, d2 = _cross(p3, p4, p1), _cross(p3, p4, p2)
-    d3, d4 = _cross(p1, p2, p3), _cross(p1, p2, p4)
-    if ((d1 > 0 > d2) or (d1 < 0 < d2)) and ((d3 > 0 > d4) or (d3 < 0 < d4)):
-        return True
-    return (
-        (d1 == 0 and _on_segment(p3, p1, p4))
-        or (d2 == 0 and _on_segment(p3, p2, p4))
-        or (d3 == 0 and _on_segment(p1, p3, p2))
-        or (d4 == 0 and _on_segment(p1, p4, p2))
-    )
+    """Compatibility entry point backed by the independent geometry engine."""
+    return geometry.polygon_area(points)
 
 
 def is_simple_polygon(points: list[tuple[float, float]]) -> bool:
-    """True when no two non-adjacent edges touch or cross."""
-    count = len(points)
-    for i in range(count):
-        a1, a2 = points[i], points[(i + 1) % count]
-        for j in range(i + 1, count):
-            if j == i or (j + 1) % count == i or (i + 1) % count == j:
-                continue
-            if _segments_intersect(a1, a2, points[j], points[(j + 1) % count]):
-                return False
-    return True
+    return geometry.is_simple_polygon(points)
 
 
 def _points(vertices: list[dict]) -> list[tuple[float, float]]:
@@ -254,6 +228,7 @@ def validate_section(section: str, data: dict) -> tuple[dict, dict[str, str]]:
     cleaned, errors = clean_document(SCHEMA[section], data)
     if section == "parcel":
         _check_parcel(cleaned, errors)
+        _check_edge_mapping(cleaned, errors)
     return cleaned, errors
 
 
@@ -266,10 +241,20 @@ def _check_parcel(cleaned: dict, errors: dict[str, str]) -> None:
         return
     if len(vertices) >= 3:
         points = _points(vertices)
-        if polygon_area(points) == 0:
-            errors["vertices"] = "degenerate"
-        elif not is_simple_polygon(points):
-            errors["vertices"] = "self_intersecting"
+        try:
+            geometry.validate_boundary(points)
+        except geometry.GeometryError as exc:
+            errors["vertices"] = exc.code
+
+
+def _check_edge_mapping(cleaned: dict, errors: dict[str, str]) -> None:
+    mapping = cleaned.get("setback_edges", [])
+    vertices = cleaned.get("vertices", [])
+    if mapping and not any(k.startswith("setback_edges") for k in errors):
+        count = 4 if cleaned.get("shape") == "rectangular" else len(vertices or [])
+        indices = [item["edge_index"] for item in mapping]
+        if len(set(indices)) != len(indices) or any(i >= count for i in indices):
+            errors["setback_edges"] = "invalid_edge_mapping"
 
 
 def missing_required(section: str, cleaned: dict) -> list[str]:
@@ -321,22 +306,33 @@ def derive_parcel(data: dict) -> dict:
         derived.computed_side_lengths_m = [
             round(math.dist(a, b), 3) for a, b in zip(points, points[1:] + points[:1], strict=True)
         ]
+    raw_area = None
     if shape == "rectangular" and "width_m" in data and "depth_m" in data:
         derived.area_source = "width_x_depth"
-        derived.computed_area_m2 = round(data["width_m"] * data["depth_m"], 2)
+        raw_area = data["width_m"] * data["depth_m"]
     elif shape in ("polygon", "irregular") and len(vertices) >= 3:
+        try:
+            geometry.validate_boundary(_points(vertices))
+        except geometry.GeometryError:
+            return {"status": "invalid", "computed_area_m2": None,
+                    "declared_area_m2": derived.declared_area_m2, "difference_m2": None,
+                    "difference_percent": None, "tolerance_percent": AREA_TOLERANCE_PERCENT,
+                    "computed_side_lengths_m": [], "area_source": None}
         derived.area_source = "vertices"
-        derived.computed_area_m2 = round(polygon_area(_points(vertices)), 2)
+        raw_area = polygon_area(_points(vertices))
+    if raw_area is not None:
+        derived.computed_area_m2 = round(raw_area, 2)
 
-    computed, declared = derived.computed_area_m2, derived.declared_area_m2
+    computed, declared = raw_area, derived.declared_area_m2
     if computed is None:
         derived.status = "not_computable"
     elif declared is None:
         derived.status = "no_declared_area"
     else:
         derived.difference_m2 = round(computed - declared, 2)
-        derived.difference_percent = round(abs(computed - declared) / declared * 100, 2)
-        within = derived.difference_percent <= AREA_TOLERANCE_PERCENT
+        percent = abs(computed - declared) / declared * 100
+        derived.difference_percent = round(percent, 2)
+        within = percent <= AREA_TOLERANCE_PERCENT
         derived.status = "match" if within else "discrepancy"
     return {
         "area_source": derived.area_source,

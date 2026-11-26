@@ -35,6 +35,7 @@ const errorMessages: Record<string, string> = {
   project_archived: "پروژهٔ بایگانی‌شده فقط‌خواندنی است.",
   cannot_remove_owner: "مالک سازمان را نمی‌توان حذف کرد.",
   owner_role_fixed: "نقش مالک سازمان قابل تغییر نیست.",
+  invalid_geometry: "مرز زمین برای محاسبه معتبر نیست؛ مختصات و اضلاع را بررسی کنید.",
   invalid_site: "برخی فیلدهای داده‌های زمین درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_requirements: "برخی فیلدهای نیازمندی‌ها درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
   invalid_environment: "برخی فیلدهای شرایط محیطی درست نیستند؛ موارد مشخص‌شده را اصلاح کنید.",
@@ -132,6 +133,10 @@ export const fieldReasonMessages: Record<string, string> = {
   required: "این مورد ضروری است.",
   too_few_points: "دست‌کم سه نقطه لازم است.",
   degenerate: "نقاط مساحت صفر می‌سازند.",
+  duplicate_vertex: "رأس تکراری است؛ هر رأس را فقط یک بار وارد کنید.",
+  zero_length_edge: "طول ضلع صفر یا کمتر از دقت پشتیبانی‌شده است.",
+  invalid_edge_mapping: "انتساب اضلاع با مرز فعلی هم‌خوان نیست؛ آن را دوباره مشخص کنید.",
+  precision_insufficient: "دقت هندسه کافی نیست؛ مختصات را بررسی کنید.",
   self_intersecting: "مرز قطعه خودش را قطع می‌کند.",
 };
 

@@ -353,7 +353,13 @@ def compare_versions(
             select(User).where(User.id.in_({first.uploaded_by_user_id, second.uploaded_by_user_id}))
         )
     }
-    latest = max(first.version_number, second.version_number)
+    latest = session.scalar(
+        select(func.max(ProjectFile.version_number)).where(
+            ProjectFile.project_id == project_id,
+            ProjectFile.series_id == first.series_id,
+            ProjectFile.deleted_at.is_(None),
+        )
+    )
     return {
         "from": file_payload(first, names.get(first.uploaded_by_user_id), latest),
         "to": file_payload(second, names.get(second.uploaded_by_user_id), latest),

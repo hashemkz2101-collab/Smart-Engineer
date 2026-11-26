@@ -6,8 +6,10 @@ remove details: the master specification remains authoritative. Grouped entries
 retain their full feature detail in the roadmap and cited specification
 sections.
 
-**Initial status for every row: NOT STARTED.** These are application features;
-writing this registry is not implementation. Dependencies refer to IDs in this
+**Current review: 2026-11-25.** The initial registry used NOT STARTED throughout.
+Current implementation progress and acceptance exceptions are tracked in
+`PHASE_1_STABILIZATION.md` and `PHASE_2_PLAN.md`. IN PROGRESS means code exists but
+full feature acceptance or production validation is not asserted. Dependencies refer to IDs in this
 table or to a named phase acceptance gate. `—` means no product-feature
 prerequisite beyond phase entry. Feature-specific, observable acceptance
 criteria for every ID are maintained in
@@ -24,9 +26,9 @@ is maintained in [`REQUIREMENT_TRACEABILITY.md`](REQUIREMENT_TRACEABILITY.md).
 | OPS-002 | 0 | Domain/data foundation and migration strategy | OPS-001 | 15–16, 17.0 | NOT STARTED |
 | OPS-003 | 0 | Logging, explicit error handling, CI and test baseline | OPS-001 | 14–15, 17.0, 18 | NOT STARTED |
 | OPS-004 | 0 | Record architecture decisions; keep proposals and approved decisions distinct | OPS-001 | 15, 17.0, 21 | NOT STARTED |
-| IAM-001 | 1 | Registration, login, profile and initial roles | OPS-002, OPS-003 | 2, 13, 14, 17.1 | NOT STARTED |
-| IAM-002 | 1 | Backend-enforced role/permission checks and project/tenant scoping | IAM-001, PRJ-001 | 2, 14, 16 | NOT STARTED |
-| ROLE-001 | 1 | Define the six role identities, permission catalog, project-scope policy, owner/client intake permissions, and architect project-input/space-review permissions | IAM-001, IAM-002 | 2 | NOT STARTED |
+| IAM-001 | 1 | Registration, login, profile and initial roles | OPS-002, OPS-003 | 2, 13, 14, 17.1 | IN PROGRESS |
+| IAM-002 | 1 | Backend-enforced role/permission checks and project/tenant scoping | IAM-001, PRJ-001 | 2, 14, 16 | IN PROGRESS |
+| ROLE-001 | 1 | Define the six role identities, permission catalog, project-scope policy, owner/client intake permissions, and architect project-input/space-review permissions | IAM-001, IAM-002 | 2 | IN PROGRESS |
 | ROLE-002 | 6 | Structural-engineer access only to approved architecture versions; structural model/analysis/review actions restricted to assigned role and project | ROLE-001, BIM-001, STR-001 | 2, 6 | NOT STARTED |
 | ROLE-003 | 7 | Mechanical/electrical engineer access limited to permitted architecture/structure versions and supported MEP coordination/review actions | ROLE-001, BIM-001, MEP-001 | 2, 7 | NOT STARTED |
 | ROLE-004 | 8 | Estimator access to approved elements/specifications and permission to set measurement bases, review quantities/prices, and prepare estimates | ROLE-001, QTY-001, EST-001 | 2, 9 | NOT STARTED |
@@ -39,25 +41,25 @@ is maintained in [`REQUIREMENT_TRACEABILITY.md`](REQUIREMENT_TRACEABILITY.md).
 | ROLE-011 | 3 | Owner/client permission to view, compare, and comment on assigned-project conceptual options; approval remains a separate Phase 9 action | ROLE-001, ARCH-006, FLOW-004 | 2, 4.2, 12 | NOT STARTED |
 | ROLE-012 | 8 | System-administrator permission to publish approved price-book versions through the price-data review workflow | ROLE-001, ADMIN-004 | 2, 9 | NOT STARTED |
 | ROLE-013 | 7 | System-administrator permission to manage supported MEP-engine versions/settings without silently changing prior job versions | ROLE-001, ADMIN-005, MEP-001 | 2, 7 | NOT STARTED |
-| PRJ-001 | 1 | Create, edit, list, archive projects; project settings and dashboard | IAM-001 | 2, 3.1, 12, 16, 17.1 | NOT STARTED |
-| PRJ-002 | 1 | Project activity history and team/member association | PRJ-001, IAM-002 | 2, 12, 16–17 | NOT STARTED |
-| INP-001 | 1 | Staged, validated, resumable/draft project intake | PRJ-001 | 3, 17.1 | NOT STARTED |
-| INP-002 | 1 | Project identity, type, city/address/geolocation, purpose, people and non-automated legal-status notes | INP-001 | 3.1 | NOT STARTED |
-| SITE-001 | 1 | Parcel boundaries/shape/survey, declared and computed area, orientation, frontage/access, terrain | INP-001 | 3.2 | NOT STARTED |
-| SITE-002 | 1 | Neighbors, shared walls, obstacles, trees, wells, channels, existing utilities, easements, soil/geotechnical data | SITE-001 | 3.2 | NOT STARTED |
-| RULE-DATA-001 | 1 | Record zoning/building-control inputs and source references; unknown/unverified data remains unknown | INP-001, SITE-001 | 3.3 | NOT STARTED |
-| REQ-001 | 1 | Client unit/floor/room/area program and space needs | INP-001 | 3.4 | NOT STARTED |
-| REQ-002 | 1 | Accessibility, privacy, style/quality/materials, budget/priorities, mandatory/preferred/unacceptable needs, expansion/change-of-use | REQ-001 | 3.4 | NOT STARTED |
-| REQ-003 | 1 | Reference images/examples with labels and explanations | REQ-001 | 3.4 | NOT STARTED |
-| ENV-001 | 1 | Sourced climate, sun, wind, rainfall, comfort/design temperature, natural hazards/seismicity, utilities and energy constraints | SITE-001 | 3.5 | NOT STARTED |
-| FILE-001 | 1 | Secure attachment upload and metadata: type, date, ownership; controlled storage/access | PRJ-001, IAM-002 | 3.2, 14 | NOT STARTED |
-| FILE-002 | 1 | File versions: keep prior versions, record upload time and uploader, compare versions, restore a prior version, mark the version used as takeoff/estimate basis (owner requirement, DEC-023) | FILE-001, CORE-003 | 3.2, 16 | NOT STARTED |
+| PRJ-001 | 1 | Create, edit, list, archive projects; project settings and dashboard | IAM-001 | 2, 3.1, 12, 16, 17.1 | IN PROGRESS |
+| PRJ-002 | 1 | Project activity history and team/member association | PRJ-001, IAM-002 | 2, 12, 16–17 | IN PROGRESS |
+| INP-001 | 1 | Staged, validated, resumable/draft project intake | PRJ-001 | 3, 17.1 | IN PROGRESS |
+| INP-002 | 1 | Project identity, type, city/address/geolocation, purpose, people and non-automated legal-status notes | INP-001 | 3.1 | IN PROGRESS |
+| SITE-001 | 1 | Parcel boundaries/shape/survey, declared and computed area, orientation, frontage/access, terrain | INP-001 | 3.2 | IN PROGRESS |
+| SITE-002 | 1 | Neighbors, shared walls, obstacles, trees, wells, channels, existing utilities, easements, soil/geotechnical data | SITE-001 | 3.2 | IN PROGRESS |
+| RULE-DATA-001 | 1 | Record zoning/building-control inputs and source references; unknown/unverified data remains unknown | INP-001, SITE-001 | 3.3 | IN PROGRESS |
+| REQ-001 | 1 | Client unit/floor/room/area program and space needs | INP-001 | 3.4 | IN PROGRESS |
+| REQ-002 | 1 | Accessibility, privacy, style/quality/materials, budget/priorities, mandatory/preferred/unacceptable needs, expansion/change-of-use | REQ-001 | 3.4 | IN PROGRESS |
+| REQ-003 | 1 | Reference images/examples with labels and explanations | REQ-001 | 3.4 | IN PROGRESS |
+| ENV-001 | 1 | Sourced climate, sun, wind, rainfall, comfort/design temperature, natural hazards/seismicity, utilities and energy constraints | SITE-001 | 3.5 | IN PROGRESS |
+| FILE-001 | 1 | Secure attachment upload and metadata: type, date, ownership; controlled storage/access | PRJ-001, IAM-002 | 3.2, 14 | IN PROGRESS |
+| FILE-002 | 1 | File versions: keep prior versions, record upload time and uploader, compare versions, restore a prior version, mark the version used as takeoff/estimate basis (owner requirement, DEC-023) | FILE-001, CORE-003 | 3.2, 16 | IN PROGRESS |
 | FILE-003 | 3 | Per-type content extraction from uploaded PDF, DXF/DWG, IFC, Excel and Word files (text, tables, layers, dimensions, storeys, spaces, formulas); optional, never a prerequisite | FILE-001, AI-003 | 4, 5, 11 | NOT STARTED |
 | FILE-004 | 5 | Cross-file reconciliation (PDF vs DWG, IFC vs drawings, Excel vs drawing quantities, Word vs specifications) with discrepancies flagged for engineer review and impact of a changed file on earlier calculations | FILE-002, FILE-003, BIM-003 | 5, 11 | NOT STARTED |
-| GEOM-001 | 2 | Rectangular, polygonal, irregular parcel boundary and geometry calculations | SITE-001 | 3.2, 4, 17.2 | NOT STARTED |
-| GEOM-002 | 2 | Explicit coordinate systems, units/conversions, orientation and declared/computed area discrepancy | GEOM-001 | 3.2, 5, 17.2 | NOT STARTED |
-| GEOM-003 | 2 | Apply recorded setbacks and derive buildable envelope | GEOM-001, RULE-DATA-001 | 3.3, 4.1, 8 | NOT STARTED |
-| GEOM-004 | 2 | Numerical reference, invalid/boundary geometry tests and editable 2D site canvas | GEOM-001, GEOM-002 | 17.2, 18 | NOT STARTED |
+| GEOM-001 | 2 | Rectangular, polygonal, irregular parcel boundary and geometry calculations | SITE-001 | 3.2, 4, 17.2 | IN PROGRESS |
+| GEOM-002 | 2 | Explicit coordinate systems, units/conversions, orientation and declared/computed area discrepancy | GEOM-001 | 3.2, 5, 17.2 | IN PROGRESS |
+| GEOM-003 | 2 | Apply recorded setbacks and derive buildable envelope | GEOM-001, RULE-DATA-001 | 3.3, 4.1, 8 | IN PROGRESS |
+| GEOM-004 | 2 | Numerical reference, invalid/boundary geometry tests and editable 2D site canvas | GEOM-001, GEOM-002 | 17.2, 18 | IN PROGRESS |
 | ARCH-001 | 3 | Physical program and space/room list | REQ-001, GEOM-003 | 4.1, 17.3 | NOT STARTED |
 | ARCH-002 | 3 | Explainable multiple conceptual layouts; site, access, privacy, orientation, sunlight/climate/neighbor considerations and limitations | ARCH-001, ENV-001 | 4.1, 11 | NOT STARTED |
 | BIM-001 | 3 | UI/format-independent base building model, stable project/floor/space/element IDs, explicit units/coordinates, 2D geometry and relationships | GEOM-002 | 5, 16 | NOT STARTED |
@@ -73,7 +75,7 @@ is maintained in [`REQUIREMENT_TRACEABILITY.md`](REQUIREMENT_TRACEABILITY.md).
 | RULE-002 | 4 | Deterministic testable rule engine, clause-linked findings, compliant/noncompliant/data-needed/human-review states | RULE-001, BIM-001 | 4.3, 8 | NOT STARTED |
 | RULE-003 | 4 | Expert-admin approval, obsolete-version reason/date, version-specific applied-rule report | RULE-001, IAM-002 | 8 | NOT STARTED |
 | ARCH-010 | 4 | Regulation-backed daylight/ventilation, privacy, access/egress, parking, stairs, dimensions and opening checks with rule/version findings | ARCH-007, RULE-002 | 4.3, 8 | NOT STARTED |
-| ADMIN-001 | 1 | Admin management of users, roles, and project access | IAM-002, PRJ-001 | 2 | NOT STARTED |
+| ADMIN-001 | 1 | Admin management of users, roles, and project access | IAM-002, PRJ-001 | 2 | IN PROGRESS |
 | ADMIN-002 | 4 | Admin review/approval/publishing workflow for regulation resources | RULE-003 | 2, 8 | NOT STARTED |
 | ADMIN-003 | 6 | Management/versioning of structural calculation engine and settings | STR-001 | 2, 6 | NOT STARTED |
 | ADMIN-004 | 8 | Admin review/approval/publishing workflow for official price-book resources | EST-001 | 2, 9 | NOT STARTED |
@@ -114,7 +116,7 @@ is maintained in [`REQUIREMENT_TRACEABILITY.md`](REQUIREMENT_TRACEABILITY.md).
 | AI-008 | 8 | Suggest element classification and takeoff-to-price-item mappings without changing measured quantities or approved mappings absent authorized confirmation | QTY-001, EST-001, AI-003, AI-004 | 9, 11 | NOT STARTED |
 | AI-009 | 9 | Generate project explanations/reports and role-specific assistance from versioned, permission-filtered project facts; factual claims carry sources or proposal labels | DOC-002, AI-003, AI-004 | 10–11 | NOT STARTED |
 | AI-010 | 10 | Attribute AI usage/cost to configured plans/quotas and produce auditable consumption records; depends on approved gateway/provider and commercial policy | BILL-002, AI-004 | 13, 15 | NOT STARTED |
-| FLOW-001 | 1 | Invite project members and grant/revoke project-scoped roles with recorded actor, target, permission scope, and timestamp | IAM-002, PRJ-001 | 2, 12 | NOT STARTED |
+| FLOW-001 | 1 | Invite project members and grant/revoke project-scoped roles with recorded actor, target, permission scope, and timestamp | IAM-002, PRJ-001 | 2, 12 | IN PROGRESS |
 | FLOW-004 | 3 | Comment on a specific architectural design version, space, or element; retain author, target, time, and version context | ARCH-006, FLOW-001 | 4.2, 12 | NOT STARTED |
 | FLOW-005 | 9 | Assign tasks with responsible person and due date; record stage status and approver; preserve timestamped approval/rejection explanation | FLOW-001, ROLE-005 | 12 | NOT STARTED |
 | FLOW-002 | 9 | Staged project workflow, critical-check issuance gate, approval trail, revision management and project activity report | FLOW-001, DOC-002 | 12 | NOT STARTED |

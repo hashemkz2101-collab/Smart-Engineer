@@ -83,6 +83,25 @@ accessibility tests), `eslint` 10.15.0 and `eslint-config-next` 16.4.6 (web
 lint), and `ruff` 0.17.5 (Python lint). They are exact-pinned and not shipped in
 the application. They are likewise not an approved decision record.
 
+### DEC-029 / DEC-030 — limited Phase 2 implementation decision (2026-11-25)
+
+The owner requested immediate Phase 2 implementation and approved its implementation
+plan. For GEOM-001–004 only, Shapely **2.2.0** is selected (BSD-3-Clause; official
+CPython 3.14 Windows x64 wheel verified in
+[PyPI release metadata](https://pypi.org/pypi/shapely/2.2.0/json)). Other libraries,
+services, geodetic transformation and deployment choices remain undecided.
+
+The supported computation frame is local Cartesian metres, with m/cm/mm boundary
+input/display conversion. Descriptive survey references do not trigger a hidden
+projection. Setback clearance consumes explicitly mapped edges and user-recorded
+sources with revision, verification and validity interval. Missing/unverified/
+expired inputs remain unknown. Conservative Euclidean distance-to-segment clearance
+with bounded round-join approximation is an initial geometric model, not an
+interpretation of official correction lines or regulatory compliance. Legal
+interpretation, independently approved survey tolerance, official regulation
+publishing and the Phase 4 rule engine stay open under DEC-013/014/025/030.
+See PHASE_2_PLAN.md for the complete contract and remaining acceptance work.
+
 ### Phase 1 decisions — owner-delegated, assistant-proposed (2026-11-19)
 
 The owner instructed the assistant to decide the remaining Phase 1 questions
