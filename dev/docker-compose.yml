@@ -1,0 +1,49 @@
+# Throwaway databases for trying Smart Engineer locally (Codespaces or your own machine).
+# Local only: ports are bound to 127.0.0.1 and the credentials below are public examples.
+# Never point production at these. Start one with:  scripts/dev/up.sh --db postgres|mysql
+name: smart-engineer-dev
+
+services:
+  postgres:
+    image: postgres:17
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: smart_engineer
+      POSTGRES_PASSWORD: dev_only_password  # secret-scan:allow
+      POSTGRES_DB: smart_engineer_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smart_engineer -d smart_engineer_dev"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  mysql:
+    image: mysql:8.0
+    profiles: ["mysql"]
+    # Classic password plugin so the pure-Python driver connects without extra packages.
+    command: >-
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_bin
+    environment:
+      MYSQL_ROOT_PASSWORD: dev_only_root_password  # secret-scan:allow
+      MYSQL_DATABASE: smart_engineer_dev
+      MYSQL_USER: smart_engineer
+      MYSQL_PASSWORD: dev_only_password  # secret-scan:allow
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pdev_only_root_password"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  postgres-data:
+  mysql-data:

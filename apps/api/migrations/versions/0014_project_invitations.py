@@ -38,9 +38,11 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table("invitations", naming_convention=NAMING_CONVENTION) as batch:
+        # MySQL refuses to drop an index that a foreign key still needs, so the foreign
+        # key goes first (the order does not matter on PostgreSQL or SQLite).
+        batch.drop_constraint(op.f("fk_invitations_project_id_projects"), type_="foreignkey")
         batch.drop_index("ix_invitations_project_id")
         batch.drop_constraint(op.f("ck_invitations_project_scope_complete"), type_="check")
         batch.drop_constraint(op.f("ck_invitations_project_role_valid"), type_="check")
-        batch.drop_constraint(op.f("fk_invitations_project_id_projects"), type_="foreignkey")
         batch.drop_column("project_role")
         batch.drop_column("project_id")

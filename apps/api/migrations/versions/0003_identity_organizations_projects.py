@@ -151,11 +151,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_project_members_user_id", table_name="project_members")
+    # Dropping a table drops its indexes; MySQL refuses to drop an index a foreign key still
+    # needs, so the indexes are not dropped on their own first.
     op.drop_table("project_members")
-    op.drop_index("ix_projects_organization_id_status", table_name="projects")
     op.drop_table("projects")
-    op.drop_index("ix_memberships_user_id", table_name="memberships")
     op.drop_table("memberships")
     op.drop_table("organizations")
     op.drop_table("users")

@@ -9,8 +9,8 @@ granted through the audited admin API.
 import argparse
 import sys
 
-from . import admin_service, file_service
-from .config import Settings
+from . import admin_service, dev_seed, file_service
+from .config import ConfigurationError, Settings
 from .db.session import create_db_engine, create_session_factory
 from .file_storage import FileStorage
 from .scanner import ClamdScanner
@@ -24,6 +24,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "rescan-files", help="scan files left pending because the scanner was unavailable"
     )
+    commands.add_parser(
+        "seed-demo", help="create demo accounts and sample projects in a LOCAL throwaway database"
+    )
     args = parser.parse_args(argv)
 
     settings = Settings.from_env()
@@ -32,6 +35,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.command == "rescan-files":
         return _rescan(settings)
+    if args.command == "seed-demo":
+        return _seed_demo(settings)
     engine = create_db_engine(settings.database_url)
     try:
         with create_session_factory(engine)() as session:
@@ -69,6 +74,24 @@ def _rescan(settings: Settings) -> int:
         f"still pending: {counts['still_pending']}"
     )
     return 0 if counts["still_pending"] == 0 else 1
+
+
+def _seed_demo(settings: Settings) -> int:
+    try:
+        dev_seed.ensure_local_demo_database(settings)
+    except ConfigurationError as error:
+        print(f"Refused: {error}", file=sys.stderr)
+        return 2
+    engine = create_db_engine(settings.database_url or "")
+    try:
+        with create_session_factory(engine)() as session:
+            emails = dev_seed.seed(session)
+    finally:
+        engine.dispose()
+    print("Demo accounts (password for all: " + dev_seed.DEMO_PASSWORD + "):")
+    for email in emails:
+        print(f"  {email}")
+    return 0
 
 
 if __name__ == "__main__":

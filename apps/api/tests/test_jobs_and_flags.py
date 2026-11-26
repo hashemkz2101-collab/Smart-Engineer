@@ -14,6 +14,7 @@ from smart_engineer_api.db.session import create_db_engine, create_session_facto
 from tests.helpers import alembic_config
 
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
+MYSQL_URL = os.environ.get("SMART_ENGINEER_TEST_MYSQL_DATABASE_URL")
 
 
 class ServiceChecks:
@@ -128,7 +129,7 @@ class ServiceChecks:
                     "INSERT INTO background_jobs (id, job_type, status, payload, attempts) "
                     "VALUES (:id, 'legacy', 'queued', '{}', 0)"
                 ),
-                {"id": job_id.hex if self.engine.dialect.name == "sqlite" else job_id},
+                {"id": job_id.hex if self.engine.dialect.name in ("sqlite", "mysql") else job_id},
             )
 
         command.upgrade(self.config, "0002")
@@ -174,6 +175,15 @@ class SqliteServiceTests(ServiceChecks, unittest.TestCase):
 class PostgresServiceTests(ServiceChecks, unittest.TestCase):
     def setUp(self) -> None:
         self.url = POSTGRES_URL
+        command.downgrade(alembic_config(self.url), "base")
+        self.addCleanup(command.downgrade, alembic_config(self.url), "base")
+        super().setUp()
+
+
+@unittest.skipUnless(MYSQL_URL, "SMART_ENGINEER_TEST_MYSQL_DATABASE_URL is not set")
+class MysqlServiceTests(ServiceChecks, unittest.TestCase):
+    def setUp(self) -> None:
+        self.url = MYSQL_URL
         command.downgrade(alembic_config(self.url), "base")
         self.addCleanup(command.downgrade, alembic_config(self.url), "base")
         super().setUp()

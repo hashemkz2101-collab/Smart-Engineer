@@ -13,6 +13,7 @@ ENVIRONMENTS = ("development", "test", "production")
 SMTP_SECURITY_MODES = ("starttls", "ssl", "none")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 POSTGRESQL_URL_PREFIX = "postgresql+psycopg://"
+MYSQL_URL_PREFIX = "mysql+pymysql://"
 SQLITE_URL_PREFIX = "sqlite://"
 
 
@@ -74,17 +75,18 @@ class Settings:
         database_url = source.get("SMART_ENGINEER_DATABASE_URL", "").strip() or None
         if database_url is not None:
             # The value is never echoed: it may contain a password.
-            allowed = (POSTGRESQL_URL_PREFIX, SQLITE_URL_PREFIX)
+            allowed = (POSTGRESQL_URL_PREFIX, MYSQL_URL_PREFIX, SQLITE_URL_PREFIX)
             if not database_url.startswith(allowed):
                 raise ConfigurationError(
                     "SMART_ENGINEER_DATABASE_URL must start with "
-                    + " or ".join(allowed)
+                    + ", ".join(allowed[:-1])
+                    + " or "
+                    + allowed[-1]
+                    + " (the plain mysql:// scheme is not supported; use mysql+pymysql://)"
                 )
-            if environment == "production" and not database_url.startswith(
-                POSTGRESQL_URL_PREFIX
-            ):
+            if environment == "production" and database_url.startswith(SQLITE_URL_PREFIX):
                 raise ConfigurationError(
-                    "SMART_ENGINEER_DATABASE_URL must use PostgreSQL in production"
+                    "SMART_ENGINEER_DATABASE_URL must use PostgreSQL or MySQL in production"
                 )
 
         allowed_origins = tuple(

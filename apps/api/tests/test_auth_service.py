@@ -21,6 +21,7 @@ from smart_engineer_api.security import ScryptParams
 from tests.helpers import alembic_config
 
 POSTGRES_URL = os.environ.get("SMART_ENGINEER_TEST_DATABASE_URL")
+MYSQL_URL = os.environ.get("SMART_ENGINEER_TEST_MYSQL_DATABASE_URL")
 POLICY = auth.AuthPolicy(scrypt=ScryptParams(n=2**4, r=8, p=1))
 T0 = datetime(2026, 11, 20, 12, 0, tzinfo=UTC)
 PASSWORD = "correct horse battery"
@@ -266,6 +267,15 @@ class SqliteAuthTests(AuthChecks, unittest.TestCase):
 class PostgresAuthTests(AuthChecks, unittest.TestCase):
     def setUp(self) -> None:
         self.url = POSTGRES_URL
+        command.downgrade(alembic_config(self.url), "base")
+        self.addCleanup(lambda: command.downgrade(alembic_config(self.url), "base"))
+        super().setUp()
+
+
+@unittest.skipUnless(MYSQL_URL, "SMART_ENGINEER_TEST_MYSQL_DATABASE_URL is not set")
+class MysqlAuthTests(AuthChecks, unittest.TestCase):
+    def setUp(self) -> None:
+        self.url = MYSQL_URL
         command.downgrade(alembic_config(self.url), "base")
         self.addCleanup(lambda: command.downgrade(alembic_config(self.url), "base"))
         super().setUp()
