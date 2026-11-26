@@ -21,6 +21,7 @@ from .file_policy import (
 )
 from .file_storage import FileStorage
 from .roles import FILE_KINDS
+from .scanner import ContentScanner, ScannerUnavailable
 
 
 class FileError(Exception):
@@ -100,6 +101,7 @@ def upload_file(
     builtin_scan_is_authoritative: bool,
     new_version_of: uuid.UUID | None = None,
     restored_from: ProjectFile | None = None,
+    scanner: ContentScanner | None = None,
 ) -> dict:
     authorize_project(session, actor, project_id, "project.files.upload")
     series_id = uuid.uuid4()
@@ -148,6 +150,14 @@ def upload_file(
     scan = builtin_scan(content, detected)
     if scan.verdict == "quarantined":
         status = "quarantined"
+    elif scanner is not None:
+        # A configured scanner decides; if it cannot answer the file stays pending and
+        # is never served until a rescan gives a clean verdict (fail closed).
+        try:
+            scan = scanner.scan(content)
+            status = scan.verdict
+        except ScannerUnavailable:
+            status = "pending"
     else:
         # The built-in scan is not authoritative in production: fail closed until a
         # real scanner is configured (DEC-023).
@@ -252,6 +262,7 @@ def restore_version(
     file_id: uuid.UUID,
     *,
     builtin_scan_is_authoritative: bool,
+    scanner: ContentScanner | None = None,
 ) -> dict:
     """Make an earlier version current again as a *new* version (nothing is overwritten)."""
     authorize_project(session, actor, project_id, "project.files.upload")
@@ -271,6 +282,7 @@ def restore_version(
         builtin_scan_is_authoritative=builtin_scan_is_authoritative,
         new_version_of=row.id,
         restored_from=row,
+        scanner=scanner,
     )
 
 
@@ -352,3 +364,26 @@ def compare_versions(
         "document_date_changed": first.document_date != second.document_date,
         "ownership_changed": first.ownership != second.ownership,
     }
+
+
+def rescan_pending(
+    session: Session, storage: FileStorage, scanner: ContentScanner
+) -> dict[str, int]:
+    """Give pending files a verdict now that a scanner can answer (operator command)."""
+    counts = {"clean": 0, "quarantined": 0, "still_pending": 0}
+    rows = session.scalars(
+        select(ProjectFile).where(
+            ProjectFile.scan_status == "pending", ProjectFile.deleted_at.is_(None)
+        )
+    ).all()
+    for row in rows:
+        try:
+            result = scanner.scan(storage.read(row.storage_key))
+        except (ScannerUnavailable, OSError):
+            counts["still_pending"] += 1
+            continue
+        row.scan_status = result.verdict
+        row.scan_detail = result.detail
+        counts[result.verdict] += 1
+        session.commit()
+    return counts
