@@ -108,6 +108,12 @@ Run the migrations first (see below). Pages: `/register`, `/login`, `/projects`,
 `/organization`. The browser tests use a mocked API (they check the interface, not
 the backend); a full web + API + database run is a manual check for now.
 
+### Try it in a browser (GitHub Codespaces)
+
+Create a Codespace on this repository and the app starts by itself with demo accounts; see
+[docs/CODESPACES.md](docs/CODESPACES.md). The same scripts work on any Linux machine with
+Docker: `scripts/dev/setup.sh` once, then `scripts/dev/up.sh`.
+
 ### Database migrations
 
 The database URL comes from `SMART_ENGINEER_DATABASE_URL`: PostgreSQL
