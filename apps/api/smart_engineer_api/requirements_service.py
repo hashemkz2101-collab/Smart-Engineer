@@ -14,6 +14,7 @@ from .access import authorize_project
 from .db import ActivityEvent, RequirementSection, User
 from .requirements_schema import SCHEMA, missing_required, not_provided, validate_section
 from .roles import REQUIREMENT_SECTIONS
+from .versioned_documents import write_document
 
 
 class RequirementsError(Exception):
@@ -63,30 +64,12 @@ def save_section(
     if errors:
         raise RequirementsValidationError(errors)
 
-    row = session.scalar(
-        select(RequirementSection).where(
-            RequirementSection.project_id == project_id, RequirementSection.section_key == section
-        )
-    )
-    if expected_version != (row.version if row else 0):
-        raise RequirementsError("version_conflict")
-
     complete = not missing_required(section, cleaned)
-    if row is None:
-        row = RequirementSection(
-            project_id=project_id,
-            section_key=section,
-            data=cleaned,
-            complete=complete,
-            version=1,
-            updated_by_user_id=actor.id,
-        )
-        session.add(row)
-    else:
-        row.data = cleaned
-        row.complete = complete
-        row.version += 1
-        row.updated_by_user_id = actor.id
+    row = write_document(
+        session, RequirementSection, {"project_id": project_id, "section_key": section},
+        data=cleaned, actor_id=actor.id, expected_version=expected_version,
+        complete=complete, conflict=lambda: RequirementsError("version_conflict"),
+    )
     session.add(
         ActivityEvent(
             project_id=project_id,

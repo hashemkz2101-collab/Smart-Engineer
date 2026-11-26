@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from .access import authorize_project
 from .db import ActivityEvent, User, ZoningRecord
 from .roles import ZONING_FIELDS
+from .versioned_documents import write_document
 from .zoning_schema import VALUE_FIELDS, derive_status, validate_record
 
 
@@ -56,27 +57,11 @@ def save_record(
     if errors:
         raise ZoningValidationError(errors)
 
-    row = session.scalar(
-        select(ZoningRecord).where(
-            ZoningRecord.project_id == project_id, ZoningRecord.field_key == field
-        )
+    row = write_document(
+        session, ZoningRecord, {"project_id": project_id, "field_key": field},
+        data=cleaned, actor_id=actor.id, expected_version=expected_version,
+        conflict=lambda: ZoningError("version_conflict"),
     )
-    if expected_version != (row.version if row else 0):
-        raise ZoningError("version_conflict")
-
-    if row is None:
-        row = ZoningRecord(
-            project_id=project_id,
-            field_key=field,
-            data=cleaned,
-            version=1,
-            updated_by_user_id=actor.id,
-        )
-        session.add(row)
-    else:
-        row.data = cleaned
-        row.version += 1
-        row.updated_by_user_id = actor.id
     status = derive_status(field, cleaned)["status"]
     session.add(
         ActivityEvent(

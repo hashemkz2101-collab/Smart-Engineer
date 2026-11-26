@@ -18,6 +18,7 @@ export default defineConfig({
   reporter: [["list"]],
   outputDir: path.join(webRoot, "test-results"),
   use: {
+    channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
     baseURL,
     locale: "fa-IR",
     trace: "retain-on-failure",

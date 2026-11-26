@@ -1,0 +1,58 @@
+/* A drafting sheet inside the existing project UI, not a parallel dashboard. */
+.form-panel.site-parcel-form { max-width: none; width: 100%; }
+.geometry-editor { container-type: inline-size; }
+.geometry-settings input[type="checkbox"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; padding: 0; accent-color: var(--color-accent-strong); }
+.geometry-editor { margin-block: 1.25rem; border: 1px solid var(--color-border); border-radius: .6rem; overflow: hidden; background: var(--color-surface); }
+.geometry-heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1rem; padding: 1rem; }
+.geometry-heading h4 { font-size: 1.2rem; margin: 0; }
+.geometry-heading p { margin-block: .35rem 0; max-width: 65ch; }
+.geometry-unit { display: grid; gap: .2rem; min-width: 8rem; }
+.geometry-tools { display: flex; flex-wrap: wrap; gap: .5rem; padding: .75rem 1rem; border-block: 1px solid var(--color-border); background: var(--color-surface-muted); }
+.geometry-tools .button { font-size: .85rem; padding: .45rem .7rem; min-height: 2.5rem; }
+.geometry-settings { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; padding: .75rem 1rem; }
+.geometry-settings label { display: flex; align-items: center; gap: .5rem; }
+.geometry-settings input[type="number"] { width: 6rem; min-height: 2.5rem; }
+.geometry-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem); direction: ltr; border-block: 1px solid var(--color-border); }
+.geometry-sheet { position: relative; min-width: 0; background: var(--color-canvas); }
+.geometry-canvas { display: block; width: 100%; aspect-ratio: 1; max-height: 38rem; touch-action: none; overflow: hidden; }
+.geometry-grid-line { stroke: var(--color-border); }
+.geometry-axis { stroke-width: 1px; stroke: var(--color-text-muted); opacity: .65; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.geometry-boundary { stroke: var(--color-accent-strong); fill: var(--color-accent-soft); fill-opacity: .65; }
+.geometry-envelope { stroke-width: 2px; fill: url(#geometry-envelope-hatch); stroke: var(--color-focus); color: var(--color-focus); stroke-dasharray: 6 3; vector-effect: non-scaling-stroke; }
+.geometry-vertex { fill: var(--color-surface); stroke: var(--color-accent-strong); cursor: grab; }
+.geometry-vertex.is-selected { fill: var(--color-accent); }
+.geometry-vertex:focus { outline: none; stroke: var(--color-focus); stroke-width: 4px; vector-effect: non-scaling-stroke; }
+.geometry-label { fill: var(--color-text); font-variant-numeric: tabular-nums; pointer-events: none; }
+.geometry-north { position: absolute; inset-block-start: .75rem; inset-inline-end: .75rem; display: flex; gap: .4rem; align-items: center; padding: .3rem .6rem; background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: .25rem; font-size: .8rem; direction: rtl; pointer-events: none; }
+.geometry-north > span { display: inline-block; font-size: 1.5rem; color: var(--color-accent-strong); }
+.geometry-axes { position: absolute; bottom: .5rem; left: .75rem; color: var(--color-text-muted); font-size: .75rem; pointer-events: none; }
+.geometry-empty { position: absolute; top: 40%; left: 10%; right: 10%; text-align: center; direction: rtl; color: var(--color-text-muted); pointer-events: none; background: var(--color-surface); padding: .5rem; }
+.geometry-inspector { border-inline-start: 1px solid var(--color-border); padding: .75rem; direction: rtl; min-width: 0; }
+.geometry-inspector h5 { font-size: 1rem; margin: 0; }
+.geometry-vertex-list { list-style: none; padding: 0; margin: .5rem 0; max-height: 30rem; overflow-y: auto; }
+.geometry-vertex-list li { padding: .75rem .25rem; border-block-end: 1px solid var(--color-border); }
+.geometry-vertex-list li.is-selected { border-inline-start: 3px solid var(--color-accent); padding-inline-start: .5rem; }
+.geometry-select { border: 0; background: transparent; color: var(--color-text); font: inherit; cursor: pointer; min-height: 2rem; text-align: start; }
+.geometry-coordinate-row { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.geometry-coordinate-row label { font-size: .8rem; }
+.geometry-editor input:not([type="checkbox"]), .geometry-editor select { min-width: 0; width: 100%; border: 1px solid var(--color-border); border-radius: .3rem; background: var(--color-surface); color: var(--color-text); padding: .4rem; font: inherit; min-height: 2.5rem; }
+.geometry-editor input:disabled, .geometry-editor select:disabled { opacity: .8; }
+.geometry-edge-role { display: grid; gap: .25rem; font-size: .8rem; margin-block-start: .4rem; }
+.geometry-report { padding: 1rem; }
+.geometry-results { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin: 0 0 1rem; }
+.geometry-results dt { color: var(--color-text-muted); font-size: .85rem; }
+.geometry-results dd { margin: .25rem 0 0; font-weight: 650; font-variant-numeric: tabular-nums; }
+.geometry-inquiry summary { cursor: pointer; min-height: 2.5rem; }
+.geometry-report .field-hint { max-width: 75ch; }
+@media (max-width: 700px) {
+  .geometry-workspace { grid-template-columns: minmax(0, 1fr); }
+  .geometry-inspector { border-inline-start: 0; border-block-start: 1px solid var(--color-border); }
+  .geometry-vertex-list { max-height: 18rem; }
+  .geometry-tools { padding: .6rem; }
+  .geometry-heading, .geometry-report { padding: .75rem; }
+}
+@container (max-width: 680px) {
+  .geometry-workspace { grid-template-columns: minmax(0, 1fr); }
+  .geometry-inspector { border-inline-start: 0; border-block-start: 1px solid var(--color-border); }
+  .geometry-vertex-list { max-height: 18rem; }
+}

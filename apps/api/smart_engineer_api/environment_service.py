@@ -9,6 +9,7 @@ from .access import authorize_project
 from .db import ActivityEvent, EnvironmentRecord, User
 from .environment_schema import VALUE_FIELDS, derive_status, validate_record
 from .roles import ENV_FIELDS
+from .versioned_documents import write_document
 
 
 class EnvironmentError_(Exception):
@@ -56,27 +57,11 @@ def save_record(
     if errors:
         raise EnvironmentValidationError(errors)
 
-    row = session.scalar(
-        select(EnvironmentRecord).where(
-            EnvironmentRecord.project_id == project_id, EnvironmentRecord.field_key == field
-        )
+    row = write_document(
+        session, EnvironmentRecord, {"project_id": project_id, "field_key": field},
+        data=cleaned, actor_id=actor.id, expected_version=expected_version,
+        conflict=lambda: EnvironmentError_("version_conflict"),
     )
-    if expected_version != (row.version if row else 0):
-        raise EnvironmentError_("version_conflict")
-
-    if row is None:
-        row = EnvironmentRecord(
-            project_id=project_id,
-            field_key=field,
-            data=cleaned,
-            version=1,
-            updated_by_user_id=actor.id,
-        )
-        session.add(row)
-    else:
-        row.data = cleaned
-        row.version += 1
-        row.updated_by_user_id = actor.id
     status = derive_status(field, cleaned)["status"]
     session.add(
         ActivityEvent(

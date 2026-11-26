@@ -1,6 +1,10 @@
 # Phase 1 plan — product core and project management
 
-Status: in progress. Decisions: see OPEN_DECISIONS.md (Phase 1 section).
+Status: in progress; current core stabilization is recorded in
+[PHASE_1_STABILIZATION.md](PHASE_1_STABILIZATION.md). On 2026-11-25 the owner
+explicitly authorized starting Phase 2 after stabilizing the current core, without
+rerunning the earlier tests. This is not acceptance of missing Phase 1 features.
+Decisions: see OPEN_DECISIONS.md (Phase 1 section).
 Feature statuses in FEATURE_REGISTRY.md are not changed by this plan.
 
 ## Increments

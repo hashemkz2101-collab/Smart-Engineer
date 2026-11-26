@@ -17,15 +17,14 @@ These are reproducible development-tool and dependency baselines, not evidence
 that the architecture has been implemented. Hosting, database provisioning,
 deployment, and other open decisions remain unselected.
 
-The application currently includes the FastAPI API foundation (settings,
-structured logging with correlation IDs, a safe error envelope, a versioned
-`/api/v1` route, SQLAlchemy/Alembic migrations with two operational tables,
-feature-flag and job-lifecycle services) and the Persian-first Next.js frontend
-shell, with lint, unit, integration, and browser tests in CI. It does not
-include authentication, project data, or engineering features. Phase 0 remains
-in progress; registered feature statuses remain unchanged and the broader phase
-acceptance criteria are not yet complete (see
-[`docs/PHASE_0_CLOSURE.md`](docs/PHASE_0_CLOSURE.md)).
+The application includes the Persian-first frontend, account and organization
+management, project-scoped roles and invitations, staged project/site/client
+inputs, sourced zoning/environment records, private file attachments and versions,
+and administrator audit trails. Phase 1 stabilization and Phase 2 local-plane
+geometry are documented in [the stabilization report](docs/PHASE_1_STABILIZATION.md)
+and [the geometry contract](docs/PHASE_2_PLAN.md). Engineering design, structural/MEP
+analysis, BIM, takeoff and estimating remain future work. A feature's presence in
+code is not production acceptance; see [phase status](docs/PHASE_STATUS.md).
 
 ## Development workspace
 
@@ -68,7 +67,7 @@ are never logged. Errors use one envelope,
 `{"error": {"code", "message", "correlation_id"}}`; unhandled errors return a
 generic 500 with no stack trace, and the full traceback is logged server-side.
 
-### Authentication API (P1-02, backend only)
+### Authentication API (P1-02 and email increments)
 
 Endpoints under `/api/v1/auth`: `register`, `login`, `me`, `logout`,
 `change-password`, `password-reset/request`, `password-reset/confirm`. They need
@@ -104,8 +103,10 @@ uv run --package smart-engineer-api --group dev uvicorn --app-dir apps/api --hos
 ```
 
 Run the migrations first (see below). Pages: `/register`, `/login`, `/projects`,
-`/organization`. The browser tests use a mocked API (they check the interface, not
-the backend); a full web + API + database run is a manual check for now.
+`/organization`, `/projects/[id]`, and `/admin` (system administrators only).
+Browser UI tests use a mocked API; separate `e2e-fullstack` scenarios use the real
+web app, API and a disposable database. Neither test definitions nor old CI notes
+are evidence of a passing run on this copy.
 
 ### Database migrations
 
@@ -130,8 +131,8 @@ Run the API tests from the repository root:
 uv run --package smart-engineer-api --group dev python -m unittest discover -s apps/api/tests -t apps/api
 ```
 
-Windows setup and execution have not been tested; verification remains
-outstanding under DEC-031.
+Windows validation evidence and outstanding items are recorded in
+`docs/PHASE_0_CLOSURE.md`; do not confuse old runs with verification of this revision.
 
 ### Run the frontend
 
@@ -159,8 +160,9 @@ terminal and run this command from the repository root in another:
 pnpm --filter @smart-engineer/web run test
 ```
 
-The smoke tests target `http://127.0.0.1:3000` by default. Windows frontend
-installation, execution, and UI behavior have not been tested locally.
+The smoke tests target `http://127.0.0.1:3000` by default. Current Windows
+installation/build/live-preview evidence and its limitations are recorded in
+`docs/PHASE_2_PLAN.md`; historical validation is in `docs/PHASE_0_CLOSURE.md`.
 
 To run the same checks as CI (build, then start the production server, run the
 smoke tests, and stop the server automatically), run from the repository root:

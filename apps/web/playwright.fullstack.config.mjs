@@ -22,13 +22,14 @@ export default defineConfig({
   reporter: [["list"]],
   outputDir: path.join(webRoot, "test-results-fullstack"),
   timeout: 60_000,
-  use: { baseURL, locale: "fa-IR", trace: "retain-on-failure" },
+  use: { baseURL, locale: "fa-IR", trace: "retain-on-failure",
+    channel: process.env.PLAYWRIGHT_CHANNEL || undefined },
   webServer: [
     {
       command: `uv run --package smart-engineer-api --group dev uvicorn --app-dir apps/api --host ${host} --port ${apiPort} smart_engineer_api.main:app`,
       cwd: repoRoot,
       url: `http://${host}:${apiPort}/health`,
-      reuseExistingServer: false,
+      reuseExistingServer: process.env.SMART_ENGINEER_REUSE_SERVERS === "1",
       timeout: 120_000,
       env: {
         ...process.env,
@@ -41,7 +42,7 @@ export default defineConfig({
       command: `node ./node_modules/next/dist/bin/next start --hostname ${host} --port ${webPort}`,
       cwd: webRoot,
       url: baseURL,
-      reuseExistingServer: false,
+      reuseExistingServer: process.env.SMART_ENGINEER_REUSE_SERVERS === "1",
       timeout: 60_000,
     },
   ],

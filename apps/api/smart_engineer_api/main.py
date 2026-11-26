@@ -17,6 +17,9 @@ from .file_routes import file_error_handler
 from .file_routes import router as file_router
 from .file_service import FileError
 from .file_storage import FileStorage
+from .geometry import GeometryError
+from .geometry_routes import geometry_error_handler
+from .geometry_routes import router as geometry_router
 from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
@@ -100,6 +103,8 @@ def create_app(
     app.add_exception_handler(RequirementsValidationError, requirements_validation_handler)
     app.add_exception_handler(ZoningError, zoning_error_handler)
     app.add_exception_handler(ZoningValidationError, zoning_validation_handler)
+    app.add_exception_handler(GeometryError, geometry_error_handler)
+    app.include_router(geometry_router, prefix=API_V1_PREFIX)
     app.include_router(operational_router)
     app.include_router(v1_router)
     app.include_router(auth_router, prefix=API_V1_PREFIX)

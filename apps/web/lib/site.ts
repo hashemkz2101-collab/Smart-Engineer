@@ -63,9 +63,22 @@ export const siteSections: SiteSectionDef[] = [
       { name: "depth_m", label: "طول (متر)", kind: "number", ltr: true, hint: "برای شکل مستطیل." },
       { name: "declared_area_m2", label: "مساحت اظهارشده (متر مربع)", kind: "number", ltr: true },
       { name: "survey_reference", label: "مرجع نقشه‌برداری", kind: "text" },
-      { name: "coordinate_system", label: "سیستم مختصات", kind: "text", ltr: true },
+      { name: "coordinate_system", label: "مرجع توصیفی نقشه‌برداری", kind: "text", ltr: true,
+        hint: "نام مرجع نقشه؛ این متن باعث تبدیل خودکار UTM یا مختصات جغرافیایی نمی‌شود." },
+      { name: "geometry_reference", label: "مرجع محاسبات بوم", kind: "choice",
+        choices: [{ value: "local_cartesian", label: "مختصات محلی صفحه‌ای (X راست، Y بالا)" }] },
     ],
     lists: [
+      {
+        name: "setback_edges",
+        label: "انتساب اضلاع عقب‌نشینی",
+        columns: [
+          { name: "edge_index", label: "شمارهٔ ضلع از صفر", kind: "number", required: true },
+          { name: "role", label: "نوع ضلع", kind: "choice", required: true,
+            choices: [{ value: "front", label: "جلو" }, { value: "rear", label: "عقب" },
+              { value: "left", label: "چپ" }, { value: "right", label: "راست" }] },
+        ],
+      },
       {
         name: "vertices",
         label: "رئوس مرز (به ترتیب دور قطعه)",

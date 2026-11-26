@@ -121,6 +121,12 @@ export const sourceFields: SiteField[] = [
       { value: "gregorian", label: "میلادی" },
     ],
   },
+  { name: "source_revision", label: "شماره یا ویرایش منبع", kind: "text",
+    hint: "برای محاسبات هندسی از ضابطه، ویرایش منبع باید مشخص باشد." },
+  { name: "valid_from", label: "آغاز اعتبار منبع (میلادی)", kind: "text", ltr: true,
+    hint: "برای محاسبهٔ محدودهٔ قابل ساخت؛ مانند 2026-01-01." },
+  { name: "valid_until", label: "پایان اعتبار منبع (میلادی)", kind: "text", ltr: true,
+    hint: "پایان اعتبار را از منبع وارد کنید؛ نرم‌افزار آن را حدس نمی‌زند." },
   {
     name: "source_verified",
     label: "تأیید می‌کنم این منبع مقدار بالا را تأیید می‌کند",

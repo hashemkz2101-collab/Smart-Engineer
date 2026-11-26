@@ -43,6 +43,9 @@ SOURCE_FIELDS: dict[str, Field] = {
     "source_date": _text(10),
     "source_calendar": Field("choice", choices=CALENDARS),
     "source_verified": Field("boolean"),
+    "source_revision": _text(200),
+    "valid_from": _text(10),
+    "valid_until": _text(10),
 }
 
 VALUE_FIELDS: dict[str, dict[str, Field]] = {
@@ -115,6 +118,18 @@ def validate_record(field: str, data: dict) -> tuple[dict, dict[str, str]]:
             errors["source_calendar"] = "calendar_required"
         elif not _valid_date(cleaned["source_date"], calendar):
             errors["source_date"] = "invalid_date"
+    for name in ("valid_from", "valid_until"):
+        if name in cleaned:
+            try:
+                datetime.date.fromisoformat(cleaned[name])
+            except ValueError:
+                errors[name] = "invalid_date"
+    validity_complete = all(k in cleaned and k not in errors for k in ("valid_from", "valid_until"))
+    if validity_complete:
+        start = datetime.date.fromisoformat(cleaned["valid_from"])
+        end = datetime.date.fromisoformat(cleaned["valid_until"])
+        if start > end:
+            errors["valid_until"] = "range_inverted"
     return cleaned, errors
 
 
