@@ -90,6 +90,15 @@ links), plus `SMART_ENGINEER_SMTP_PORT` (default 587), `SMART_ENGINEER_SMTP_SECU
 `SMART_ENGINEER_SMTP_PASSWORD`. Without them, development and tests keep messages in
 memory only, and production refuses to start (verified email is required there).
 Delivery failures are logged without the address or token and never shown to the caller.
+
+Uploaded files are scanned by ClamAV running on your own server (SEC-002, DEC-023): install
+`clamav-daemon`, set `StreamMaxLength 60M` in `clamd.conf` (files may be up to 50 MiB), keep
+signatures fresh with `freshclam`, and point the API at it with `SMART_ENGINEER_CLAMAV_HOST`
+and `SMART_ENGINEER_CLAMAV_PORT` (or `SMART_ENGINEER_CLAMAV_SOCKET`). Bind clamd to localhost or
+a private network only; it has no authentication. If the scanner is unreachable the file stays
+`pending` and is never served; run `python -m smart_engineer_api.manage rescan-files` (for
+example from cron) to scan pending files once it is back. Without a scanner, production keeps
+every upload pending.
 Organization and project invitations are emailed too (the inviter also still gets the link).
 
 ### Running the web app together with the API (development)
