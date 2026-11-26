@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 from alembic import command
@@ -8,10 +9,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from smart_engineer_api import auth_service as auth
-from smart_engineer_api import org_service, project_service, requirements_service
+from smart_engineer_api import file_service, org_service, project_service, requirements_service
 from smart_engineer_api.config import Settings
 from smart_engineer_api.db import Membership
 from smart_engineer_api.db.session import create_db_engine, create_session_factory
+from smart_engineer_api.file_storage import FileStorage
 from smart_engineer_api.main import create_app
 from smart_engineer_api.permissions import AccessDenied
 from smart_engineer_api.requirements_schema import missing_required, not_provided, validate_section
@@ -23,6 +25,7 @@ MYSQL_URL = os.environ.get("SMART_ENGINEER_TEST_MYSQL_DATABASE_URL")
 POLICY = auth.AuthPolicy(scrypt=ScryptParams(n=2**4, r=8, p=1))
 PASSWORD = "correct horse battery"
 V1 = "/api/v1"
+PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n"
 
 PROGRAM = {
     "units_count": 2,
@@ -99,6 +102,8 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(errors, {"constraints[0].level": "invalid_choice",
                                   "constraints[0].description": "required",
                                   "priorities[0].item": "required"})
+        _, bad_id = validate_section("references", {"items": [{"label": "x", "file_id": "nope"}]})
+        self.assertEqual(bad_id, {"items[0].file_id": "invalid_file_id"})
         _, errors = validate_section("references", {"items": [{"label": "x", "url": "ftp://a"}]})
         self.assertEqual(errors, {"items[0].url": "invalid_url"})
         _, errors = validate_section("program", {"units_count": 1.5, "rooms": [{"kind": "x"}]})
@@ -170,6 +175,40 @@ class RequirementsChecks:
         self.assertEqual(unknown.exception.code, "unknown_section")
         stored = requirements_service.get_requirements(self.session, owner, project.id)[0]
         self.assertEqual((stored["data"], stored["version"]), ({"units_count": 1}, 1))
+
+    def test_reference_links_only_to_live_files_of_the_same_project(self) -> None:
+        owner = self.user("owner")
+        project, other = self.project(owner), self.project(owner)
+        with tempfile.TemporaryDirectory() as folder:
+            storage = FileStorage(Path(folder))
+
+            def upload(target, name: str) -> str:
+                return file_service.upload_file(
+                    self.session, storage, owner, target.id, filename=name, kind="reference_image",
+                    document_date=None, ownership=None, content=PDF_BYTES,
+                    builtin_scan_is_authoritative=True,
+                )["id"]
+
+            mine, foreign = upload(project, "mine.pdf"), upload(other, "foreign.pdf")
+            saved = requirements_service.save_section(
+                self.session, owner, project.id, "references",
+                {"items": [{"label": "نمونه", "kind": "image", "file_id": mine}]}, 0)
+            self.assertEqual(saved["data"]["items"][0]["file_id"], mine)
+            self.assertEqual(
+                saved["files"], {mine: {"name": "mine.pdf", "available": True, "downloadable": True}})
+            # A file of another project is indistinguishable from a missing one.
+            for wrong in (foreign, str(uuid.uuid4())):
+                with self.assertRaises(requirements_service.RequirementsValidationError) as bad:
+                    requirements_service.save_section(
+                        self.session, owner, project.id, "references",
+                        {"items": [{"label": "a"}, {"label": "b", "file_id": wrong}]}, 1)
+                self.assertEqual(bad.exception.errors, {"items[1].file_id": "file_not_found"})
+            # Deleting the file keeps the reference but reports it as no longer available.
+            file_service.delete_file(self.session, storage, owner, project.id, uuid.UUID(mine))
+            listed = requirements_service.get_requirements(self.session, owner, project.id)[2]
+            self.assertEqual(listed["data"]["items"][0]["file_id"], mine)
+            self.assertEqual(
+                listed["files"], {mine: {"name": None, "available": False, "downloadable": False}})
 
     def test_architect_edits_others_read_strangers_see_nothing_archive_read_only(self) -> None:
         owner, arch, qs, stranger = (self.user(n) for n in ("owner", "arch", "qs", "stranger"))

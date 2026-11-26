@@ -17,7 +17,9 @@ type SectionState = {
   missing: string[];
   not_provided: string[];
   version: number;
+  files?: Record<string, { name: string | null; available: boolean; downloadable: boolean }>;
 };
+type FileChoice = { id: string; name: string };
 
 function reasonText(reason: string): string {
   return fieldReasonMessages[reason] ?? "مقدار درست نیست.";
@@ -127,12 +129,14 @@ function ListEditor({
   rows,
   errors,
   disabled,
+  files,
   onChange,
 }: {
   list: SiteList;
   rows: Row[];
   errors: string[];
   disabled: boolean;
+  files: FileChoice[];
   onChange: (rows: Row[]) => void;
 }) {
   const blank: Row = Object.fromEntries(
@@ -167,7 +171,23 @@ function ListEditor({
             return (
               <div className="form-field" key={column.name}>
                 <label htmlFor={id}>{accessible}</label>
-                {column.kind === "choice" ? (
+                {column.kind === "file" ? (
+                  <select
+                    id={id}
+                    value={String(row[column.name])}
+                    onChange={(event) => update(index, column.name, event.target.value)}
+                  >
+                    <option value="">بدون فایل</option>
+                    {files.map((file) => (
+                      <option key={file.id} value={file.id}>
+                        {file.name}
+                      </option>
+                    ))}
+                    {row[column.name] && !files.some((file) => file.id === row[column.name]) ? (
+                      <option value={String(row[column.name])}>فایل حذف شده است</option>
+                    ) : null}
+                  </select>
+                ) : column.kind === "choice" ? (
                   <select
                     id={id}
                     value={String(row[column.name])}
@@ -225,6 +245,7 @@ function SectionForm({
   def,
   state,
   canEdit,
+  files,
   onSaved,
   onConflict,
 }: {
@@ -232,6 +253,7 @@ function SectionForm({
   def: SiteSectionDef;
   state: SectionState;
   canEdit: boolean;
+  files: FileChoice[];
   onSaved: (message: string, saved: SectionState) => void;
   onConflict: () => void;
 }) {
@@ -311,6 +333,7 @@ function SectionForm({
             rows={lists[list.name]}
             errors={[...(listErrors[list.name] ?? []), ...(fieldErrors[list.name] ? [fieldErrors[list.name]] : [])]}
             disabled={!canEdit}
+            files={files}
             onChange={(rows) => setLists((current) => ({ ...current, [list.name]: rows }))}
           />
         ))}
@@ -347,6 +370,14 @@ export function RequirementsPanel({
     `/projects/${projectId}/requirements`,
     version + reload,
   );
+  const projectFiles = useResource<{ files: { id: string; original_name: string }[] }>(
+    `/projects/${projectId}/files`,
+    version + reload,
+  );
+  const fileChoices: FileChoice[] = (projectFiles.data?.files ?? []).map((file) => ({
+    id: file.id,
+    name: file.original_name,
+  }));
   const bump = () => setReload((current) => current + 1);
   // The saved response replaces the form at once, so edits made while the list reloads
   // are never thrown away by a late refetch.
@@ -403,6 +434,7 @@ export function RequirementsPanel({
           def={def}
           state={state}
           canEdit={canEdit}
+          files={fileChoices}
           onSaved={(message, payload) => {
             setSaved((current) => ({ ...current, [def.key]: payload }));
             setNotice(message);

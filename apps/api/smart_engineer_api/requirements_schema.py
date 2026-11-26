@@ -6,11 +6,13 @@
   mandatory / preferred / unacceptable constraints, expansion and change of use,
   each recorded independently.
 * ``references``: reference examples with label and explanation (and an optional
-  link; uploaded image files belong to FILE-001).
+  link, and an optional ``file_id`` that points to a file uploaded to the same project).
 
 Only supplied values are stored. Omitted values are never defaulted; an explicitly
 empty list means "none".
 """
+
+import uuid
 
 from .intake_schema import Field
 from .roles import REQUIREMENT_SECTIONS
@@ -110,6 +112,7 @@ SCHEMA: dict[str, dict[str, Field | ListField]] = {
                 "explanation": _text(),
                 "kind": Field("choice", choices=REFERENCE_KINDS),
                 "url": _text(500),
+                "file_id": _text(36),
             },
             max_items=100,
             required=True,
@@ -139,6 +142,12 @@ def validate_section(section: str, data: dict) -> tuple[dict, dict[str, str]]:
             url = item.get("url")
             if url is not None and not url.startswith(("http://", "https://")):
                 errors[f"items[{index}].url"] = "invalid_url"
+            file_id = item.get("file_id")
+            if file_id is not None:
+                try:
+                    uuid.UUID(file_id)
+                except ValueError:
+                    errors[f"items[{index}].file_id"] = "invalid_file_id"
     return cleaned, errors
 
 
