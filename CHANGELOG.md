@@ -5,6 +5,9 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- P1-18: the project intake panel applies the saved response at once, so text typed while
+  the step list reloads after a save is no longer discarded by the late refetch (the form
+  is keyed by version). Regression test with a delayed refetch. No feature status changed.
 - P1-21: real malware scanning (SEC-002, DEC-023). Uploads are streamed to a ClamAV daemon on
   the owner's server (TCP or Unix socket, settings `SMART_ENGINEER_CLAMAV_*`). A clean verdict
   makes the file downloadable even in production; a detection quarantines it with the

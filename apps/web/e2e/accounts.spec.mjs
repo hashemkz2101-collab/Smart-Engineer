@@ -258,6 +258,58 @@ test.describe("project intake", () => {
     expect(put.body.data.city).toBe("تهران");
   });
 
+  test("edits typed while the step list reloads after a save are kept", async ({ page }) => {
+    const state = { loggedIn: true, intake: {} };
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await mockApi(page, state, {
+      [`PUT /projects/${PROJECT.id}/intake/location`]: (route) => {
+        state.intake.location = { data: { city: "تهران" }, complete: false, version: 1 };
+        return route
+          .fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              step: "location",
+              data: { city: "تهران" },
+              complete: false,
+              missing: ["province"],
+              version: 1,
+            }),
+          })
+          .then(() => true);
+      },
+      // The refetch after a save arrives late, as it can on a slow network.
+      [`GET /projects/${PROJECT.id}/intake`]: async (route) => {
+        if (state.intake.location) await sleep(1200);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            steps: ["identity", "location", "people", "legal"].map((step) => ({
+              step,
+              data: state.intake[step]?.data ?? {},
+              complete: state.intake[step]?.complete ?? false,
+              missing: [],
+              version: state.intake[step]?.version ?? 0,
+              updated_at: null,
+            })),
+          }),
+        });
+        return true;
+      },
+    });
+    await page.goto(intakeUrl);
+    await page.getByRole("button", { name: /موقعیت/ }).click();
+    await page.getByLabel("شهر (ضروری)").fill("تهران");
+    await page.getByRole("button", { name: "ذخیرهٔ این مرحله" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "ذخیره شد." })).toBeVisible();
+
+    await page.getByLabel("استان (ضروری)").fill("تهران");
+    await page.waitForTimeout(2000); // let the late refetch land
+    await expect(page.getByLabel("استان (ضروری)")).toHaveValue("تهران");
+    await expect(page.getByLabel("شهر (ضروری)")).toHaveValue("تهران");
+  });
+
   test("field errors from the API are shown next to the fields", async ({ page }) => {
     await mockApi(page, { loggedIn: true }, {
       [`PUT /projects/${PROJECT.id}/intake/location`]: (route) =>
