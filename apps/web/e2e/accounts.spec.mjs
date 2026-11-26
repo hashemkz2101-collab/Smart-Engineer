@@ -590,6 +590,64 @@ test.describe("zoning inputs", () => {
   });
 });
 
+test.describe("space schedule", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const schedule = {
+    exists: true,
+    version: 1,
+    stale: true,
+    program_version: 3,
+    program_ready: true,
+    updated_at: null,
+    data: {
+      source: { program_version: 2, units_count: 1, floors_count: 1 },
+      counts_basis: "as_listed",
+      spaces: [
+        { id: "S-001", kind: "bedroom", room_index: 0, ordinal: 1, of: 2, target_area_m2: 14 },
+        { id: "S-002", kind: "bedroom", room_index: 0, ordinal: 2, of: 2, target_area_m2: 14 },
+        { id: "S-003", kind: "yard", room_index: 1, ordinal: 1, of: 1 },
+      ],
+      totals: { rooms: 2, spaces: 3, spaces_with_area: 2, spaces_without_area: 1,
+        area_lower_m2: 28, area_upper_m2: 28, target_sum_m2: 28, bounds_complete: false },
+      flags: [{ code: "area_not_given", severity: "warning", room_index: 1 }],
+      limitations: ["net_room_areas_only"],
+    },
+  };
+
+  test("saved schedule shows totals, flags, stale warning and limits", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, spaceSchedule: schedule });
+    await page.goto(url);
+    await expect(page.getByTestId("schedule-totals")).toContainText("ناقص");
+    await expect(page.getByRole("row")).toHaveCount(4);
+    await expect(page.getByText("برای این ردیف هیچ مساحتی وارد نشده است.")).toBeVisible();
+    await expect(page.getByText("فهرست قدیمی است")).toBeVisible();
+    await expect(page.getByText("دیوار، راهرو و سازه شامل نیست.")).toBeVisible();
+  });
+
+  test("generating sends the current schedule version; viewers cannot generate", async ({ page }) => {
+    const state = { loggedIn: true, spaceSchedule: { ...schedule, stale: false } };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/space-schedule/generate`]: (route) =>
+        route
+          .fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(schedule) })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: "ساخت دوبارهٔ فهرست" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "ساخته و ذخیره شد" })).toBeVisible();
+    const post = state.requests.find((r) => r.key.endsWith("/space-schedule/generate"));
+    expect(post.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(post.body).toEqual({ version: 1 });
+  });
+
+  test("view-only members see the schedule without a generate button", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, permissions: ["project.view"], spaceSchedule: schedule });
+    await page.goto(url);
+    await expect(page.getByTestId("schedule-totals")).toBeVisible();
+    await expect(page.getByRole("button", { name: /ساخت/ })).toHaveCount(0);
+  });
+});
+
 test.describe("client requirements", () => {
   const url = `/projects/${PROJECT.id}`;
   const ok = (body) => (route) =>

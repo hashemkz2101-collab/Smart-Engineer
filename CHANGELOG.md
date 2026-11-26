@@ -5,6 +5,15 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-26, Phase 3 started by explicit owner authorization (ARCH-001 first slice). The
+  saved physical program now produces a persisted, versioned space schedule: one entry per
+  counted space with stable IDs, the given target/range areas, net-area lower/upper totals and
+  flags for everything unmet (missing count or area, target outside its range, program larger
+  or smaller than the stated target area, counts not multiplied by units). A schedule built
+  from an older program is shown as stale. Migration 0017, endpoints `GET
+  /projects/{id}/space-schedule` and `POST .../space-schedule/generate`, a project-page panel
+  and tests. No layout, geometry or rule check is claimed. See docs/PHASE_3_PLAN.md.
+
 - 2026-11-25, Phase 1 stabilization: all five versioned document services now use
   database-atomic compare-and-swap writes, including duplicate first-save conflicts;
   failed writes do not add activity. Comparing two old file versions now uses the

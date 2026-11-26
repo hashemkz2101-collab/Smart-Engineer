@@ -16,6 +16,7 @@ from .identity_models import (
     ProjectMember,
     RequirementSection,
     SiteSection,
+    SpaceSchedule,
     User,
     ZoningRecord,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "ProjectMember",
     "RequirementSection",
     "SiteSection",
+    "SpaceSchedule",
     "User",
     "ZoningRecord",
 ]
