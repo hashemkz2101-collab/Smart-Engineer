@@ -12,6 +12,7 @@ Nothing here checks overlap, closure or regulations (that is ARCH-007/ARCH-008).
 
 import copy
 import math
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 SCHEMA = 1
@@ -22,6 +23,17 @@ MAX_FLOOR = 20
 EPS = 1e-6
 HOSTED = ("door", "window", "opening")
 TYPES = ("space", "wall", *HOSTED)
+
+
+UNIT_FACTORS = {"m": Decimal(1), "cm": Decimal("0.01"), "mm": Decimal("0.001")}
+LENGTH_OP_KEYS = ("dx", "dy", "along_m", "width", "height", "length_m", "width_m")
+LENGTH_ELEMENT_KEYS = (
+    "x", "y", "width", "height", "x1", "y1", "x2", "y2",
+    "offset_m", "width_m", "thickness_m", "height_m", "sill_m",
+)
+SNAPPED_KEYS = ("x", "y", "width", "height", "x1", "y1", "x2", "y2", "offset_m", "width_m")
+MIN_GRID_M = Decimal("0.001")
+MAX_GRID_M = Decimal(100)
 
 
 class DesignError(Exception):
@@ -241,15 +253,115 @@ def _apply_one(model: dict, op: Any, index: int) -> None:
         raise DesignError("invalid_value", index, eid) from None
 
 
-def apply_operations(model: dict[str, Any], operations: Any) -> dict[str, Any]:
-    """Return a new model with all operations applied, or raise DesignError (no partial result)."""
+def to_metres(value: Any, unit: str) -> Any:
+    """Exact decimal conversion (150 cm -> 1.5 m); non-numbers pass through to validation."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return value
+    if unit == "m":
+        return value
+    try:
+        return float(Decimal(str(value)) * UNIT_FACTORS[unit])
+    except (InvalidOperation, ValueError):
+        return value
+
+
+def _convert(op: Any, unit: str) -> Any:
+    if unit == "m" or not isinstance(op, dict):
+        return op
+    converted = dict(op)
+    for key in LENGTH_OP_KEYS:
+        if key in converted:
+            converted[key] = to_metres(converted[key], unit)
+    spec = converted.get("element")
+    if isinstance(spec, dict):
+        converted["element"] = {
+            key: to_metres(value, unit) if key in LENGTH_ELEMENT_KEYS else value
+            for key, value in spec.items()
+        }
+    return converted
+
+
+def snap_value(value: float, grid: Decimal) -> float:
+    """Nearest multiple of the grid; exact ties round away from zero."""
+    scaled = Decimal(str(value)) / grid
+    rounded = scaled.copy_abs().quantize(Decimal(1), rounding=ROUND_HALF_UP)
+    return round(float((rounded if scaled >= 0 else -rounded) * grid), 6)
+
+
+def _grid(snap: Any, unit: str) -> Decimal | None:
+    if snap is None:
+        return None
+    try:
+        raw = snap["grid"] if isinstance(snap, dict) else None
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            raise ValueError
+        grid = Decimal(str(raw)) * UNIT_FACTORS[snap.get("unit", unit)]
+    except (KeyError, ValueError, InvalidOperation):
+        raise DesignError("invalid_snap") from None
+    if not MIN_GRID_M <= grid <= MAX_GRID_M:
+        raise DesignError("invalid_snap")
+    return grid
+
+
+def _snap_touched(model: dict, touched: set[str], grid: Decimal, index: int) -> None:
+    for element in model["elements"]:
+        if element["id"] not in touched:
+            continue
+        for key in SNAPPED_KEYS:
+            if key in element:
+                element[key] = snap_value(element[key], grid)
+        eid = element["id"]
+        kind = element["type"]
+        if (kind == "space" and (element["width"] <= 0 or element["height"] <= 0)) or (
+            kind == "wall" and wall_length(element) <= EPS
+        ):
+            raise DesignError("snap_collapses_element", index, eid)
+        if kind == "wall":
+            _check_hosted_fits(model, element, index)
+        if kind in HOSTED:
+            wall = _find(model, element["wall_id"], index)
+            if (
+                element["offset_m"] < 0
+                or element["width_m"] <= 0
+                or element["offset_m"] + element["width_m"] > wall_length(wall) + EPS
+            ):
+                raise DesignError("snap_collapses_element", index, eid)
+
+
+def _touched_ids(before: dict, after: dict, op: dict) -> set[str]:
+    """Elements whose geometry the operation created or changed (rotation is never snapped)."""
+    if op.get("op") not in ("add", "move", "resize"):
+        return set()
+    old = {e["id"]: e for e in before["elements"]}
+    return {e["id"] for e in after["elements"] if old.get(e["id"]) != e}
+
+
+def apply_operations(
+    model: dict[str, Any],
+    operations: Any,
+    *,
+    unit: str = "m",
+    snap: Any = None,
+) -> dict[str, Any]:
+    """Return a new model with all operations applied, or raise DesignError (no partial result).
+
+    Length values in the request are in ``unit`` (m, cm or mm) and are converted exactly.
+    With ``snap``, the geometry an add/move/resize changed is rounded to the grid.
+    """
+    if unit not in UNIT_FACTORS:
+        raise DesignError("invalid_unit")
     if not isinstance(operations, list) or not operations:
         raise DesignError("invalid_value")
     if len(operations) > MAX_OPERATIONS:
         raise DesignError("too_many_operations")
+    grid = _grid(snap, unit)
     working = copy.deepcopy(model)
-    for index, op in enumerate(operations):
+    for index, raw in enumerate(operations):
+        op = _convert(raw, unit)
+        before = copy.deepcopy(working) if grid is not None else None
         _apply_one(working, op, index)
+        if grid is not None and before is not None and isinstance(op, dict):
+            _snap_touched(working, _touched_ids(before, working, op), grid, index)
     return working
 
 

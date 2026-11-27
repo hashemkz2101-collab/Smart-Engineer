@@ -73,16 +73,38 @@ through explicit operations (`POST …/design/edit`, `expected version`, atomic 
 * New permission `project.design.edit` (owner, architect); everyone with `project.view` can
   read. Archived projects are read-only.
 
-Not done here, by design: overlap/closure/area checks (ARCH-007), snapping, units display and
-undo/redo (ARCH-004), multi-floor copy and vertical connections (ARCH-005), design versions,
+Not done here, by design: overlap/closure/area checks (ARCH-007), multi-floor copy and vertical connections (ARCH-005), design versions,
 compare and comments (ARCH-006), preliminary checks (ARCH-008), plans/exports (ARCH-009).
 This is a minimal base model with stable IDs and 2D geometry; formal BIM-001 acceptance
 (relationships, format independence, floors, coordinates) is **not** claimed.
 
+## Slice 4 — ARCH-004 units, snap and undo/redo
+
+* **Units:** `POST …/design/edit` accepts `unit` (`m`, `cm`, `mm`; default `m`). Length values
+  in operations and new elements are converted **exactly** (Decimal arithmetic) to metres
+  before validation; storage stays in metres. Rotation degrees are never scaled.
+* **Snap:** optional `snap: {grid, unit?}` (grid 0.001–100 m). Only geometry an operation
+  adds, moves or resizes is snapped, to the nearest multiple of the grid, **ties away from
+  zero**; untouched elements are unchanged and rotation is not snapped. A snap that would
+  shrink an element to zero is refused (`snap_collapses_element`); an unusable grid is
+  `invalid_snap`.
+* **History:** `design_history` (migration 0020) keeps one full snapshot per change (import
+  and every successful edit), up to 200 per project, plus a `head_seq` pointer on the model.
+  `POST …/design/undo` and `…/redo` (body `{version}`) move the pointer and store the
+  recorded snapshot as a **new version**, so undo then redo returns exactly the prior and
+  subsequent model data. A new edit after an undo discards the redo side. Errors:
+  `nothing_to_undo`, `nothing_to_redo`, `version_conflict`. `GET …/design/history` lists the
+  last 50 entries (operations, unit/snap, actor). Models created before this slice get a
+  baseline entry on their next change. Both need `project.design.edit`; archived projects
+  are read-only.
+* The project-page panel gained a unit selector (display and input), a snap selector,
+  undo/redo buttons and a history list.
+
+Still not here: coordinate-level snapping to other elements' edges/endpoints (grid only).
+
 ## Not in this slice
 
-Snap/undo
-(ARCH-004), floors and vertical connections (ARCH-005), design versions and comments
+Floors and vertical connections (ARCH-005), design versions and comments
 (ARCH-006), geometry checks (ARCH-007), preliminary checks (ARCH-008), plans and
 schedules export (ARCH-009, DOC-001). The schedule is a list with area ranges, not a
 layout, and is not a regulatory or design approval.

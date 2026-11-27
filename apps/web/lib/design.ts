@@ -44,6 +44,31 @@ export type DesignState = {
   version: number;
   layout_changed: boolean;
   updated_at: string | null;
+  can_undo?: boolean;
+  can_redo?: boolean;
+  history_position?: number;
+  history_length?: number;
+};
+
+export type DesignHistoryEntry = {
+  seq: number;
+  summary: { action: string; operations?: { op: string; id?: string }[]; unit?: string; snap?: { grid: number; unit?: string } | null };
+  actor: string;
+  created_at: string | null;
+  current: boolean;
+};
+
+export type DesignHistory = { position: number; entries: DesignHistoryEntry[] };
+
+export type LengthUnit = "m" | "cm" | "mm";
+
+// Display factor from metres (the stored unit) to the unit chosen in the panel.
+export const unitFactors: Record<LengthUnit, number> = { m: 1, cm: 100, mm: 1000 };
+export const unitNames: Record<LengthUnit, string> = { m: "متر", cm: "سانتی‌متر", mm: "میلی‌متر" };
+export const snapChoices: Record<LengthUnit, number[]> = { m: [0.1, 0.25, 0.5, 1], cm: [1, 5, 10, 25, 50], mm: [1, 5, 10, 50, 100] };
+
+export const operationLabels: Record<string, string> = {
+  add: "افزودن", move: "جابه‌جایی", resize: "تغییر اندازه", rotate: "چرخش", delete: "حذف", lock: "قفل", unlock: "باز کردن قفل", set: "تنظیم",
 };
 
 export type DesignOperation = Record<string, unknown>;

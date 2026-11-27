@@ -539,6 +539,10 @@ class DesignModel(Base):
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Sequence number of the history entry that equals ``data`` (0 = no history yet).
+    head_seq: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id"), nullable=False
     )
@@ -550,6 +554,30 @@ class DesignModel(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+
+class DesignHistory(Base):
+    """One saved state of the design model (ARCH-004) for undo, redo and change history.
+
+    Rows ``1..n`` form a line; ``design_models.head_seq`` points at the current one. A new
+    edit discards the redo side and appends; the oldest entries are pruned past a limit.
+    """
+
+    __tablename__ = "design_history"
+    __table_args__ = (
+        UniqueConstraint("project_id", "seq"),
+        CheckConstraint("seq >= 1", name="seq_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    summary: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(), nullable=False, server_default=func.now()
     )
 
 

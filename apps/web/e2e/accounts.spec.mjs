@@ -799,6 +799,46 @@ test.describe("design editing", () => {
     expect(post.body).toEqual({ alternative_id: "ALT-2", version: 0, replace: false });
   });
 
+  test("units and snap are chosen per edit and undo/redo use the stored version", async ({ page }) => {
+    const withHistory = { ...design, can_undo: true, can_redo: false, history_position: 3, history_length: 3 };
+    const state = {
+      loggedIn: true,
+      design: withHistory,
+      designHistory: { position: 3, entries: [
+        { seq: 3, summary: { action: "edit", operations: [{ op: "move", id: "E-0001" }] }, actor: "Owner", created_at: null, current: true },
+        { seq: 1, summary: { action: "import" }, actor: "Owner", created_at: null, current: false },
+      ] },
+    };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/design/edit`]: reply(200, { ...withHistory, version: 4 }),
+      [`POST /projects/${PROJECT.id}/design/undo`]: reply(200, { ...withHistory, version: 4, can_redo: true }),
+    });
+    await page.goto(url);
+    await expect(page.getByRole("button", { name: "بازگردانی" })).toBeDisabled();
+    await page.getByLabel("واحد طول").selectOption("cm");
+    await expect(page.getByRole("cell", { name: /۵۰۰×۴۰۰/ })).toBeVisible();
+    await page.getByLabel("اسنپ به شبکه").selectOption("5");
+    await page.getByRole("button", { name: "انتخاب E-0001" }).click();
+    await page.getByRole("button", { name: "قفل کردن" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "عنصر قفل شد" })).toBeVisible();
+    const edit = state.requests.find((r) => r.key.endsWith("/design/edit"));
+    expect(edit.body).toEqual({ version: 3, unit: "cm", snap: { grid: 5, unit: "cm" }, operations: [{ op: "lock", id: "E-0001" }] });
+    await page.getByRole("button", { name: "واگرد" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "برگردانده شد" })).toBeVisible();
+    const undo = state.requests.find((r) => r.key.endsWith("/design/undo"));
+    expect(undo.body).toEqual({ version: 3 });
+    await page.getByText("تاریخچهٔ تغییرات").click();
+    await expect(page.getByText(/وارد کردن گزینهٔ چیدمان — Owner/)).toBeVisible();
+    await expect(page.getByText(/جابه‌جایی E-0001 — Owner \(وضعیت فعلی\)/)).toBeVisible();
+  });
+
+  test("an empty history leaves undo and redo disabled", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, design: { ...design, can_undo: false, can_redo: false } });
+    await page.goto(url);
+    await expect(page.getByRole("button", { name: "واگرد" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "بازگردانی" })).toBeDisabled();
+  });
+
   test("view-only members see the design without edit or import controls", async ({ page }) => {
     await mockApi(page, { loggedIn: true, permissions: ["project.view"], design });
     await page.goto(url);

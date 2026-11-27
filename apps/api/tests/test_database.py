@@ -40,6 +40,7 @@ EXPECTED_TABLES = {
     "space_schedules",
     "layout_proposals",
     "design_models",
+    "design_history",
     "environment_records",
     "project_files",
     "admin_audit_events",
