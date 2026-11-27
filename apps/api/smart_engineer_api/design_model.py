@@ -22,7 +22,9 @@ MAX_COORDINATE = 100_000.0
 MAX_FLOOR = 20
 EPS = 1e-6
 HOSTED = ("door", "window", "opening")
-TYPES = ("space", "wall", *HOSTED)
+VERTICAL_KINDS = ("stair", "elevator", "shaft")
+TYPES = ("space", "wall", "vertical", *HOSTED)
+FOOTPRINTS = ("space", "vertical")
 
 
 UNIT_FACTORS = {"m": Decimal(1), "cm": Decimal("0.01"), "mm": Decimal("0.001")}
@@ -69,6 +71,15 @@ def _floor(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_FLOOR:
         raise ValueError("floor")
     return value
+
+
+def _floors(value: Any) -> list[int]:
+    if not isinstance(value, list) or not 2 <= len(value) <= MAX_FLOOR:
+        raise ValueError("floors")
+    levels = sorted({_floor(item) for item in value})
+    if len(levels) != len(value):
+        raise ValueError("floors")
+    return levels
 
 
 def wall_length(wall: dict) -> float:
@@ -124,6 +135,17 @@ def _build(model: dict, spec: Any, index: int) -> dict:
                 element["name"] = _text(spec["name"], 120)
             if spec.get("schedule_space_id") is not None:
                 element["schedule_space_id"] = _text(spec["schedule_space_id"], 20)
+        elif kind == "vertical":
+            levels = _floors(spec.get("floors"))
+            if spec.get("kind") not in VERTICAL_KINDS:
+                raise ValueError("kind")
+            element.update(
+                floor=levels[0], floors=levels, kind=spec["kind"],
+                x=_number(spec["x"]), y=_number(spec["y"]),
+                width=_number(spec["width"], positive=True),
+                height=_number(spec["height"], positive=True),
+                rotation_deg=0,
+            )
         elif kind == "wall":
             element.update(
                 x1=_number(spec["x1"]), y1=_number(spec["y1"]),
@@ -166,7 +188,10 @@ def _apply_one(model: dict, op: Any, index: int) -> None:
         model["next_id"] += 1
         model["elements"].append({"id": element.pop("id"), **element})
         return
-    if name not in ("move", "resize", "rotate", "delete", "lock", "unlock", "set"):
+    if name == "copy_floor":
+        _copy_floor(model, op, index)
+        return
+    if name not in ("move", "resize", "rotate", "delete", "lock", "unlock", "set", "set_floors"):
         raise DesignError("unknown_operation", index)
     element = _find(model, op.get("id"), index)
     eid = element["id"]
@@ -199,7 +224,7 @@ def _apply_one(model: dict, op: Any, index: int) -> None:
                 for key in ("y1", "y2") if kind == "wall" else ("y",):
                     element[key] = round(element[key] + dy, 6)
         elif name == "resize":
-            if kind == "space":
+            if kind in FOOTPRINTS:
                 element["width"] = _number(op["width"], positive=True)
                 element["height"] = _number(op["height"], positive=True)
             elif kind == "wall":
@@ -220,7 +245,7 @@ def _apply_one(model: dict, op: Any, index: int) -> None:
             degrees = _number(op["degrees"])
             if kind in HOSTED:
                 raise DesignError("operation_not_supported", index, eid)
-            if kind == "space":
+            if kind in FOOTPRINTS:
                 if degrees % 90 != 0:
                     raise DesignError("rotation_must_be_multiple_of_90", index, eid)
                 turns = int(degrees // 90) % 4
@@ -238,11 +263,17 @@ def _apply_one(model: dict, op: Any, index: int) -> None:
                     rx, ry = element[sx] - cx, element[sy] - cy
                     element[sx] = round(cx + rx * math.cos(angle) - ry * math.sin(angle), 6)
                     element[sy] = round(cy + rx * math.sin(angle) + ry * math.cos(angle), 6)
+        elif name == "set_floors":
+            if kind != "vertical":
+                raise DesignError("operation_not_supported", index, eid)
+            element["floors"] = _floors(op["floors"])
+            element["floor"] = element["floors"][0]
         else:  # set
             fields = op.get("fields")
             allowed = {
                 "space": {"kind": 40, "name": 120, "label": 120},
                 "wall": {"label": 120},
+                "vertical": {"label": 120, "name": 120},
                 "door": {"label": 120}, "window": {"label": 120}, "opening": {"label": 120},
             }[kind]
             if not isinstance(fields, dict) or not fields or set(fields) - set(allowed):
@@ -251,6 +282,48 @@ def _apply_one(model: dict, op: Any, index: int) -> None:
                 element[key] = _text(value, allowed[key])
     except (KeyError, ValueError, ZeroDivisionError):
         raise DesignError("invalid_value", index, eid) from None
+
+
+def _copy_floor(model: dict, op: dict, index: int) -> None:
+    """Repeat every non-vertical element of one floor onto empty floors, with new stable IDs."""
+    try:
+        source = _floor(op["from_floor"])
+        targets = op["to_floors"]
+        if not isinstance(targets, list) or not 1 <= len(targets) <= MAX_FLOOR:
+            raise ValueError("to_floors")
+        targets = [_floor(item) for item in targets]
+        if len(set(targets)) != len(targets) or source in targets:
+            raise ValueError("to_floors")
+    except (KeyError, ValueError):
+        raise DesignError("invalid_value", index) from None
+    originals = [e for e in model["elements"] if e["floor"] == source and e["type"] != "vertical"]
+    if not originals:
+        raise DesignError("unknown_floor", index)
+    for target in targets:
+        if any(e["floor"] == target and e["type"] != "vertical" for e in model["elements"]):
+            raise DesignError("floor_not_empty", index)
+    if len(model["elements"]) + len(originals) * len(targets) > MAX_ELEMENTS:
+        raise DesignError("too_many_elements", index)
+    for target in targets:
+        mapping: dict[str, str] = {}
+        for original in originals:
+            mapping[original["id"]] = f"E-{model['next_id']:04d}"
+            model["next_id"] += 1
+        for original in originals:
+            copy_ = copy.deepcopy(original)
+            copy_.pop("schedule_space_id", None)  # a copy is not the scheduled space
+            copy_.update(id=mapping[original["id"]], floor=target, copied_from=original["id"])
+            if "wall_id" in copy_:
+                copy_["wall_id"] = mapping[original["wall_id"]]
+            model["elements"].append(copy_)
+
+
+def validate_levels(model: dict, index: int) -> None:
+    """Every vertical connection must point only at floors that actually have elements."""
+    levels = {e["floor"] for e in model["elements"] if e["type"] != "vertical"}
+    for element in model["elements"]:
+        if element["type"] == "vertical" and not set(element["floors"]) <= levels:
+            raise DesignError("vertical_invalid_level", index, element["id"])
 
 
 def to_metres(value: Any, unit: str) -> Any:
@@ -312,7 +385,7 @@ def _snap_touched(model: dict, touched: set[str], grid: Decimal, index: int) -> 
                 element[key] = snap_value(element[key], grid)
         eid = element["id"]
         kind = element["type"]
-        if (kind == "space" and (element["width"] <= 0 or element["height"] <= 0)) or (
+        if (kind in FOOTPRINTS and (element["width"] <= 0 or element["height"] <= 0)) or (
             kind == "wall" and wall_length(element) <= EPS
         ):
             raise DesignError("snap_collapses_element", index, eid)
@@ -362,6 +435,7 @@ def apply_operations(
         _apply_one(working, op, index)
         if grid is not None and before is not None and isinstance(op, dict):
             _snap_touched(working, _touched_ids(before, working, op), grid, index)
+    validate_levels(working, len(operations) - 1)
     return working
 
 

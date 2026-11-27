@@ -102,9 +102,26 @@ This is a minimal base model with stable IDs and 2D geometry; formal BIM-001 acc
 
 Still not here: coordinate-level snapping to other elements' edges/endpoints (grid only).
 
+## Slice 5 — ARCH-005 floors, typical-floor copy and vertical connections
+
+* **Typical-floor copy:** operation `copy_floor {from_floor, to_floors[]}` repeats every
+  space, wall and hosted door/window/opening of one floor onto one or more **empty** floors.
+  Each copy gets a new stable ID (never reused), keeps its geometry, lock state and
+  host-wall relationship (hosted elements point at the *copied* wall), and records
+  `copied_from`. A copy is not the scheduled space, so `schedule_space_id` is not carried over.
+  It never overwrites (`floor_not_empty`); an empty source is `unknown_floor`; duplicate,
+  same-as-source or out-of-range targets are `invalid_value`. It is one atomic, undoable step.
+* **Vertical connections:** new element type `vertical` (`stair`, `elevator`, `shaft`) with a
+  footprint (x, y, width, height; moved/resized/rotated like a space) and `floors`, the
+  levels it connects (at least two). After every batch each listed floor must have elements;
+  otherwise the whole batch is refused with `vertical_invalid_level` and the element ID
+  (also when deleting would empty a connected floor). `set_floors` changes the levels.
+* Not done: automatic extension of existing connections when copying, checks that the
+  footprints line up between floors, stair dimensioning or code rules (ARCH-007/008).
+
 ## Not in this slice
 
-Floors and vertical connections (ARCH-005), design versions and comments
+Design versions and comments
 (ARCH-006), geometry checks (ARCH-007), preliminary checks (ARCH-008), plans and
 schedules export (ARCH-009, DOC-001). The schedule is a list with area ranges, not a
 layout, and is not a regulatory or design approval.

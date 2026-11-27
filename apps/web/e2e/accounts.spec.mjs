@@ -839,6 +839,25 @@ test.describe("design editing", () => {
     await expect(page.getByRole("button", { name: "بازگردانی" })).toBeDisabled();
   });
 
+  test("a typical floor is copied onto other floors and a vertical connection is added", async ({ page }) => {
+    const state = { loggedIn: true, design };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/design/edit`]: reply(200, { ...design, version: 4 }),
+    });
+    await page.goto(url);
+    await page.getByLabel(/کپی طبقهٔ/).fill("2, 3");
+    await page.getByRole("button", { name: "کپی طبقه", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "تغییر ذخیره شد" })).toBeVisible();
+    const copy = state.requests.find((r) => r.key.endsWith("/design/edit"));
+    expect(copy.body).toEqual({ version: 3, operations: [{ op: "copy_floor", from_floor: 1, to_floors: [2, 3] }] });
+    await page.getByLabel("نوع ارتباط عمودی").selectOption("elevator");
+    await page.getByLabel("طبقه‌های متصل", { exact: true }).fill("1,2");
+    await page.getByRole("button", { name: "افزودن ارتباط عمودی" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "تغییر ذخیره شد" })).toBeVisible();
+    const edits = state.requests.filter((r) => r.key.endsWith("/design/edit"));
+    expect(edits[1].body.operations[0]).toMatchObject({ op: "add", element: { type: "vertical", kind: "elevator", floors: [1, 2] } });
+  });
+
   test("view-only members see the design without edit or import controls", async ({ page }) => {
     await mockApi(page, { loggedIn: true, permissions: ["project.view"], design });
     await page.goto(url);

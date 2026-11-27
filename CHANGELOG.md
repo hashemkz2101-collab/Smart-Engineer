@@ -5,6 +5,12 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-28, Phase 3 (ARCH-005): multiple floors in the design model. `copy_floor` repeats a
+  typical floor onto empty floors with new stable IDs while preserving geometry, locks and
+  wall-hosted relationships; new `vertical` elements (stair, elevator, shaft) list the floors
+  they connect and are refused if a listed floor has no elements. Panel forms, tests;
+  no migration. See docs/PHASE_3_PLAN.md.
+
 - 2026-11-27, Phase 3 (ARCH-004): units, snap and undo/redo for the design model. Edits accept
   `unit` (m/cm/mm, exact Decimal conversion to metres) and an optional grid `snap` (nearest
   multiple, ties away from zero, only touched geometry); a per-project history (migration

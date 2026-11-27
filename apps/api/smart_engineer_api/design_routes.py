@@ -18,7 +18,7 @@ router = APIRouter(tags=["design"], dependencies=[Depends(check_origin)])
 CONFLICT_CODES = {
     "nothing_to_undo", "nothing_to_redo",
     "element_locked", "hosted_element_locked", "version_conflict", "design_exists",
-    "layout_stale", "no_layout", "no_design",
+    "layout_stale", "no_layout", "no_design", "floor_not_empty",
 }
 MESSAGES = {
     "nothing_to_undo": "There is no earlier state to return to.",
@@ -30,6 +30,9 @@ MESSAGES = {
     "layout_stale": "The layout options are out of date. Regenerate them first.",
     "no_layout": "There are no layout alternatives to import.",
     "no_design": "There is no design to edit yet. Import a layout option first.",
+    "floor_not_empty": "A target floor already has elements; copying never overwrites.",
+    "unknown_floor": "The source floor has no elements to copy.",
+    "vertical_invalid_level": "A vertical connection points at a floor that has no elements.",
 }
 
 

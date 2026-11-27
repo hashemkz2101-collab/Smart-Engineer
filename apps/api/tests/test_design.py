@@ -241,6 +241,95 @@ class ModelTests(unittest.TestCase):
             apply_operations(small, [{"op": "lock", "id": "E-0001"}], unit="ft")
         self.assertEqual(unit.exception.code, "invalid_unit")
 
+    def test_copying_a_floor_creates_new_stable_ids_and_keeps_geometry_and_relationships(self):
+        model = base()
+        element(model, "E-0001")["schedule_space_id"] = "SP-1"
+        element(model, "E-0004")["locked"] = True
+        copied = apply_operations(model, [
+            {"op": "copy_floor", "from_floor": 1, "to_floors": [2, 3]}])
+        self.assertEqual(copied["next_id"], 13)
+        upper = [e for e in copied["elements"] if e["floor"] == 2]
+        self.assertEqual(len(upper), 4)
+        ids = [e["id"] for e in copied["elements"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual({e["copied_from"] for e in upper},
+                         {"E-0001", "E-0002", "E-0003", "E-0004"})
+        by_source = {e["copied_from"]: e for e in upper}
+        for source in ("E-0001", "E-0002"):
+            original = element(model, source)
+            for key in ("x", "y", "width", "height", "x1", "y1", "x2", "y2", "kind",
+                        "thickness_m", "rotation_deg"):
+                self.assertEqual(by_source[source].get(key), original.get(key))
+        self.assertNotIn("schedule_space_id", by_source["E-0001"])
+        wall_copy = by_source["E-0002"]["id"]
+        self.assertEqual((by_source["E-0003"]["wall_id"], by_source["E-0003"]["offset_m"]),
+                         (wall_copy, 1))
+        self.assertEqual(by_source["E-0004"]["wall_id"], wall_copy)
+        self.assertTrue(by_source["E-0004"]["locked"])
+        self.assertEqual(element(copied, "E-0001"), element(model, "E-0001"))
+        self.assertEqual(len([e for e in copied["elements"] if e["floor"] == 3]), 4)
+
+    def test_copy_floor_never_overwrites_and_rejects_bad_requests(self):
+        model = base()
+        two = apply_operations(model, [{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}])
+        self.assertEqual(failure(two, [{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}]),
+                         ("floor_not_empty", 0, None))
+        self.assertEqual(failure(model, [{"op": "copy_floor", "from_floor": 4, "to_floors": [5]}]),
+                         ("unknown_floor", 0, None))
+        for bad in ({"from_floor": 1, "to_floors": [1]}, {"from_floor": 1, "to_floors": [2, 2]},
+                    {"from_floor": 1, "to_floors": []}, {"from_floor": 1, "to_floors": [99]},
+                    {"from_floor": 1}, {"from_floor": 1, "to_floors": "2"}):
+            self.assertEqual(failure(model, [{"op": "copy_floor", **bad}]),
+                             ("invalid_value", 0, None), bad)
+        self.assertEqual(failure(model, [{"op": "lock", "id": "E-0001"},
+                                         {"op": "copy_floor", "from_floor": 1, "to_floors": [2]},
+                                         {"op": "copy_floor", "from_floor": 1,
+                                          "to_floors": [2]}]),
+                         ("floor_not_empty", 2, None))
+
+    def test_vertical_connections_must_point_at_floors_that_exist(self):
+        model = apply_operations(base(), [
+            {"op": "copy_floor", "from_floor": 1, "to_floors": [2]},
+            {"op": "add", "element": {"type": "vertical", "kind": "stair", "floors": [1, 2],
+                                      "x": 0, "y": 0, "width": 1, "height": 3}}])
+        stair = model["elements"][-1]
+        self.assertEqual((stair["floors"], stair["floor"], stair["locked"]), ([1, 2], 1, False))
+        self.assertEqual(failure(model, [{"op": "set_floors", "id": stair["id"],
+                                          "floors": [1, 3]}]),
+                         ("vertical_invalid_level", 0, stair["id"]))
+        self.assertEqual(failure(base(), [{"op": "add", "element": {
+            "type": "vertical", "kind": "elevator", "floors": [1, 2], "x": 0, "y": 0,
+            "width": 1, "height": 1}}]), ("vertical_invalid_level", 0, "E-0005"))
+        for bad in ({"floors": [1]}, {"floors": [1, 1]}, {"floors": "12"},
+                    {"floors": [1, 2], "kind": "ladder"}):
+            spec = {"type": "vertical", "kind": "stair", "x": 0, "y": 0, "width": 1,
+                    "height": 1, **bad}
+            self.assertEqual(failure(model, [{"op": "add", "element": spec}]),
+                             ("invalid_value", 0, None), bad)
+        widened = apply_operations(model, [{"op": "set_floors", "id": stair["id"],
+                                            "floors": [2, 1]}])
+        self.assertEqual(element(widened, stair["id"])["floors"], [1, 2])
+        moved = apply_operations(model, [{"op": "move", "id": stair["id"], "dx": 1, "dy": 0},
+                                         {"op": "resize", "id": stair["id"], "width": 2,
+                                          "height": 4}, {"op": "rotate", "id": stair["id"],
+                                                         "degrees": 90}])
+        turned = element(moved, stair["id"])
+        self.assertEqual((turned["x"], turned["width"], turned["height"], turned["rotation_deg"]),
+                         (0, 4, 2, 90))
+        self.assertEqual(failure(model, [{"op": "set_floors", "id": "E-0001", "floors": [1, 2]}]),
+                         ("operation_not_supported", 0, "E-0001"))
+
+    def test_emptying_a_floor_that_a_vertical_connection_uses_is_rejected(self):
+        model = apply_operations(base(), [
+            {"op": "copy_floor", "from_floor": 1, "to_floors": [2]},
+            {"op": "add", "element": {"type": "vertical", "kind": "shaft", "floors": [1, 2],
+                                      "x": 0, "y": 0, "width": 1, "height": 1}}])
+        upper = [e["id"] for e in model["elements"] if e["floor"] == 2 and e["type"] != "vertical"]
+        deletions = [{"op": "delete", "id": item} for item in upper
+                     if element(model, item)["type"] in ("space", "wall")]
+        self.assertEqual(failure(model, deletions)[0], "vertical_invalid_level")
+        self.assertIsNone(failure(model, [{"op": "lock", "id": "E-0001"}]))
+
 
 class DesignServiceTests(unittest.TestCase):
     def setUp(self):
@@ -493,6 +582,24 @@ class DesignServiceTests(unittest.TestCase):
                                               self.project.id)["entries"][0]
         self.assertEqual((entry["summary"]["unit"], entry["summary"]["snap"]),
                          ("cm", {"grid": 5, "unit": "cm"}))
+
+    def test_copying_floors_is_one_undoable_step_with_a_history_summary(self):
+        made, first = self.import_and_edit()
+        copied = self.edit([{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}], 1)
+        count = len(made["data"]["elements"])
+        self.assertEqual(len(copied["data"]["elements"]), count * 2)
+        entry = design_service.design_history(self.session, self.owner,
+                                              self.project.id)["entries"][0]
+        self.assertEqual(entry["summary"]["operations"], [{"op": "copy_floor", "id": None}])
+        back = design_service.undo_design(self.session, self.owner, self.project.id,
+                                          expected_version=2)
+        self.assertEqual(back["data"], made["data"])
+        again = design_service.redo_design(self.session, self.owner, self.project.id,
+                                           expected_version=3)
+        self.assertEqual(again["data"], copied["data"])
+        with self.assertRaises(DesignError) as clash:
+            self.edit([{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}], 4)
+        self.assertEqual(clash.exception.code, "floor_not_empty")
 
     def test_http_round_trip_with_explicit_lock_reason(self):
         self.prepare_layouts()
