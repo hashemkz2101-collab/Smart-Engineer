@@ -160,3 +160,11 @@ revisited before RELEASE-001. Any item can be reversed by the owner.
   secret: it must never be committed, put in the frontend, or pasted in chat. Nothing
   of Zibal is built in Phase 1. Still open under DEC-010: SMS provider, AI provider,
   and the legal/contract review of the gateway and the mail provider.
+
+- **ARCH-006 comment access (delegated by the owner, 2026-11-28; interim, revisit with
+  ROLE-011/FLOW-004).** Saving a design version needs `project.design.edit` (owner,
+  architect). Reading versions, comparing and **commenting** need only project membership
+  (`project.design.comment`: every current project role). There is no separate client
+  role yet, so the owner/client commenting in ROLE-011 is not claimed; approval stays a
+  later action. Comments are immutable (no edit or delete) and keep author, time, version
+  and element ID. Restoring a saved version into the working model is not built.

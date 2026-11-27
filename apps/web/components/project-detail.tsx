@@ -16,6 +16,7 @@ import { FormError, FormField, FormNotice } from "./form-field";
 import { LayoutsPanel } from "./layouts-panel";
 import { IntakePanel } from "./intake-panel";
 import { DesignPanel } from "./design-panel";
+import { DesignVersionsPanel } from "./design-versions-panel";
 import { EnvironmentPanel } from "./environment-panel";
 import { FilesPanel } from "./files-panel";
 import { RequirementsPanel } from "./requirements-panel";
@@ -501,6 +502,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <DesignPanel
           projectId={projectId}
           canEdit={can("project.design.edit")}
+          version={version}
+        />
+      )}
+
+      {myRole === "org_admin" ? null : (
+        <DesignVersionsPanel
+          projectId={projectId}
+          canSave={can("project.design.edit")}
+          canComment={can("project.design.comment")}
           version={version}
         />
       )}

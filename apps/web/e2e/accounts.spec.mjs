@@ -868,6 +868,75 @@ test.describe("design editing", () => {
   });
 });
 
+test.describe("design versions, comparison and comments", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const elements = [
+    { id: "E-0001", type: "space", floor: 1, locked: false, kind: "living", x: 0, y: 0, width: 5, height: 4, rotation_deg: 0 },
+  ];
+  const design = { exists: true, version: 3, layout_changed: false, updated_at: null, can_undo: false, can_redo: false, data: { schema: 1, units: "m", next_id: 2, source: null, elements } };
+  const versions = [
+    { number: 2, label: "بعد از تغییر", model_version: 3, element_count: 1, author: "علی", created_at: null, comment_count: 1 },
+    { number: 1, label: "اولیه", model_version: 1, element_count: 2, author: "علی", created_at: null, comment_count: 0 },
+  ];
+  const reply = (status, body) => (route) =>
+    route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) }).then(() => true);
+  const detail = { ...versions[0], data: { elements }, comments: [
+    { id: "c1", element_id: "E-0001", body: "عرض کم است", author: "علی", version_number: 2, created_at: null },
+  ] };
+
+  test("versions are listed, compared with changes identified, and commented on by element ID", async ({ page }) => {
+    const state = { loggedIn: true, design, designVersions: versions };
+    await mockApi(page, state, {
+      [`GET /projects/${PROJECT.id}/design/versions/2`]: reply(200, detail),
+      [`GET /projects/${PROJECT.id}/design/compare`]: reply(200, {
+        from: { number: 1, label: "اولیه", model_version: 1 }, to: { number: null, label: null, model_version: 3 },
+        added: [], removed: [{ id: "E-0002", type: "wall", floor: 1, locked: false }],
+        changed: [{ id: "E-0001", type: "space", floor: 1, fields: [{ field: "x", before: 0, after: 2 }] }],
+        unchanged: 0, summary: { added: 0, removed: 1, changed: 1 } }),
+      [`POST /projects/${PROJECT.id}/design/versions/2/comments`]: reply(201, detail.comments[0]),
+      [`POST /projects/${PROJECT.id}/design/versions`]: reply(201, versions[0]),
+    });
+    await page.goto(url);
+    await expect(page.getByRole("cell", { name: "اولیه", exact: true })).toBeVisible();
+    await expect(page.getByText(/\[E-0001\] عرض کم است — علی/)).toBeVisible();
+    await page.getByRole("button", { name: "مقایسه", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "۱ حذف" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "تغییر کرد" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "حذف شد" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: /x: ۰ ← ۲/ })).toBeVisible();
+    await page.getByLabel("عنصر (اختیاری)").selectOption("E-0001");
+    await page.getByLabel("متن نظر").fill("باید بزرگ‌تر شود");
+    await page.getByRole("button", { name: "ثبت نظر" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "نظر ثبت شد" })).toBeVisible();
+    const posted = state.requests.find((r) => r.key.endsWith("/versions/2/comments"));
+    expect(posted.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(posted.body).toEqual({ body: "باید بزرگ‌تر شود", element_id: "E-0001" });
+    await page.getByLabel("عنوان نسخه").fill("پیش از جلسه");
+    await page.getByRole("button", { name: "ذخیرهٔ نسخهٔ جدید" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "نسخه ذخیره شد" })).toBeVisible();
+    const saved = state.requests.find((r) => r.key.endsWith("/design/versions") && r.key.startsWith("POST"));
+    expect(saved.body).toEqual({ version: 3, label: "پیش از جلسه" });
+  });
+
+  test("members without edit permission can read and comment but not save", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, permissions: ["project.view", "project.design.comment"], design, designVersions: versions }, {
+      [`GET /projects/${PROJECT.id}/design/versions/2`]: reply(200, detail),
+    });
+    await page.goto(url);
+    await expect(page.getByRole("button", { name: "ذخیرهٔ نسخهٔ جدید" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "ثبت نظر" })).toBeVisible();
+  });
+
+  test("viewers without comment permission have no comment form", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, permissions: ["project.view"], design, designVersions: versions }, {
+      [`GET /projects/${PROJECT.id}/design/versions/2`]: reply(200, detail),
+    });
+    await page.goto(url);
+    await expect(page.getByRole("button", { name: "ثبت نظر" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "مقایسه", exact: true })).toBeVisible();
+  });
+});
+
 test.describe("client requirements", () => {
   const url = `/projects/${PROJECT.id}`;
   const ok = (body) => (route) =>

@@ -19,6 +19,9 @@ PROJECT_ACTION_ROLES: dict[str, frozenset[str]] = {
     "project.zoning.edit": frozenset({"owner", "architect"}),
     "project.requirements.edit": frozenset({"owner", "architect"}),
     "project.design.edit": frozenset({"owner", "architect"}),
+    "project.design.comment": frozenset(
+        {"owner", "architect", "structural_engineer", "mep_engineer", "quantity_surveyor"}
+    ),
     "project.environment.edit": frozenset(
         {"owner", "architect", "structural_engineer", "mep_engineer"}
     ),

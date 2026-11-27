@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from smart_engineer_api import auth_service as auth
 from smart_engineer_api import (
     design_service,
+    design_version_service,
     layout_service,
     org_service,
     project_service,
@@ -22,6 +23,7 @@ from smart_engineer_api import space_schedule_service as schedules
 from smart_engineer_api.config import Settings
 from smart_engineer_api.db import ActivityEvent, Base, DesignHistory, DesignModel, Membership
 from smart_engineer_api.db.session import create_session_factory
+from smart_engineer_api.design_compare import compare_models
 from smart_engineer_api.design_model import (
     DesignError,
     apply_operations,
@@ -330,6 +332,22 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(failure(model, deletions)[0], "vertical_invalid_level")
         self.assertIsNone(failure(model, [{"op": "lock", "id": "E-0001"}]))
 
+    def test_compare_matches_elements_by_stable_id_and_lists_every_changed_field(self):
+        before = base()
+        after = apply_operations(before, [
+            {"op": "move", "id": "E-0001", "dx": 1, "dy": 0},
+            {"op": "lock", "id": "E-0001"},
+            {"op": "delete", "id": "E-0002"},
+            {"op": "add", "element": SPACE}])
+        diff = compare_models(before, after)
+        self.assertEqual(diff["summary"], {"added": 1, "removed": 3, "changed": 1})
+        self.assertEqual({e["id"] for e in diff["removed"]}, {"E-0002", "E-0003", "E-0004"})
+        self.assertEqual(diff["changed"][0]["id"], "E-0001")
+        self.assertEqual({f["field"] for f in diff["changed"][0]["fields"]}, {"x", "locked"})
+        self.assertEqual(compare_models(before, before)["summary"],
+                         {"added": 0, "removed": 0, "changed": 0})
+        self.assertEqual(compare_models(before, before)["unchanged"], 4)
+
 
 class DesignServiceTests(unittest.TestCase):
     def setUp(self):
@@ -600,6 +618,155 @@ class DesignServiceTests(unittest.TestCase):
         with self.assertRaises(DesignError) as clash:
             self.edit([{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}], 4)
         self.assertEqual(clash.exception.code, "floor_not_empty")
+
+    def member(self, name, role):
+        user = self.user(name)
+        _, token = org_service.create_invitation(
+            self.session, self.owner, self.org, email=user.email, org_role="member")
+        org_service.accept_invitation(self.session, user, token)
+        project_service.add_member(self.session, self.owner, self.project.id,
+                                   email=user.email, role=role)
+        return user
+
+    def save(self, label, version, actor=None):
+        return design_version_service.save_version(
+            self.session, actor or self.owner, self.project.id, label=label,
+            expected_version=version)
+
+    def test_saved_versions_are_immutable_snapshots_with_author_and_label(self):
+        qs = self.member("qs", "quantity_surveyor")
+        with self.assertRaises(design_service.DesignServiceError) as none:
+            self.save("x", 1)
+        self.assertEqual(none.exception.code, "no_design")
+        made, first = self.import_and_edit()
+        one = self.save("  اولیه  ", 1)
+        self.assertEqual((one["number"], one["label"], one["author"], one["element_count"]),
+                         (1, "اولیه", "owner", len(made["data"]["elements"])))
+        edited = self.edit([{"op": "move", "id": first, "dx": 1, "dy": 0}], 1)
+        two = self.save("بعد از جابه‌جایی", edited["version"])
+        self.assertEqual(two["number"], 2)
+        stored = design_version_service.get_version(self.session, qs, self.project.id, 1)
+        self.assertEqual(stored["data"], made["data"])
+        names = [v["label"] for v in design_version_service.list_versions(
+            self.session, qs, self.project.id)["versions"]]
+        self.assertEqual(names, ["بعد از جابه‌جایی", "اولیه"])
+        for bad in ("", "   ", "x" * 121):
+            with self.assertRaises(design_service.DesignServiceError) as invalid:
+                self.save(bad, edited["version"])
+            self.assertEqual(invalid.exception.code, "invalid_value")
+        with self.assertRaises(design_service.DesignServiceError) as stale:
+            self.save("late", 1)
+        self.assertEqual(stale.exception.code, "version_conflict")
+        with self.assertRaises(AccessDenied):
+            self.save("not allowed", edited["version"], actor=qs)
+        with self.assertRaises(design_service.DesignServiceError) as unknown:
+            design_version_service.get_version(self.session, qs, self.project.id, 9)
+        self.assertEqual(unknown.exception.code, "unknown_version")
+        self.assertIn("project.design_version_saved", [e.action for e in self.session.scalars(
+            select(ActivityEvent))])
+
+    def test_comparing_versions_identifies_added_removed_and_changed_elements(self):
+        made, first = self.import_and_edit()
+        self.save("v1", 1)
+        second = self.edit([
+            {"op": "move", "id": first, "dx": 2, "dy": 0},
+            {"op": "add", "element": {"type": "space", "kind": "storage", "x": 50, "y": 50,
+                                      "width": 2, "height": 2}},
+            {"op": "delete", "id": made["data"]["elements"][1]["id"]}], 1)
+        self.save("v2", second["version"])
+        diff = design_version_service.compare_versions(
+            self.session, self.owner, self.project.id, "1", "2")
+        gone = made["data"]["elements"][1]["id"]
+        self.assertEqual(diff["summary"], {"added": 1, "removed": 1, "changed": 1})
+        self.assertEqual([e["id"] for e in diff["removed"]], [gone])
+        self.assertEqual(diff["changed"][0]["id"], first)
+        self.assertEqual([f["field"] for f in diff["changed"][0]["fields"]], ["x"])
+        self.assertEqual((diff["from"]["number"], diff["to"]["number"]), (1, 2))
+        self.assertEqual(design_version_service.compare_versions(
+            self.session, self.owner, self.project.id, "2", "current")["summary"],
+            {"added": 0, "removed": 0, "changed": 0})
+        later = design_version_service.compare_versions(
+            self.session, self.owner, self.project.id, "1", "current")
+        self.assertEqual(later["to"]["number"], None)
+        self.assertEqual(later["summary"], diff["summary"])
+        for ref in ("7", "abc"):
+            with self.assertRaises(design_service.DesignServiceError) as unknown:
+                design_version_service.compare_versions(
+                    self.session, self.owner, self.project.id, "1", ref)
+            self.assertEqual(unknown.exception.code, "unknown_version")
+
+    def test_comments_attach_to_a_version_and_an_existing_element_id(self):
+        qs = self.member("qs", "quantity_surveyor")
+        made, first = self.import_and_edit()
+        self.save("v1", 1)
+        edited = self.edit([{"op": "delete", "id": first}], 1)
+        self.save("v2", edited["version"])
+        comment = design_version_service.add_comment(
+            self.session, qs, self.project.id, 1, body="  عرض کم است ", element_id=first)
+        self.assertEqual((comment["author"], comment["element_id"], comment["version_number"],
+                          comment["body"]), ("qs", first, 1, "عرض کم است"))
+        # the element no longer exists in version 2, so a comment there is refused
+        with self.assertRaises(design_service.DesignServiceError) as gone:
+            design_version_service.add_comment(self.session, qs, self.project.id, 2,
+                                               body="x", element_id=first)
+        self.assertEqual(gone.exception.code, "unknown_element")
+        whole = design_version_service.add_comment(self.session, self.owner, self.project.id,
+                                                   2, body="کل طرح")
+        self.assertIsNone(whole["element_id"])
+        for bad in ("", "  ", "y" * 2001):
+            with self.assertRaises(design_service.DesignServiceError) as invalid:
+                design_version_service.add_comment(self.session, qs, self.project.id, 1, body=bad)
+            self.assertEqual(invalid.exception.code, "invalid_value")
+        with self.assertRaises(design_service.DesignServiceError) as unknown:
+            design_version_service.add_comment(self.session, qs, self.project.id, 5, body="x")
+        self.assertEqual(unknown.exception.code, "unknown_version")
+        shown = design_version_service.get_version(self.session, qs, self.project.id, 1)
+        self.assertEqual([c["body"] for c in shown["comments"]], ["عرض کم است"])
+        other = design_version_service.get_version(self.session, qs, self.project.id, 2)
+        self.assertEqual([c["body"] for c in other["comments"]], ["کل طرح"])
+        counts = {v["number"]: v["comment_count"] for v in design_version_service.list_versions(
+            self.session, qs, self.project.id)["versions"]}
+        self.assertEqual(counts, {1: 1, 2: 1})
+        outsider = self.user("outsider")
+        with self.assertRaises(AccessDenied):
+            design_version_service.add_comment(self.session, outsider, self.project.id, 1,
+                                               body="hi")
+
+    def test_versions_http_round_trip(self):
+        self.prepare_layouts()
+        client = TestClient(create_app(Settings(environment="test"),
+                                       session_factory=self.sessions, auth_policy=POLICY))
+        self.addCleanup(client.close)
+        login = client.post("/api/v1/auth/login",
+                            json={"email": self.owner.email, "password": PASSWORD})
+        headers = {"X-CSRF-Token": login.json()["csrf_token"]}
+        url = f"/api/v1/projects/{self.project.id}/design"
+        client.post(f"{url}/import-layout", headers=headers,
+                    json={"alternative_id": "ALT-1", "version": 0})
+        saved = client.post(f"{url}/versions", headers=headers, json={"version": 1, "label": "A"})
+        self.assertEqual((saved.status_code, saved.json()["number"]), (201, 1))
+        stale = client.post(f"{url}/versions", headers=headers, json={"version": 9, "label": "B"})
+        self.assertEqual((stale.status_code, stale.json()["error"]["code"]),
+                         (409, "version_conflict"))
+        client.post(f"{url}/edit", headers=headers, json={"version": 1, "operations": [
+            {"op": "lock", "id": "E-0001"}]})
+        compared = client.get(f"{url}/compare", params={"a": "1", "b": "current"})
+        self.assertEqual(compared.status_code, 200, compared.text)
+        self.assertEqual(compared.json()["changed"][0]["fields"],
+                         [{"field": "locked", "before": False, "after": True}])
+        comment = client.post(f"{url}/versions/1/comments", headers=headers,
+                              json={"body": "نکته", "element_id": "E-0001"})
+        self.assertEqual((comment.status_code, comment.json()["element_id"]), (201, "E-0001"))
+        detail = client.get(f"{url}/versions/1").json()
+        self.assertEqual((detail["label"], len(detail["comments"])), ("A", 1))
+        missing = client.get(f"{url}/versions/5")
+        self.assertEqual((missing.status_code, missing.json()["error"]["code"]),
+                         (404, "unknown_version"))
+        bad = client.post(f"{url}/versions/1/comments", headers=headers,
+                          json={"body": "x", "element_id": "E-9999"})
+        self.assertEqual((bad.status_code, bad.json()["error"]["code"]), (422, "unknown_element"))
+        self.assertEqual(client.post(f"{url}/versions", json={"version": 1, "label": "C"})
+                         .status_code, 403)
 
     def test_http_round_trip_with_explicit_lock_reason(self):
         self.prepare_layouts()
