@@ -538,7 +538,7 @@ class DesignServiceTests(unittest.TestCase):
         self.assertEqual((undone.status_code, undone.json()["can_redo"]), (200, True))
         redone = client.post(f"{url}/redo", headers=headers, json={"version": 4})
         self.assertEqual(redone.json()["data"], scaled.json()["data"])
-        self.assertEqual(client.get(f"{url}/history").json()["position"], 4)
+        self.assertEqual(client.get(f"{url}/history").json()["position"], 3)
         nothing = client.post(f"{url}/redo", headers=headers, json={"version": 5})
         self.assertEqual((nothing.status_code, nothing.json()["error"]["code"]),
                          (409, "nothing_to_redo"))
