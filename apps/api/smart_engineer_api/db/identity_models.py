@@ -522,6 +522,37 @@ class LayoutProposal(Base):
     )
 
 
+class DesignModel(Base):
+    """The editable base design model (ARCH-003), one working model per project.
+
+    ``data`` is the JSON model from ``design_model.py`` (stable element IDs, metres). It
+    changes only through explicit, versioned edit operations.
+    """
+
+    __tablename__ = "design_models"
+    __table_args__ = (
+        UniqueConstraint("project_id"),
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 class EnvironmentRecord(Base):
     """One environmental / technical-condition category with its source (ENV-001).
 

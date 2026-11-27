@@ -15,6 +15,7 @@ import { useResource } from "../lib/use-resource";
 import { FormError, FormField, FormNotice } from "./form-field";
 import { LayoutsPanel } from "./layouts-panel";
 import { IntakePanel } from "./intake-panel";
+import { DesignPanel } from "./design-panel";
 import { EnvironmentPanel } from "./environment-panel";
 import { FilesPanel } from "./files-panel";
 import { RequirementsPanel } from "./requirements-panel";
@@ -492,6 +493,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         <LayoutsPanel
           projectId={projectId}
           canEdit={can("project.requirements.edit")}
+          version={version}
+        />
+      )}
+
+      {myRole === "org_admin" ? null : (
+        <DesignPanel
+          projectId={projectId}
+          canEdit={can("project.design.edit")}
           version={version}
         />
       )}

@@ -26,6 +26,7 @@ export const OWNER_PERMISSIONS = [
   "project.site.edit",
   "project.zoning.edit",
   "project.requirements.edit",
+  "project.design.edit",
   "project.environment.edit",
   "project.files.upload",
   "project.files.delete",
@@ -175,6 +176,10 @@ export async function mockApi(page, state = {}, overrides = {}) {
       case `GET /projects/${PROJECT.id}/layouts`:
         return json(route, 200, state.layouts ?? {
           exists: false, data: null, version: 0, stale: false, updated_at: null,
+        });
+      case `GET /projects/${PROJECT.id}/design`:
+        return json(route, 200, state.design ?? {
+          exists: false, data: null, version: 0, layout_changed: false, updated_at: null,
         });
       case `GET /projects/${PROJECT.id}/files`:
         return json(route, 200, { files: state.files ?? [] });

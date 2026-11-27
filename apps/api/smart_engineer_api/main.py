@@ -9,6 +9,10 @@ from .auth_routes import auth_error_handler
 from .auth_routes import router as auth_router
 from .config import ConfigurationError, Settings
 from .db.session import create_db_engine, create_session_factory
+from .design_model import DesignError
+from .design_routes import design_error_handler, design_service_error_handler
+from .design_routes import router as design_router
+from .design_service import DesignServiceError
 from .environment_routes import environment_error_handler, environment_validation_handler
 from .environment_routes import router as environment_router
 from .environment_service import EnvironmentError_, EnvironmentValidationError
@@ -122,6 +126,8 @@ def create_app(
     app.add_exception_handler(GeometryError, geometry_error_handler)
     app.add_exception_handler(ScheduleError, schedule_error_handler)
     app.add_exception_handler(LayoutError, layout_error_handler)
+    app.add_exception_handler(DesignError, design_error_handler)
+    app.add_exception_handler(DesignServiceError, design_service_error_handler)
     app.include_router(geometry_router, prefix=API_V1_PREFIX)
     app.include_router(operational_router)
     app.include_router(v1_router)
@@ -136,6 +142,7 @@ def create_app(
     app.include_router(requirements_router, prefix=API_V1_PREFIX)
     app.include_router(space_schedule_router, prefix=API_V1_PREFIX)
     app.include_router(layout_router, prefix=API_V1_PREFIX)
+    app.include_router(design_router, prefix=API_V1_PREFIX)
     app.include_router(zoning_router, prefix=API_V1_PREFIX)
     return app
 
