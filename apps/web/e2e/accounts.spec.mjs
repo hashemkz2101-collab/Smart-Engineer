@@ -754,7 +754,7 @@ test.describe("design editing", () => {
     });
     await page.goto(url);
     await expect(page.getByRole("img", { name: /نمای طرح/ })).toBeVisible();
-    await expect(page.getByRole("cell", { name: /E-0002/ })).toBeVisible();
+    await expect(page.getByRole("cell", { name: /^E-0002 —/ })).toBeVisible();
     await expect(page.getByRole("cell", { name: "قفل", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "انتخاب E-0001" }).click();
     await page.getByRole("button", { name: "قفل کردن" }).click();
@@ -802,7 +802,7 @@ test.describe("design editing", () => {
   test("view-only members see the design without edit or import controls", async ({ page }) => {
     await mockApi(page, { loggedIn: true, permissions: ["project.view"], design });
     await page.goto(url);
-    await expect(page.getByRole("cell", { name: /E-0001/ })).toBeVisible();
+    await expect(page.getByRole("cell", { name: /^E-0001 —/ })).toBeVisible();
     await page.getByRole("button", { name: "انتخاب E-0001" }).click();
     await expect(page.getByRole("button", { name: "قفل کردن" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "واردکردن گزینه به‌عنوان طرح" })).toHaveCount(0);
