@@ -192,6 +192,9 @@ export function LayoutsPanel({
           <p>
             {fa(alternative.metrics.placed_spaces)} فضا جانمایی شد، {fa(alternative.metrics.unplaced_spaces)} فضا جانمایی نشد؛
             مجموع مساحت جانمایی‌شده {fa(alternative.metrics.placed_area_m2)} متر مربع در {fa(alternative.metrics.floors_used)} طبقه.
+            {alternative.metrics.footprint_coverage_percent !== undefined
+              ? ` بلوک‌های طبقهٔ اول ${fa(alternative.metrics.footprint_coverage_percent)} درصد از محدودهٔ قابل ساخت را می‌پوشانند؛ مساحت هر فضا همان است که در برنامه داده‌اید و برای پر کردن زمین بزرگ نمی‌شود.`
+              : ""}
           </p>
           {alternative.floors.length > 1 ? (
             <div className="tabs" role="group" aria-label="طبقه‌ها">

@@ -27,6 +27,7 @@ export type Alternative = {
     placed_area_m2: number;
     fully_placed: boolean;
     floors_used: number;
+    footprint_coverage_percent?: number;
   };
 };
 
