@@ -3,9 +3,10 @@
 import copy
 import tempfile
 import unittest
+from decimal import Decimal
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from smart_engineer_api import auth_service as auth
 from smart_engineer_api import (
@@ -19,12 +20,13 @@ from smart_engineer_api import (
 )
 from smart_engineer_api import space_schedule_service as schedules
 from smart_engineer_api.config import Settings
-from smart_engineer_api.db import ActivityEvent, Base, Membership
+from smart_engineer_api.db import ActivityEvent, Base, DesignHistory, DesignModel, Membership
 from smart_engineer_api.db.session import create_session_factory
 from smart_engineer_api.design_model import (
     DesignError,
     apply_operations,
     empty_model,
+    snap_value,
     wall_length,
 )
 from smart_engineer_api.main import create_app
@@ -178,6 +180,67 @@ class ModelTests(unittest.TestCase):
             self.assertEqual(failure(model, [{"op": "set", "id": "E-0001", "fields": fields}])[0],
                              "invalid_value")
 
+    def test_lengths_are_converted_exactly_from_m_cm_and_mm(self):
+        spec = {"type": "space", "kind": "living"}
+        cm = apply_operations(empty_model(), [{"op": "add", "element": {
+            **spec, "x": 150, "y": 33.3, "width": 400, "height": 250.5}}], unit="cm")
+        mm = apply_operations(empty_model(), [{"op": "add", "element": {
+            **spec, "x": 1500, "y": 333, "width": 4000, "height": 2505}}], unit="mm")
+        metres = apply_operations(empty_model(), [{"op": "add", "element": {
+            **spec, "x": 1.5, "y": 0.333, "width": 4, "height": 2.505}}])
+        self.assertEqual(cm, mm)
+        self.assertEqual(cm, metres)
+        moved = apply_operations(metres, [{"op": "move", "id": "E-0001", "dx": 250, "dy": -10}],
+                                 unit="cm")
+        self.assertEqual((element(moved, "E-0001")["x"], element(moved, "E-0001")["y"]),
+                         (4.0, 0.233))
+        door = apply_operations(base(), [{"op": "move", "id": "E-0003", "along_m": 300}],
+                                unit="cm")
+        self.assertEqual(element(door, "E-0003")["offset_m"], 4.0)
+
+    def test_rotation_degrees_are_not_scaled_by_the_length_unit(self):
+        turned = apply_operations(base(), [{"op": "rotate", "id": "E-0001", "degrees": 90}],
+                                  unit="mm")
+        self.assertEqual(element(turned, "E-0001")["rotation_deg"], 90)
+
+    def test_snap_rounds_changed_geometry_to_the_grid(self):
+        model = apply_operations(empty_model(), [{"op": "add", "element": {
+            "type": "space", "kind": "living", "x": 1.234, "y": -0.275, "width": 3.97,
+            "height": 2.51}}], snap={"grid": 5, "unit": "cm"})
+        space = element(model, "E-0001")
+        self.assertEqual((space["x"], space["y"], space["width"], space["height"]),
+                         (1.25, -0.3, 3.95, 2.5))
+        coarse = apply_operations(model, [{"op": "move", "id": "E-0001", "dx": 0.04, "dy": 0}],
+                                  snap={"grid": 0.5})
+        self.assertEqual(element(coarse, "E-0001")["x"], 1.5)
+        untouched = apply_operations(model, [{"op": "lock", "id": "E-0001"}], snap={"grid": 1})
+        self.assertEqual(element(untouched, "E-0001")["x"], 1.25)
+        rotated = apply_operations(model, [{"op": "rotate", "id": "E-0001", "degrees": 90}],
+                                   snap={"grid": 1})
+        self.assertEqual(element(rotated, "E-0001")["width"], 2.5)
+
+    def test_snap_ties_round_away_from_zero_and_never_collapse_elements(self):
+        for value, expected in ((0.125, 0.15), (-0.125, -0.15), (0.12, 0.1)):
+            self.assertEqual(snap_value(value, Decimal("0.05")), expected)
+        small = apply_operations(empty_model(), [{"op": "add", "element": SPACE}])
+        with self.assertRaises(DesignError) as collapse:
+            apply_operations(small, [{"op": "resize", "id": "E-0001", "width": 0.02,
+                                      "height": 2}], snap={"grid": 10, "unit": "cm"})
+        self.assertEqual((collapse.exception.code, collapse.exception.element_id),
+                         ("snap_collapses_element", "E-0001"))
+        with self.assertRaises(DesignError) as flat:
+            apply_operations(base(), [{"op": "resize", "id": "E-0004", "width_m": 0.4}],
+                             snap={"grid": 1})
+        self.assertEqual((flat.exception.code, flat.exception.element_id),
+                         ("snap_collapses_element", "E-0004"))
+        for bad in ({"grid": 0.0001}, {"grid": 1000}, {"grid": "x"}, {"grid": True}, {}, 5):
+            with self.assertRaises(DesignError) as invalid:
+                apply_operations(small, [{"op": "lock", "id": "E-0001"}], snap=bad)
+            self.assertEqual(invalid.exception.code, "invalid_snap", bad)
+        with self.assertRaises(DesignError) as unit:
+            apply_operations(small, [{"op": "lock", "id": "E-0001"}], unit="ft")
+        self.assertEqual(unit.exception.code, "invalid_unit")
+
 
 class DesignServiceTests(unittest.TestCase):
     def setUp(self):
@@ -305,6 +368,132 @@ class DesignServiceTests(unittest.TestCase):
         with self.assertRaises(AccessDenied):
             self.edit([{"op": "lock", "id": "E-0001"}], 1)
 
+
+    def import_and_edit(self):
+        self.prepare_layouts()
+        made = self.importing()
+        first = made["data"]["elements"][0]["id"]
+        return made, first
+
+    def test_undo_then_redo_restores_the_exact_states(self):
+        made, first = self.import_and_edit()
+        self.assertEqual((made["can_undo"], made["can_redo"], made["history_position"]),
+                         (False, False, 1))
+        one = self.edit([{"op": "move", "id": first, "dx": 1, "dy": 0}], 1)
+        two = self.edit([{"op": "lock", "id": first}], 2)
+        self.assertEqual((two["can_undo"], two["can_redo"], two["history_position"]),
+                         (True, False, 3))
+        back = design_service.undo_design(self.session, self.owner, self.project.id,
+                                          expected_version=3)
+        self.assertEqual((back["data"], back["can_redo"], back["version"]),
+                         (one["data"], True, 4))
+        again = design_service.undo_design(self.session, self.owner, self.project.id,
+                                           expected_version=4)
+        self.assertEqual((again["data"], again["can_undo"]), (made["data"], False))
+        with self.assertRaises(design_service.DesignServiceError) as floor:
+            design_service.undo_design(self.session, self.owner, self.project.id,
+                                       expected_version=5)
+        self.assertEqual(floor.exception.code, "nothing_to_undo")
+        forward = design_service.redo_design(self.session, self.owner, self.project.id,
+                                             expected_version=5)
+        last = design_service.redo_design(self.session, self.owner, self.project.id,
+                                          expected_version=6)
+        self.assertEqual((forward["data"], last["data"]), (one["data"], two["data"]))
+        self.assertEqual((last["can_redo"], last["version"]), (False, 7))
+        with self.assertRaises(design_service.DesignServiceError) as top:
+            design_service.redo_design(self.session, self.owner, self.project.id,
+                                       expected_version=7)
+        self.assertEqual(top.exception.code, "nothing_to_redo")
+        stored = self.session.scalar(select(DesignModel))
+        self.assertEqual((stored.data, stored.head_seq), (two["data"], 3))
+
+    def test_a_new_edit_after_undo_discards_the_redo_side(self):
+        made, first = self.import_and_edit()
+        self.edit([{"op": "move", "id": first, "dx": 1, "dy": 0}], 1)
+        design_service.undo_design(self.session, self.owner, self.project.id, expected_version=2)
+        branch = self.edit([{"op": "move", "id": first, "dx": 0, "dy": 2}], 3)
+        self.assertEqual((branch["can_redo"], branch["history_position"],
+                          branch["history_length"]), (False, 2, 2))
+        sequence = [row.seq for row in self.session.scalars(
+            select(DesignHistory).order_by(DesignHistory.seq))]
+        self.assertEqual(sequence, [1, 2])
+
+    def test_undo_redo_conflicts_roles_and_audit(self):
+        qs = self.user("qs")
+        _, token = org_service.create_invitation(
+            self.session, self.owner, self.org, email=qs.email, org_role="member")
+        org_service.accept_invitation(self.session, qs, token)
+        project_service.add_member(self.session, self.owner, self.project.id,
+                                   email=qs.email, role="quantity_surveyor")
+        made, first = self.import_and_edit()
+        self.edit([{"op": "lock", "id": first}], 1)
+        with self.assertRaises(design_service.DesignServiceError) as stale:
+            design_service.undo_design(self.session, self.owner, self.project.id,
+                                       expected_version=1)
+        self.assertEqual(stale.exception.code, "version_conflict")
+        with self.assertRaises(AccessDenied):
+            design_service.undo_design(self.session, qs, self.project.id, expected_version=2)
+        done = design_service.undo_design(self.session, self.owner, self.project.id,
+                                          expected_version=2)
+        self.assertFalse(done["data"]["elements"][0]["locked"])
+        actions = [e.action for e in self.session.scalars(select(ActivityEvent).order_by(
+            ActivityEvent.created_at))]
+        self.assertIn("project.design_undone", actions)
+        history = design_service.design_history(self.session, qs, self.project.id)
+        self.assertEqual((history["position"], [e["seq"] for e in history["entries"]],
+                          [e["current"] for e in history["entries"]]),
+                         (1, [2, 1], [False, True]))
+        self.assertEqual(history["entries"][0]["summary"]["operations"],
+                         [{"op": "lock", "id": first}])
+        self.assertEqual(history["entries"][0]["actor"], "owner")
+
+    def test_designs_without_history_get_a_baseline_and_old_entries_are_pruned(self):
+        made, first = self.import_and_edit()
+        self.session.query(DesignHistory).delete()
+        row = self.session.scalar(select(DesignModel))
+        row.head_seq = 0
+        self.session.commit()
+        legacy = design_service.get_design(self.session, self.owner, self.project.id)
+        self.assertEqual((legacy["can_undo"], legacy["can_redo"]), (False, False))
+        edited = self.edit([{"op": "lock", "id": first}], 1)
+        self.assertEqual((edited["history_position"], edited["can_undo"]), (2, True))
+        undone = design_service.undo_design(self.session, self.owner, self.project.id,
+                                            expected_version=2)
+        self.assertEqual(undone["data"], made["data"])
+        original = design_service.HISTORY_LIMIT
+        design_service.HISTORY_LIMIT = 3
+        self.addCleanup(setattr, design_service, "HISTORY_LIMIT", original)
+        version = undone["version"]
+        for _ in range(5):
+            version = self.edit([{"op": "move", "id": first, "dx": 1, "dy": 0}],
+                                version)["version"]
+        low = self.session.scalar(select(func.min(DesignHistory.seq)))
+        high = self.session.scalar(select(func.max(DesignHistory.seq)))
+        self.assertEqual((high - low + 1), 3)
+        for expected in (version, version + 1):
+            design_service.undo_design(self.session, self.owner, self.project.id,
+                                       expected_version=expected)
+        with self.assertRaises(design_service.DesignServiceError) as pruned:
+            design_service.undo_design(self.session, self.owner, self.project.id,
+                                       expected_version=version + 2)
+        self.assertEqual(pruned.exception.code, "nothing_to_undo")
+
+    def test_unit_and_snap_apply_to_stored_edits(self):
+        made, first = self.import_and_edit()
+        edited = design_service.edit_design(
+            self.session, self.owner, self.project.id, expected_version=1, unit="cm",
+            snap={"grid": 5, "unit": "cm"},
+            operations=[{"op": "add", "element": {
+                "type": "space", "kind": "storage", "x": 1234, "y": 5, "width": 197,
+                "height": 251}}])
+        added = edited["data"]["elements"][-1]
+        self.assertEqual((added["x"], added["y"], added["width"], added["height"]),
+                         (12.35, 0.05, 1.95, 2.5))
+        entry = design_service.design_history(self.session, self.owner,
+                                              self.project.id)["entries"][0]
+        self.assertEqual((entry["summary"]["unit"], entry["summary"]["snap"]),
+                         ("cm", {"grid": 5, "unit": "cm"}))
+
     def test_http_round_trip_with_explicit_lock_reason(self):
         self.prepare_layouts()
         client = TestClient(create_app(Settings(environment="test"),
@@ -336,6 +525,33 @@ class DesignServiceTests(unittest.TestCase):
         self.assertEqual((invalid.status_code, invalid.json()["error"]["code"]),
                          (422, "invalid_value"))
         self.assertEqual(client.get(url).json()["version"], 2)
+
+        scaled = client.post(f"{url}/edit", headers=headers, json={
+            "version": 2, "unit": "cm", "snap": {"grid": 10},
+            "operations": [{"op": "add", "element": {
+                "type": "space", "kind": "storage", "x": 103, "y": 0, "width": 200,
+                "height": 150}}]})
+        self.assertEqual(scaled.status_code, 200, scaled.text)
+        self.assertEqual([scaled.json()["data"]["elements"][-1][k]
+                          for k in ("x", "width", "height")], [1.0, 2.0, 1.5])
+        undone = client.post(f"{url}/undo", headers=headers, json={"version": 3})
+        self.assertEqual((undone.status_code, undone.json()["can_redo"]), (200, True))
+        redone = client.post(f"{url}/redo", headers=headers, json={"version": 4})
+        self.assertEqual(redone.json()["data"], scaled.json()["data"])
+        self.assertEqual(client.get(f"{url}/history").json()["position"], 3)
+        nothing = client.post(f"{url}/redo", headers=headers, json={"version": 5})
+        self.assertEqual((nothing.status_code, nothing.json()["error"]["code"]),
+                         (409, "nothing_to_redo"))
+        for payload, code in (({"unit": "ft"}, "validation_error"),
+                              ({"snap": {"grid": 0}}, "validation_error")):
+            bad = client.post(f"{url}/edit", headers=headers, json={
+                "version": 5, "operations": [{"op": "lock", "id": "E-0001"}], **payload})
+            self.assertEqual((bad.status_code, bad.json()["error"]["code"]), (422, code))
+        tiny = client.post(f"{url}/edit", headers=headers, json={
+            "version": 5, "snap": {"grid": 0.0001},
+            "operations": [{"op": "lock", "id": "E-0001"}]})
+        self.assertEqual((tiny.status_code, tiny.json()["error"]["code"]),
+                         (422, "invalid_snap"))
 
 
 if __name__ == "__main__":

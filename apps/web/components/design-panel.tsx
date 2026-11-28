@@ -3,7 +3,19 @@
 import { useState, type FormEvent } from "react";
 
 import { api, toApiError } from "../lib/api";
-import { typeLabels, wallLength, type DesignElement, type DesignOperation, type DesignState } from "../lib/design";
+import {
+  operationLabels,
+  snapChoices,
+  typeLabels,
+  unitFactors,
+  unitNames,
+  wallLength,
+  type DesignElement,
+  type DesignHistory,
+  type DesignOperation,
+  type DesignState,
+  type LengthUnit,
+} from "../lib/design";
 import type { LayoutState } from "../lib/layouts";
 import { requirementSections } from "../lib/requirements";
 import { useResource } from "../lib/use-resource";
@@ -90,7 +102,10 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
   const [floor, setFloor] = useState(1);
   const [alternativeId, setAlternativeId] = useState("");
   const [replace, setReplace] = useState(false);
+  const [unit, setUnit] = useState<LengthUnit>("m");
+  const [snap, setSnap] = useState("");
   const resource = useResource<DesignState>(`/projects/${projectId}/design`, version + reload);
+  const historyState = useResource<DesignHistory>(`/projects/${projectId}/design/history`, version + reload);
   const layouts = useResource<LayoutState>(`/projects/${projectId}/layouts`, version + reload);
   const state = resource.data;
   const model = state?.data ?? null;
@@ -98,6 +113,10 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
   const activeFloor = floors.includes(floor) ? floor : (floors[0] ?? 1);
   const elements = model?.elements.filter((e) => e.floor === activeFloor) ?? [];
   const current = model?.elements.find((e) => e.id === selected) ?? null;
+  const factor = unitFactors[unit];
+  const unitName = unitNames[unit];
+  const scaled = (value: number | undefined) => Number(((value ?? 0) * factor).toFixed(3));
+  const show = (value: number | undefined) => fa(scaled(value));
   const options = layouts.data?.data?.alternatives ?? [];
   const chosenAlternative = alternativeId || options[0]?.id || "";
 
@@ -115,8 +134,16 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
     }
   }
 
-  const edit = (operation: DesignOperation, success = "تغییر ذخیره شد.") =>
-    state ? call("edit", { version: state.version, operations: [operation] }, success) : Promise.resolve();
+  const edit = (operation: DesignOperation, success = "تغییر ذخیره شد.") => {
+    if (!state) return Promise.resolve();
+    const body: Record<string, unknown> = { version: state.version, operations: [operation] };
+    if (unit !== "m") body.unit = unit;
+    if (snap) body.snap = { grid: Number(snap), unit };
+    return call("edit", body, success);
+  };
+
+  const step = (direction: "undo" | "redo") =>
+    state ? call(direction, { version: state.version }, direction === "undo" ? "آخرین تغییر برگردانده شد." : "تغییر دوباره اعمال شد.") : Promise.resolve();
 
   function submit(handler: (form: FormData) => DesignOperation) {
     return (event: FormEvent<HTMLFormElement>) => {
@@ -129,7 +156,7 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
     <section className="detail-section" aria-labelledby="design-title">
       <h2 id="design-title">ویرایش طرح</h2>
       <p className="field-hint">
-        مدل پایهٔ قابل‌ویرایش (متر). هر عنصر شناسهٔ ثابت دارد و عنصر قفل‌شده هیچ ویرایشی نمی‌پذیرد مگر باز شدن قفل. همپوشانی و ضوابط در این مرحله بررسی نمی‌شود.
+        مدل پایهٔ قابل‌ویرایش؛ ذخیره‌سازی همیشه به متر است و واحد نمایش و ورودی را می‌توانید تغییر دهید. هر عنصر شناسهٔ ثابت دارد و عنصر قفل‌شده هیچ ویرایشی نمی‌پذیرد مگر باز شدن قفل. همپوشانی و ضوابط در این مرحله بررسی نمی‌شود.
       </p>
       {resource.error ? <p className="alert alert-error" role="alert">{resource.error.userMessage}</p> : null}
       {message ? (
@@ -182,21 +209,48 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
               ))}
             </div>
           ) : null}
+          {canEdit ? (
+            <fieldset disabled={busy}>
+              <legend>واحد، اسنپ و تاریخچه</legend>
+              <label>
+                واحد طول
+                <select value={unit} onChange={(event) => { setUnit(event.target.value as LengthUnit); setSnap(""); }}>
+                  {(Object.keys(unitNames) as LengthUnit[]).map((item) => <option key={item} value={item}>{unitNames[item]}</option>)}
+                </select>
+              </label>
+              <label>
+                اسنپ به شبکه
+                <select value={snap} onChange={(event) => setSnap(event.target.value)}>
+                  <option value="">بدون اسنپ</option>
+                  {snapChoices[unit].map((item) => <option key={item} value={String(item)}>{fa(item)} {unitName}</option>)}
+                </select>
+              </label>
+              <button type="button" className="button button-secondary" disabled={!state?.can_undo} onClick={() => void step("undo")}>واگرد</button>
+              <button type="button" className="button button-secondary" disabled={!state?.can_redo} onClick={() => void step("redo")}>بازگردانی</button>
+            </fieldset>
+          ) : (
+            <label>
+              واحد نمایش
+              <select value={unit} onChange={(event) => setUnit(event.target.value as LengthUnit)}>
+                {(Object.keys(unitNames) as LengthUnit[]).map((item) => <option key={item} value={item}>{unitNames[item]}</option>)}
+              </select>
+            </label>
+          )}
           <Drawing elements={elements} selected={selected} onPick={setSelected} />
           <div className="table-wrap">
             <table>
               <caption className="visually-hidden">عناصر طرح</caption>
               <thead>
-                <tr><th scope="col">عنصر</th><th scope="col">مشخصات (متر)</th><th scope="col">قفل</th><th scope="col"><span className="visually-hidden">انتخاب</span></th></tr>
+                <tr><th scope="col">عنصر</th><th scope="col">مشخصات ({unitName})</th><th scope="col">قفل</th><th scope="col"><span className="visually-hidden">انتخاب</span></th></tr>
               </thead>
               <tbody>
                 {elements.map((e) => (
                   <tr key={e.id}>
                     <td>{describe(e)}{e.id === selected ? " (منتخب)" : ""}</td>
                     <td>
-                      {e.type === "space" ? `${fa(e.x ?? 0)}, ${fa(e.y ?? 0)} — ${fa(e.width ?? 0)}×${fa(e.height ?? 0)}` : null}
-                      {e.type === "wall" ? `طول ${fa(wallLength(e))}، ضخامت ${fa(e.thickness_m ?? 0)}` : null}
-                      {e.wall_id ? `روی ${e.wall_id}، فاصله ${fa(e.offset_m ?? 0)}، عرض ${fa(e.width_m ?? 0)}` : null}
+                      {e.type === "space" ? `${show(e.x)}, ${show(e.y)} — ${show(e.width)}×${show(e.height)}` : null}
+                      {e.type === "wall" ? `طول ${show(wallLength(e))}، ضخامت ${show(e.thickness_m)}` : null}
+                      {e.wall_id ? `روی ${e.wall_id}، فاصله ${show(e.offset_m)}، عرض ${show(e.width_m)}` : null}
                     </td>
                     <td>{e.locked ? "قفل" : "آزاد"}</td>
                     <td><button type="button" className="button button-secondary" onClick={() => setSelected(e.id)}>انتخاب {e.id}</button></td>
@@ -207,39 +261,39 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
           </div>
 
           {canEdit && current ? (
-            <fieldset key={`${current.id}-${state?.version}`} disabled={busy}>
+            <fieldset key={`${current.id}-${state?.version}-${unit}`} disabled={busy}>
               <legend>ویرایش {describe(current)} {current.locked ? "(قفل)" : ""}</legend>
               <button type="button" className="button button-secondary" onClick={() => void edit({ op: current.locked ? "unlock" : "lock", id: current.id }, current.locked ? "قفل باز شد." : "عنصر قفل شد.")}>
                 {current.locked ? "باز کردن قفل" : "قفل کردن"}
               </button>
               {current.type === "space" || current.type === "wall" ? (
                 <form onSubmit={submit((f) => ({ op: "move", id: current.id, dx: num(f, "dx"), dy: num(f, "dy") }))}>
-                  <label>جابه‌جایی X (متر)<input name="dx" type="number" step="any" defaultValue={0} required /></label>
-                  <label>جابه‌جایی Y (متر)<input name="dy" type="number" step="any" defaultValue={0} required /></label>
+                  <label>جابه‌جایی X ({unitName})<input name="dx" type="number" step="any" defaultValue={0} required /></label>
+                  <label>جابه‌جایی Y ({unitName})<input name="dy" type="number" step="any" defaultValue={0} required /></label>
                   <button className="button" type="submit">جابه‌جایی</button>
                 </form>
               ) : (
                 <form onSubmit={submit((f) => ({ op: "move", id: current.id, along_m: num(f, "along") }))}>
-                  <label>جابه‌جایی در امتداد دیوار (متر)<input name="along" type="number" step="any" defaultValue={0} required /></label>
+                  <label>جابه‌جایی در امتداد دیوار ({unitName})<input name="along" type="number" step="any" defaultValue={0} required /></label>
                   <button className="button" type="submit">جابه‌جایی</button>
                 </form>
               )}
               {current.type === "space" ? (
                 <form onSubmit={submit((f) => ({ op: "resize", id: current.id, width: num(f, "width"), height: num(f, "height") }))}>
-                  <label>عرض (متر)<input name="width" type="number" step="any" min="0" defaultValue={current.width} required /></label>
-                  <label>ارتفاع (متر)<input name="height" type="number" step="any" min="0" defaultValue={current.height} required /></label>
+                  <label>عرض ({unitName})<input name="width" type="number" step="any" min="0" defaultValue={scaled(current.width)} required /></label>
+                  <label>ارتفاع ({unitName})<input name="height" type="number" step="any" min="0" defaultValue={scaled(current.height)} required /></label>
                   <button className="button" type="submit">تغییر اندازه</button>
                 </form>
               ) : null}
               {current.type === "wall" ? (
                 <form onSubmit={submit((f) => ({ op: "resize", id: current.id, length_m: num(f, "length") }))}>
-                  <label>طول (متر)<input name="length" type="number" step="any" min="0" defaultValue={Number(wallLength(current).toFixed(3))} required /></label>
+                  <label>طول ({unitName})<input name="length" type="number" step="any" min="0" defaultValue={scaled(wallLength(current))} required /></label>
                   <button className="button" type="submit">تغییر طول</button>
                 </form>
               ) : null}
               {current.type === "door" || current.type === "window" || current.type === "opening" ? (
                 <form onSubmit={submit((f) => ({ op: "resize", id: current.id, width_m: num(f, "openingWidth") }))}>
-                  <label>عرض (متر)<input name="openingWidth" type="number" step="any" min="0" defaultValue={current.width_m} required /></label>
+                  <label>عرض ({unitName})<input name="openingWidth" type="number" step="any" min="0" defaultValue={scaled(current.width_m)} required /></label>
                   <button className="button" type="submit">تغییر عرض</button>
                 </form>
               ) : null}
@@ -260,31 +314,47 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
 
           {canEdit ? (
             <fieldset disabled={busy}>
-              <legend>افزودن عنصر</legend>
+              <legend key={unit}>افزودن عنصر</legend>
               <form onSubmit={submit((f) => ({ op: "add", element: { type: "space", floor: activeFloor, kind: String(f.get("kind")), x: num(f, "sx"), y: num(f, "sy"), width: num(f, "sw"), height: num(f, "sh") } }))}>
                 <label>نوع فضا<select name="kind">{kindChoices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select></label>
                 <label>X<input name="sx" type="number" step="any" defaultValue={0} required /></label>
                 <label>Y<input name="sy" type="number" step="any" defaultValue={0} required /></label>
-                <label>عرض<input name="sw" type="number" step="any" min="0" defaultValue={3} required /></label>
-                <label>ارتفاع<input name="sh" type="number" step="any" min="0" defaultValue={3} required /></label>
+                <label>عرض ({unitName})<input name="sw" type="number" step="any" min="0" defaultValue={scaled(3)} required /></label>
+                <label>ارتفاع ({unitName})<input name="sh" type="number" step="any" min="0" defaultValue={scaled(3)} required /></label>
                 <button className="button" type="submit">افزودن فضا</button>
               </form>
               <form onSubmit={submit((f) => ({ op: "add", element: { type: "wall", floor: activeFloor, x1: num(f, "x1"), y1: num(f, "y1"), x2: num(f, "x2"), y2: num(f, "y2"), thickness_m: num(f, "thickness") } }))}>
                 <label>X۱<input name="x1" type="number" step="any" defaultValue={0} required /></label>
                 <label>Y۱<input name="y1" type="number" step="any" defaultValue={0} required /></label>
-                <label>X۲<input name="x2" type="number" step="any" defaultValue={3} required /></label>
+                <label>X۲<input name="x2" type="number" step="any" defaultValue={scaled(3)} required /></label>
                 <label>Y۲<input name="y2" type="number" step="any" defaultValue={0} required /></label>
-                <label>ضخامت (متر)<input name="thickness" type="number" step="any" min="0" defaultValue={0.2} required /></label>
+                <label>ضخامت ({unitName})<input name="thickness" type="number" step="any" min="0" defaultValue={scaled(0.2)} required /></label>
                 <button className="button" type="submit">افزودن دیوار</button>
               </form>
               <form onSubmit={submit((f) => ({ op: "add", element: { type: String(f.get("hosted")), wall_id: String(f.get("wall")), offset_m: num(f, "offset"), width_m: num(f, "hwidth") } }))}>
                 <label>نوع<select name="hosted"><option value="door">در</option><option value="window">پنجره</option><option value="opening">بازشو</option></select></label>
                 <label>دیوار<select name="wall">{elements.filter((e) => e.type === "wall").map((w) => <option key={w.id} value={w.id}>{w.id}</option>)}</select></label>
-                <label>فاصله از ابتدای دیوار (متر)<input name="offset" type="number" step="any" min="0" defaultValue={0.5} required /></label>
-                <label>عرض (متر)<input name="hwidth" type="number" step="any" min="0" defaultValue={0.9} required /></label>
+                <label>فاصله از ابتدای دیوار ({unitName})<input name="offset" type="number" step="any" min="0" defaultValue={scaled(0.5)} required /></label>
+                <label>عرض ({unitName})<input name="hwidth" type="number" step="any" min="0" defaultValue={scaled(0.9)} required /></label>
                 <button className="button" type="submit">افزودن به دیوار</button>
               </form>
             </fieldset>
+          ) : null}
+
+          {historyState.data && historyState.data.entries.length > 0 ? (
+            <details>
+              <summary>تاریخچهٔ تغییرات</summary>
+              <ol className="flag-list" reversed>
+                {historyState.data.entries.map((entry) => (
+                  <li key={entry.seq}>
+                    {entry.summary.action === "import"
+                      ? "وارد کردن گزینهٔ چیدمان"
+                      : (entry.summary.operations ?? []).map((item) => `${operationLabels[item.op] ?? item.op}${item.id ? ` ${item.id}` : ""}`).join("، ")}
+                    {" — "}{entry.actor}{entry.current ? " (وضعیت فعلی)" : ""}
+                  </li>
+                ))}
+              </ol>
+            </details>
           ) : null}
         </>
       ) : null}

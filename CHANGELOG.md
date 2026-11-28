@@ -5,6 +5,13 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-27, Phase 3 (ARCH-004): units, snap and undo/redo for the design model. Edits accept
+  `unit` (m/cm/mm, exact Decimal conversion to metres) and an optional grid `snap` (nearest
+  multiple, ties away from zero, only touched geometry); a per-project history (migration
+  0020, 200 snapshots) backs `POST .../design/undo`, `.../redo` and `GET .../design/history`;
+  undo then redo returns the exact prior/subsequent model data as new versions. Panel gained
+  unit/snap selectors, undo/redo buttons and a history list. Tests are run by CI.
+
 - 2026-11-27, Phase 3 (ARCH-003): editable base design model. A chosen layout alternative can
   be imported as a persisted, versioned model with stable element IDs (spaces, walls, doors,
   windows, openings) that is edited by explicit operations (add, move, resize, rotate,

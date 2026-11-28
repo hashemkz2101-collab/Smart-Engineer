@@ -1,7 +1,7 @@
 """HTTP endpoints for the working design model (ARCH-003)."""
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -16,10 +16,13 @@ from .errors import _correlation_id, _envelope
 router = APIRouter(tags=["design"], dependencies=[Depends(check_origin)])
 
 CONFLICT_CODES = {
+    "nothing_to_undo", "nothing_to_redo",
     "element_locked", "hosted_element_locked", "version_conflict", "design_exists",
     "layout_stale", "no_layout", "no_design",
 }
 MESSAGES = {
+    "nothing_to_undo": "There is no earlier state to return to.",
+    "nothing_to_redo": "There is no later state to return to.",
     "element_locked": "The element is locked. Unlock it before editing.",
     "hosted_element_locked": "A door, window or opening on this wall is locked.",
     "version_conflict": "The design was changed elsewhere. Reload it before editing.",
@@ -36,9 +39,20 @@ class ImportBody(BaseModel):
     replace: bool = False
 
 
+class SnapBody(BaseModel):
+    grid: float = Field(gt=0)
+    unit: Literal["m", "cm", "mm"] | None = None
+
+
 class EditBody(BaseModel):
     version: int = Field(ge=0)
     operations: list[dict[str, Any]] = Field(min_length=1, max_length=50)
+    unit: Literal["m", "cm", "mm"] = "m"
+    snap: SnapBody | None = None
+
+
+class StepBody(BaseModel):
+    version: int = Field(ge=1)
 
 
 async def design_error_handler(request: Request, exc: DesignError) -> JSONResponse:
@@ -91,6 +105,37 @@ def edit(
     current: Authenticated = Depends(csrf_protected),
     db: Session = Depends(get_db),
 ) -> dict:
+    snap = body.snap.model_dump(exclude_none=True) if body.snap else None
     return design_service.edit_design(
-        db, current.user, project_id, operations=body.operations, expected_version=body.version
+        db, current.user, project_id, operations=body.operations,
+        expected_version=body.version, unit=body.unit, snap=snap,
     )
+
+
+@router.post("/projects/{project_id}/design/undo")
+def undo(
+    project_id: uuid.UUID,
+    body: StepBody,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_service.undo_design(db, current.user, project_id, expected_version=body.version)
+
+
+@router.post("/projects/{project_id}/design/redo")
+def redo(
+    project_id: uuid.UUID,
+    body: StepBody,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_service.redo_design(db, current.user, project_id, expected_version=body.version)
+
+
+@router.get("/projects/{project_id}/design/history")
+def history(
+    project_id: uuid.UUID,
+    current: Authenticated = Depends(current_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_service.design_history(db, current.user, project_id)
