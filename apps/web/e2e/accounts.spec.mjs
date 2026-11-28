@@ -729,6 +729,86 @@ test.describe("conceptual layouts", () => {
   });
 });
 
+test.describe("design editing", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const design = {
+    exists: true, version: 3, layout_changed: false, updated_at: null,
+    data: {
+      schema: 1, units: "m", next_id: 5,
+      source: { kind: "layout", layout_version: 1, alternative_id: "ALT-1", strategy: "privacy_bands" },
+      elements: [
+        { id: "E-0001", type: "space", floor: 1, locked: false, kind: "living", x: 0, y: 0, width: 5, height: 4, rotation_deg: 0 },
+        { id: "E-0002", type: "space", floor: 1, locked: true, kind: "bedroom", x: 5, y: 0, width: 4, height: 4, rotation_deg: 0 },
+        { id: "E-0003", type: "wall", floor: 1, locked: false, x1: 0, y1: 0, x2: 9, y2: 0, thickness_m: 0.2 },
+        { id: "E-0004", type: "door", floor: 1, locked: false, wall_id: "E-0003", offset_m: 1, width_m: 0.9 },
+      ],
+    },
+  };
+  const reply = (status, body) => (route) =>
+    route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) }).then(() => true);
+
+  test("elements are listed with lock state and an edit is sent with the stored version", async ({ page }) => {
+    const state = { loggedIn: true, design };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/design/edit`]: reply(200, { ...design, version: 4 }),
+    });
+    await page.goto(url);
+    await expect(page.getByRole("img", { name: /نمای طرح/ })).toBeVisible();
+    await expect(page.getByRole("cell", { name: /^E-0002 —/ })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "قفل", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "انتخاب E-0001" }).click();
+    await page.getByRole("button", { name: "قفل کردن" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "عنصر قفل شد" })).toBeVisible();
+    const post = state.requests.find((r) => r.key.endsWith("/design/edit"));
+    expect(post.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(post.body).toEqual({ version: 3, operations: [{ op: "lock", id: "E-0001" }] });
+  });
+
+  test("a locked element shows its explicit reason and can be unlocked", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, design }, {
+      [`POST /projects/${PROJECT.id}/design/edit`]: reply(409, {
+        error: { code: "element_locked", message: "locked", correlation_id: null,
+          details: [{ operation_index: 0, element_id: "E-0002" }] } }),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: "انتخاب E-0002" }).click();
+    await expect(page.getByRole("button", { name: "باز کردن قفل" })).toBeVisible();
+    await page.getByRole("button", { name: "جابه‌جایی", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "این عنصر قفل است" })).toBeVisible();
+  });
+
+  test("importing a layout option sends the chosen alternative; viewers have no edit controls", async ({ page }) => {
+    const layouts = { exists: true, version: 1, stale: false, updated_at: null,
+      data: { status: "alternatives", reasons: [], details: {}, alternatives: [
+        { id: "ALT-1", strategy: "privacy_bands", criteria: [], assumptions: [], not_evaluated: [],
+          limitations: [], floors: [], unplaced: [],
+          metrics: { placed_spaces: 0, unplaced_spaces: 0, placed_area_m2: 0, fully_placed: true, floors_used: 0 } },
+        { id: "ALT-2", strategy: "largest_first_compact", criteria: [], assumptions: [], not_evaluated: [],
+          limitations: [], floors: [], unplaced: [],
+          metrics: { placed_spaces: 0, unplaced_spaces: 0, placed_area_m2: 0, fully_placed: true, floors_used: 0 } },
+      ] } };
+    const state = { loggedIn: true, layouts };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/design/import-layout`]: reply(200, design),
+    });
+    await page.goto(url);
+    await page.locator("select").filter({ has: page.locator('option[value="ALT-2"]') }).selectOption("ALT-2");
+    await page.getByRole("button", { name: "واردکردن گزینه به‌عنوان طرح" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "وارد شد" })).toBeVisible();
+    const post = state.requests.find((r) => r.key.endsWith("/design/import-layout"));
+    expect(post.body).toEqual({ alternative_id: "ALT-2", version: 0, replace: false });
+  });
+
+  test("view-only members see the design without edit or import controls", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, permissions: ["project.view"], design });
+    await page.goto(url);
+    await expect(page.getByRole("cell", { name: /^E-0001 —/ })).toBeVisible();
+    await page.getByRole("button", { name: "انتخاب E-0001" }).click();
+    await expect(page.getByRole("button", { name: "قفل کردن" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "واردکردن گزینه به‌عنوان طرح" })).toHaveCount(0);
+  });
+});
+
 test.describe("client requirements", () => {
   const url = `/projects/${PROJECT.id}`;
   const ok = (body) => (route) =>

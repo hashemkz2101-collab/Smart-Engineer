@@ -5,6 +5,14 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-27, Phase 3 (ARCH-003): editable base design model. A chosen layout alternative can
+  be imported as a persisted, versioned model with stable element IDs (spaces, walls, doors,
+  windows, openings) that is edited by explicit operations (add, move, resize, rotate,
+  delete, lock, unlock, set) applied atomically. Locked elements reject edits with an
+  explicit reason; invalid values are rejected, not clamped. New permission
+  `project.design.edit` (owner, architect). Migration 0019, `GET /projects/{id}/design`,
+  `POST .../design/import-layout`, `POST .../design/edit`, a project-page panel and tests.
+  No overlap/closure checks, snapping, undo, versions or exports yet. See docs/PHASE_3_PLAN.md.
 - 2026-11-26, Phase 3 (ARCH-002): conceptual layout alternatives. From the buildable
   envelope and the space schedule the API produces, persisted and versioned, either at
   least two distinct alternatives (axis-aligned space blocks per floor, with the criteria

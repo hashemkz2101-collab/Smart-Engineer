@@ -53,9 +53,35 @@ Rules (see `layout.py`; deterministic, nothing invented):
   structure, stairs/egress, regulations) and its limitations.
 * Permissions as for the schedule; archived projects are read-only.
 
+## Slice 3 — ARCH-003 editable design model
+
+A persisted working model per project (`design_models`, migration 0019): a JSON document in
+metres on the parcel's local plane with **stable element IDs that are never reused**
+(`E-0001…`), explicit units and schema version. It is created by importing a chosen layout
+alternative (`POST …/design/import-layout`; spaces keep their `schedule_space_id`; replacing
+an existing design needs an explicit `replace`; a stale layout is refused). It changes only
+through explicit operations (`POST …/design/edit`, `expected version`, atomic batch of up to
+50): `add`, `move`, `resize`, `rotate`, `delete`, `lock`, `unlock`, `set`.
+
+* Element types: space, wall, door, window, opening. Doors/windows/openings are hosted on a
+  wall (offset and width along it) and must stay inside it.
+* Spaces stay axis-aligned (rotation in multiples of 90°); walls may have any direction.
+* **Locks:** a locked element rejects every edit except `unlock`, with
+  `element_locked` and the element ID; a locked door/window/opening pins its wall
+  (`hosted_element_locked`). A failed batch writes nothing and records no event.
+* Values are rejected, never clamped (positive sizes, finite, ±100 000 m, ≤5000 elements).
+* New permission `project.design.edit` (owner, architect); everyone with `project.view` can
+  read. Archived projects are read-only.
+
+Not done here, by design: overlap/closure/area checks (ARCH-007), snapping, units display and
+undo/redo (ARCH-004), multi-floor copy and vertical connections (ARCH-005), design versions,
+compare and comments (ARCH-006), preliminary checks (ARCH-008), plans/exports (ARCH-009).
+This is a minimal base model with stable IDs and 2D geometry; formal BIM-001 acceptance
+(relationships, format independence, floors, coordinates) is **not** claimed.
+
 ## Not in this slice
 
-Editing spaces/walls/doors (ARCH-003), snap/undo
+Snap/undo
 (ARCH-004), floors and vertical connections (ARCH-005), design versions and comments
 (ARCH-006), geometry checks (ARCH-007), preliminary checks (ARCH-008), plans and
 schedules export (ARCH-009, DOC-001). The schedule is a list with area ranges, not a
