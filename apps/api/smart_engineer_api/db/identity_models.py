@@ -581,6 +581,45 @@ class DesignHistory(Base):
     )
 
 
+class DesignVersion(Base):
+    """An explicitly saved, immutable snapshot of the design model (ARCH-006)."""
+
+    __tablename__ = "design_versions"
+    __table_args__ = (
+        UniqueConstraint("project_id", "number"),
+        CheckConstraint("number >= 1", name="number_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    model_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(), nullable=False, server_default=func.now()
+    )
+
+
+class DesignComment(Base):
+    """A comment on one saved design version, optionally on one stable element ID."""
+
+    __tablename__ = "design_comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("design_versions.id"), nullable=False
+    )
+    element_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    author_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(), nullable=False, server_default=func.now()
+    )
+
+
 class EnvironmentRecord(Base):
     """One environmental / technical-condition category with its source (ENV-001).
 

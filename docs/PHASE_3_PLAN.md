@@ -119,6 +119,24 @@ Still not here: coordinate-level snapping to other elements' edges/endpoints (gr
 * Not done: automatic extension of existing connections when copying, checks that the
   footprints line up between floors, stair dimensioning or code rules (ARCH-007/008).
 
+## Slice 6 — ARCH-006 versions, comparison and comments
+
+* **Saved versions** (`design_versions`, migration 0021): `POST …/design/versions
+  {version, label}` stores an immutable snapshot of the working model with a per-project
+  number, label (≤120), author and the model version it came from; it needs the current
+  model version (`version_conflict` otherwise), an imported design and `project.design.edit`
+  (max 200 versions). `GET …/design/versions` lists them; `GET …/design/versions/{n}` returns
+  the snapshot with its comments. Unknown numbers answer 404 `unknown_version`.
+* **Compare:** `GET …/design/compare?a=1&b=2` (either side may be `current`, the working
+  model) matches elements by stable ID and returns added, removed and changed elements, each
+  changed field with before/after, and counts.
+* **Comments** (`design_comments`): `POST …/design/versions/{n}/comments {body, element_id?}`
+  attaches a comment (≤2000 chars) to that version and, optionally, an element ID that
+  exists in that version's snapshot (`unknown_element` otherwise). Immutable; permission
+  `project.design.comment` (see OPEN_DECISIONS, interim). Archived projects are read-only.
+* Not done: restoring a version, comments with replies/resolve, approval (Phase 9), the
+  owner/client role (ROLE-011), notifications.
+
 ## Not in this slice
 
 Design versions and comments
