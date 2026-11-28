@@ -648,6 +648,87 @@ test.describe("space schedule", () => {
   });
 });
 
+test.describe("conceptual layouts", () => {
+  const url = `/projects/${PROJECT.id}`;
+  const alternative = (id, strategy) => ({
+    id, strategy,
+    criteria: ["largest_spaces_first", "compact_from_the_lower_left_corner"],
+    assumptions: [],
+    not_evaluated: ["regulation_compliance", "orientation_and_daylight"],
+    limitations: ["conceptual_blocks_not_a_plan"],
+    floors: [
+      { floor: 1, used_area_m2: 40, placements: [
+        { space_id: "S-001", kind: "living", x: 0, y: 0, width: 5, height: 4, area_m2: 20, area_basis: "target" },
+        { space_id: "S-002", kind: "bedroom", x: 5, y: 0, width: 5, height: 4, area_m2: 20, area_basis: "range_midpoint" },
+      ] },
+      { floor: 2, used_area_m2: 12, placements: [
+        { space_id: "S-003", kind: "kitchen", x: 0, y: 0, width: 4, height: 3, area_m2: 12, area_basis: "target" },
+      ] },
+    ],
+    unplaced: [{ space_id: "S-004", kind: "yard", reason: "outdoor_space_not_modelled" }],
+    metrics: { placed_spaces: 3, unplaced_spaces: 1, placed_area_m2: 52, fully_placed: true, floors_used: 2 },
+  });
+  const layouts = {
+    exists: true, version: 1, stale: false, updated_at: null,
+    data: {
+      status: "alternatives", reasons: [], details: {},
+      envelope_polygons: [{ exterior: [[0, 0], [16, 0], [16, 10], [0, 10]], holes: [] }],
+      alternatives: [alternative("ALT-1", "privacy_bands"), alternative("ALT-2", "largest_first_compact")],
+    },
+  };
+
+  test("alternatives show strategy, blocks, unplaced spaces, criteria and what was not evaluated", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, layouts });
+    await page.goto(url);
+    await expect(page.getByTestId("layout-strategy")).toContainText("پهنه‌بندی خصوصی‌بودن");
+    await expect(page.getByRole("img", { name: /طبقهٔ 1 در گزینهٔ ALT-1/ })).toBeVisible();
+    await expect(page.getByText("میانهٔ بازه")).toBeVisible();
+    await expect(page.getByText("فضای باز؛ در این مرحله مدل نمی‌شود")).toBeVisible();
+    await expect(page.getByRole("list", { name: "بررسی‌نشده" }).getByText("انطباق با ضوابط")).toBeVisible();
+    await page.getByRole("button", { name: "ALT-2" }).click();
+    await expect(page.getByTestId("layout-strategy")).toContainText("پایین‌چپ");
+    await page.getByRole("button", { name: /طبقهٔ ۲/ }).click();
+    await expect(page.getByRole("cell", { name: "S-003" })).toBeVisible();
+  });
+
+  test("an infeasible result lists its specific reasons and a stale result is flagged", async ({ page }) => {
+    await mockApi(page, {
+      loggedIn: true,
+      layouts: { exists: true, version: 2, stale: true, updated_at: null, data: {
+        status: "infeasible", details: {}, alternatives: [],
+        reasons: ["envelope_not_computed", "front_m_required"] } },
+    });
+    await page.goto(url);
+    const box = page.getByTestId("layout-infeasible");
+    await expect(box).toContainText("محدودهٔ قابل ساخت محاسبه نشد");
+    await expect(box).toContainText("عقب‌نشینی جلو ثبت نشده است");
+    await expect(page.getByText("نتیجه قدیمی است")).toBeVisible();
+  });
+
+  test("generating sends the stored version; viewers cannot generate", async ({ page }) => {
+    const state = { loggedIn: true, layouts };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/layouts/generate`]: (route) =>
+        route
+          .fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(layouts) })
+          .then(() => true),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: "ساخت دوبارهٔ گزینه‌ها" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "ساخته و ذخیره شد" })).toBeVisible();
+    const post = state.requests.find((r) => r.key.endsWith("/layouts/generate"));
+    expect(post.headers["x-csrf-token"]).toBe("csrf-1");
+    expect(post.body).toEqual({ version: 1 });
+  });
+
+  test("view-only members see the options without a generate button", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, permissions: ["project.view"], layouts });
+    await page.goto(url);
+    await expect(page.getByTestId("layout-strategy")).toBeVisible();
+    await expect(page.getByRole("button", { name: /ساخت دوبارهٔ گزینه/ })).toHaveCount(0);
+  });
+});
+
 test.describe("client requirements", () => {
   const url = `/projects/${PROJECT.id}`;
   const ok = (body) => (route) =>

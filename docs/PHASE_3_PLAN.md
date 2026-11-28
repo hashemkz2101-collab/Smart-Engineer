@@ -26,9 +26,36 @@ Rules (see `space_schedule.py`; deterministic, nothing invented):
 * Permissions: read `project.view`; generate `project.requirements.edit`
   (owner, architect). Archived projects are read-only.
 
+## Slice 2 — ARCH-002 conceptual layout alternatives
+
+Inputs, each from its single source of truth: the buildable envelope (site parcel +
+zoning setbacks/coverage through the Phase 2 geometry report) and the persisted space
+schedule. Output: a persisted, versioned document per project (`layout_proposals`,
+migration 0018) holding either **at least two distinct alternatives** or a **specific
+infeasibility result**, with the version of every source it used (a change marks it stale).
+
+Rules (see `layout.py`; deterministic, nothing invented):
+
+* An alternative is a set of axis-aligned **space blocks** inside the envelope per floor,
+  not walls, doors, windows or a plan. Same envelope is assumed on every floor.
+* Block area = target area, else the midpoint of a complete min/max range (recorded as
+  `area_basis`). A space with no usable area, outdoor spaces and parking are **not
+  placed and are reported with a reason**; every schedule space is either placed or listed.
+* Three strategies (`privacy_bands`, `largest_first_compact`, `largest_first_mirrored`);
+  identical results are merged, and fewer than two distinct ones is itself reported
+  (`fewer_than_two_distinct_alternatives`).
+* A recorded coverage maximum caps the net room area per floor. Capacity is checked first
+  (`required_area_exceeds_capacity`). Missing or unverified inputs give specific reasons
+  (`parcel_invalid_or_missing`, `envelope_not_computed` + the geometry reasons,
+  `space_schedule_missing/stale`, …).
+* Each alternative lists the criteria applied, assumptions (for example the front edge not
+  being identified), what was **not evaluated** (orientation/daylight, views, circulation,
+  structure, stairs/egress, regulations) and its limitations.
+* Permissions as for the schedule; archived projects are read-only.
+
 ## Not in this slice
 
-Layout alternatives (ARCH-002), editing spaces/walls/doors (ARCH-003), snap/undo
+Editing spaces/walls/doors (ARCH-003), snap/undo
 (ARCH-004), floors and vertical connections (ARCH-005), design versions and comments
 (ARCH-006), geometry checks (ARCH-007), preliminary checks (ARCH-008), plans and
 schedules export (ARCH-009, DOC-001). The schedule is a list with area ranges, not a

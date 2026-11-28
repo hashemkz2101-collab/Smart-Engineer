@@ -38,6 +38,7 @@ EXPECTED_TABLES = {
     "zoning_records",
     "requirement_sections",
     "space_schedules",
+    "layout_proposals",
     "environment_records",
     "project_files",
     "admin_audit_events",

@@ -23,6 +23,9 @@ from .geometry_routes import router as geometry_router
 from .intake_routes import intake_error_handler, intake_validation_handler
 from .intake_routes import router as intake_router
 from .intake_service import IntakeError, IntakeValidationError
+from .layout_routes import layout_error_handler
+from .layout_routes import router as layout_router
+from .layout_service import LayoutError
 from .logging_config import configure_logging
 from .mail import SmtpMailer
 from .middleware import CorrelationIdMiddleware, SecurityHeadersMiddleware
@@ -118,6 +121,7 @@ def create_app(
     app.add_exception_handler(ZoningValidationError, zoning_validation_handler)
     app.add_exception_handler(GeometryError, geometry_error_handler)
     app.add_exception_handler(ScheduleError, schedule_error_handler)
+    app.add_exception_handler(LayoutError, layout_error_handler)
     app.include_router(geometry_router, prefix=API_V1_PREFIX)
     app.include_router(operational_router)
     app.include_router(v1_router)
@@ -131,6 +135,7 @@ def create_app(
     app.include_router(environment_router, prefix=API_V1_PREFIX)
     app.include_router(requirements_router, prefix=API_V1_PREFIX)
     app.include_router(space_schedule_router, prefix=API_V1_PREFIX)
+    app.include_router(layout_router, prefix=API_V1_PREFIX)
     app.include_router(zoning_router, prefix=API_V1_PREFIX)
     return app
 

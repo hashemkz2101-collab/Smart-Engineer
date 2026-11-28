@@ -172,6 +172,10 @@ export async function mockApi(page, state = {}, overrides = {}) {
           exists: false, data: null, version: 0, stale: false,
           program_version: 0, program_ready: false, updated_at: null,
         });
+      case `GET /projects/${PROJECT.id}/layouts`:
+        return json(route, 200, state.layouts ?? {
+          exists: false, data: null, version: 0, stale: false, updated_at: null,
+        });
       case `GET /projects/${PROJECT.id}/files`:
         return json(route, 200, { files: state.files ?? [] });
       case `GET /projects/${PROJECT.id}/environment`:

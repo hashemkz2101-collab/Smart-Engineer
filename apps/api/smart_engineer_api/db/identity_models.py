@@ -490,6 +490,38 @@ class SpaceSchedule(Base):
     )
 
 
+class LayoutProposal(Base):
+    """The persisted conceptual layout alternatives (ARCH-002), one per project.
+
+    ``data`` holds the alternatives or a specific infeasibility result together with the
+    versions of every source it was computed from; it is replaced only by an explicit
+    regeneration.
+    """
+
+    __tablename__ = "layout_proposals"
+    __table_args__ = (
+        UniqueConstraint("project_id"),
+        CheckConstraint("version >= 1", name="version_positive"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 class EnvironmentRecord(Base):
     """One environmental / technical-condition category with its source (ENV-001).
 
