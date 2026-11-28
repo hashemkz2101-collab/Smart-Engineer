@@ -5,6 +5,8 @@ import { useState, type FormEvent } from "react";
 import { api, toApiError } from "../lib/api";
 import {
   operationLabels,
+  type AiProposal,
+  type AiStatus,
   snapChoices,
   typeLabels,
   unitFactors,
@@ -19,6 +21,7 @@ import {
 } from "../lib/design";
 import type { LayoutState } from "../lib/layouts";
 import { requirementSections } from "../lib/requirements";
+import { messageForCode } from "../lib/messages";
 import { useResource } from "../lib/use-resource";
 
 const kindChoices = (requirementSections[0].lists?.[0]?.columns ?? [])
@@ -106,7 +109,11 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
   const [replace, setReplace] = useState(false);
   const [unit, setUnit] = useState<LengthUnit>("m");
   const [snap, setSnap] = useState("");
+  const [aiText, setAiText] = useState("");
+  const [proposal, setProposal] = useState<AiProposal | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const resource = useResource<DesignState>(`/projects/${projectId}/design`, version + reload);
+  const aiStatus = useResource<AiStatus>(`/projects/${projectId}/design/ai-status`, version);
   const historyState = useResource<DesignHistory>(`/projects/${projectId}/design/history`, version + reload);
   const layouts = useResource<LayoutState>(`/projects/${projectId}/layouts`, version + reload);
   const state = resource.data;
@@ -143,6 +150,25 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
     if (snap) body.snap = { grid: Number(snap), unit };
     return call("edit", body, success);
   };
+
+  async function askClaude() {
+    setAiBusy(true);
+    setMessage(null);
+    setProposal(null);
+    try {
+      setProposal(await api.post<AiProposal>(`/projects/${projectId}/design/ai-proposal`, { instruction: aiText }));
+    } catch (error) {
+      setMessage({ kind: "error", text: toApiError(error).userMessage });
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
+  async function applyProposal() {
+    if (!proposal) return;
+    await call("edit", { version: proposal.base_version, operations: proposal.operations }, "پیشنهاد Claude اعمال شد؛ با «واگرد» می‌توانید برش گردانید.");
+    setProposal(null);
+  }
 
   const step = (direction: "undo" | "redo") =>
     state ? call(direction, { version: state.version }, direction === "undo" ? "آخرین تغییر برگردانده شد." : "تغییر دوباره اعمال شد.") : Promise.resolve();
@@ -361,6 +387,63 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
                 <button className="button" type="submit">افزودن به دیوار</button>
               </form>
             </fieldset>
+          ) : null}
+
+          {canEdit && state?.exists ? (
+            <fieldset disabled={busy || aiBusy}>
+              <legend>پیشنهاد طراحی با Claude</legend>
+              {aiStatus.data && !aiStatus.data.enabled ? (
+                <p className="field-hint">
+                  Claude هنوز روی این سرور فعال نیست. کلید API را فقط روی سرور و در متغیر SMART_ENGINEER_ANTHROPIC_API_KEY بگذارید (نه در چت و نه در مخزن) و API را دوباره اجرا کنید.
+                </p>
+              ) : (
+                <>
+                  <p className="field-hint">
+                    Claude فهرستی از تغییرات پیشنهاد می‌دهد؛ چیزی خودکار تغییر نمی‌کند. پیشنهاد پیش از نمایش با قواعد طرح (قفل‌ها، شناسه‌ها، محدودیت‌ها) آزمایش می‌شود و با دکمهٔ «اعمال» روی طرح می‌نشیند. هر درخواست هزینهٔ API دارد و نتیجه نقشهٔ تأییدشدهٔ مهندسی نیست.
+                  </p>
+                  <label>
+                    درخواست شما (اختیاری)
+                    <textarea value={aiText} maxLength={1000} onChange={(event) => setAiText(event.target.value)} />
+                  </label>
+                  <button type="button" className="button" disabled={!aiStatus.data?.enabled} onClick={() => void askClaude()}>
+                    {aiBusy ? "در حال دریافت پیشنهاد…" : "دریافت پیشنهاد از Claude"}
+                  </button>
+                </>
+              )}
+            </fieldset>
+          ) : null}
+          {proposal ? (
+            <div aria-live="polite">
+              <h3>پیشنهاد Claude</h3>
+              <p>{proposal.summary || "بدون توضیح."}</p>
+              {proposal.valid ? (
+                <p role="status">{fa(proposal.operations.length)} تغییر پیشنهاد شد و با قواعد طرح سازگار است.</p>
+              ) : (
+                <p role="alert" className="alert alert-error">
+                  پیشنهاد با قواعد طرح سازگار نیست: {messageForCode(proposal.error?.code ?? "")}
+                  {proposal.error?.element_id ? ` (${proposal.error.element_id})` : ""}
+                </p>
+              )}
+              {proposal.operations.length > 0 ? (
+                <ol className="flag-list">
+                  {proposal.operations.map((item, index) => (
+                    <li key={index}>{operationLabels[String(item.op)] ?? String(item.op)}{typeof item.id === "string" ? ` ${item.id}` : ""}</li>
+                  ))}
+                </ol>
+              ) : null}
+              {proposal.base_version !== state?.version ? (
+                <p className="alert alert-error" role="alert">طرح پس از این پیشنهاد تغییر کرده است؛ پیشنهاد جدید بگیرید.</p>
+              ) : null}
+              <button
+                type="button"
+                className="button"
+                disabled={busy || !proposal.valid || proposal.operations.length === 0 || proposal.base_version !== state?.version}
+                onClick={() => void applyProposal()}
+              >
+                اعمال پیشنهاد
+              </button>
+              <button type="button" className="button button-secondary" onClick={() => setProposal(null)}>کنار گذاشتن</button>
+            </div>
           ) : null}
 
           {historyState.data && historyState.data.entries.length > 0 ? (

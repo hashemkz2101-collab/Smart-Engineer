@@ -89,3 +89,15 @@ export const verticalKinds: Record<string, string> = { stair: "پله", elevator
 export function wallLength(wall: DesignElement): number {
   return Math.hypot((wall.x2 ?? 0) - (wall.x1 ?? 0), (wall.y2 ?? 0) - (wall.y1 ?? 0));
 }
+
+export type AiStatus = { enabled: boolean; model: string | null };
+
+export type AiProposal = {
+  base_version: number;
+  model: string;
+  summary: string;
+  operations: DesignOperation[];
+  valid: boolean;
+  error: { code: string; operation_index: number | null; element_id: string | null } | null;
+  attempts: number;
+};

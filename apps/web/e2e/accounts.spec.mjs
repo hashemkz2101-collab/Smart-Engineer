@@ -799,6 +799,47 @@ test.describe("design editing", () => {
     expect(post.body).toEqual({ alternative_id: "ALT-2", version: 0, replace: false });
   });
 
+  test("Claude proposals are shown, checked, and applied only when the person applies them", async ({ page }) => {
+    const proposal = { base_version: 3, model: "claude-sonnet-5-5", summary: "نشیمن را یک متر جابه‌جا می‌کنم.", valid: true, error: null, attempts: 1,
+      operations: [{ op: "move", id: "E-0001", dx: 1, dy: 0 }] };
+    const state = { loggedIn: true, design, aiStatus: { enabled: true, model: "claude-sonnet-5-5" } };
+    await mockApi(page, state, {
+      [`POST /projects/${PROJECT.id}/design/ai-proposal`]: reply(200, proposal),
+      [`POST /projects/${PROJECT.id}/design/edit`]: reply(200, { ...design, version: 4 }),
+    });
+    await page.goto(url);
+    await page.getByLabel("درخواست شما (اختیاری)").fill("زمین را بهتر بپوشان");
+    await page.getByRole("button", { name: "دریافت پیشنهاد از Claude" }).click();
+    await expect(page.getByText("نشیمن را یک متر جابه‌جا می‌کنم.")).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "با قواعد طرح سازگار است" })).toBeVisible();
+    expect(state.requests.some((r) => r.key.endsWith("/design/edit"))).toBe(false);
+    const asked = state.requests.find((r) => r.key.endsWith("/design/ai-proposal"));
+    expect(asked.body).toEqual({ instruction: "زمین را بهتر بپوشان" });
+    await page.getByRole("button", { name: "اعمال پیشنهاد" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "پیشنهاد Claude اعمال شد" })).toBeVisible();
+    const applied = state.requests.find((r) => r.key.endsWith("/design/edit"));
+    expect(applied.body).toEqual({ version: 3, operations: proposal.operations });
+  });
+
+  test("an invalid Claude proposal cannot be applied, and a missing key is explained", async ({ page }) => {
+    const invalid = { base_version: 3, model: "m", summary: "تلاش", valid: false, attempts: 2,
+      error: { code: "element_locked", operation_index: 0, element_id: "E-0002" }, operations: [{ op: "move", id: "E-0002", dx: 1, dy: 0 }] };
+    await mockApi(page, { loggedIn: true, design, aiStatus: { enabled: true, model: "m" } }, {
+      [`POST /projects/${PROJECT.id}/design/ai-proposal`]: reply(200, invalid),
+    });
+    await page.goto(url);
+    await page.getByRole("button", { name: "دریافت پیشنهاد از Claude" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "با قواعد طرح سازگار نیست" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "اعمال پیشنهاد" })).toBeDisabled();
+  });
+
+  test("without a server key the panel says how to enable Claude and offers no request button", async ({ page }) => {
+    await mockApi(page, { loggedIn: true, design });
+    await page.goto(url);
+    await expect(page.getByText(/Claude هنوز روی این سرور فعال نیست/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "دریافت پیشنهاد از Claude" })).toHaveCount(0);
+  });
+
   test("units and snap are chosen per edit and undo/redo use the stored version", async ({ page }) => {
     const withHistory = { ...design, can_undo: true, can_redo: false, history_position: 3, history_length: 3 };
     const state = {

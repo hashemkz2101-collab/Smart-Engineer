@@ -168,3 +168,17 @@ revisited before RELEASE-001. Any item can be reversed by the owner.
   role yet, so the owner/client commenting in ROLE-011 is not claimed; approval stays a
   later action. Comments are immutable (no edit or delete) and keep author, time, version
   and element ID. Restoring a saved version into the working model is not built.
+
+- **AI-NO-01 Claude design proposals (owner request, 2026-11-28).** The owner asked to connect
+  the Claude API to the design section. Built as advisory only: the server calls the Anthropic
+  Messages API with the owner's own key (`SMART_ENGINEER_ANTHROPIC_API_KEY`, optional
+  `SMART_ENGINEER_ANTHROPIC_MODEL`, default `claude-sonnet-5-5`), read from the server
+  environment only; it is never stored, logged, returned or put in the repo or browser. Claude
+  returns design operations, which are dry-run through the same validator as manual edits
+  (locks, stable IDs, limits); the person applies them through `POST .../design/edit`, so
+  history/undo apply. Sent to Anthropic: buildable polygons, scheduled spaces (id, kind, name,
+  counts, areas) and the design elements, plus the person's instruction; no emails, names of
+  people or account data. Limits: 30 proposals per project per day, 4000 output tokens, one
+  automatic retry when the proposal does not validate. Each call is billed to the owner's API
+  account. The result is a proposal, not an engineering-approved plan; envelope containment and
+  overlaps are not machine-checked yet (ARCH-007). Real calls are never made by CI.

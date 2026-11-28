@@ -47,6 +47,14 @@ class Settings:
     clamav_port: int = 3310
     clamav_socket: str | None = None
     clamav_timeout: float = 30.0
+    # Claude API for design proposals. The key is a secret: it is read from the server's
+    # environment only, excluded from repr(), never stored, logged or sent to the browser.
+    anthropic_api_key: str | None = field(default=None, repr=False)
+    anthropic_model: str = "claude-sonnet-5-5"
+
+    @property
+    def ai_configured(self) -> bool:
+        return bool(self.anthropic_api_key)
 
     @property
     def clamav_configured(self) -> bool:
@@ -135,6 +143,9 @@ class Settings:
             clamav_port=clamav_port,
             clamav_socket=source.get("SMART_ENGINEER_CLAMAV_SOCKET", "").strip() or None,
             clamav_timeout=clamav_timeout,
+            anthropic_api_key=source.get("SMART_ENGINEER_ANTHROPIC_API_KEY", "").strip() or None,
+            anthropic_model=source.get("SMART_ENGINEER_ANTHROPIC_MODEL", "").strip()
+            or "claude-sonnet-5-5",
             public_url=public_url,
             smtp_host=smtp_host,
             smtp_port=smtp_port,

@@ -5,12 +5,13 @@ from . import auth_service
 from .admin_routes import admin_error_handler
 from .admin_routes import router as admin_router
 from .admin_service import AdminError
+from .ai_design import AiClient, AiError, AnthropicClient
 from .auth_routes import auth_error_handler
 from .auth_routes import router as auth_router
 from .config import ConfigurationError, Settings
 from .db.session import create_db_engine, create_session_factory
 from .design_model import DesignError
-from .design_routes import design_error_handler, design_service_error_handler
+from .design_routes import ai_error_handler, design_error_handler, design_service_error_handler
 from .design_routes import router as design_router
 from .design_service import DesignServiceError
 from .environment_routes import environment_error_handler, environment_validation_handler
@@ -64,6 +65,7 @@ def create_app(
     mailer: auth_service.Mailer | None = None,
     file_storage: FileStorage | None = None,
     scanner: ContentScanner | None = None,
+    ai_client: AiClient | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
     configure_logging(settings.log_level)
@@ -95,6 +97,9 @@ def create_app(
             # Development and tests: messages are only kept in memory.
             mailer = auth_service.OutboxMailer()
     app.state.mailer = mailer
+    if ai_client is None and settings.anthropic_api_key:
+        ai_client = AnthropicClient(settings.anthropic_api_key, settings.anthropic_model)
+    app.state.ai_client = ai_client
     app.state.file_storage = file_storage or FileStorage(settings.file_storage_dir)
     if scanner is None and settings.clamav_configured:
         scanner = ClamdScanner(
@@ -128,6 +133,7 @@ def create_app(
     app.add_exception_handler(LayoutError, layout_error_handler)
     app.add_exception_handler(DesignError, design_error_handler)
     app.add_exception_handler(DesignServiceError, design_service_error_handler)
+    app.add_exception_handler(AiError, ai_error_handler)
     app.include_router(geometry_router, prefix=API_V1_PREFIX)
     app.include_router(operational_router)
     app.include_router(v1_router)
