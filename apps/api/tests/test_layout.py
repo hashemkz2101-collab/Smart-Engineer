@@ -75,6 +75,19 @@ class GeneratorTests(unittest.TestCase):
             self.assertTrue(alt["criteria"] and alt["limitations"] and alt["not_evaluated"])
             self.assertIn("regulation_compliance", alt["not_evaluated"])
 
+    def test_coverage_percent_reports_how_much_of_the_envelope_the_first_floor_fills(self):
+        result = generate_alternatives(ENVELOPE, SPACES, 2, FRONT)
+        area = result["alternatives"][0]["floors"][0]["used_area_m2"]
+        envelope_area = result["details"]["envelope_area_m2"] if "details" in result else None
+        for alt in result["alternatives"]:
+            first = alt["floors"][0]["used_area_m2"]
+            self.assertGreater(alt["metrics"]["footprint_coverage_percent"], 0)
+            self.assertLessEqual(alt["metrics"]["footprint_coverage_percent"], 100)
+            if envelope_area:
+                self.assertEqual(alt["metrics"]["footprint_coverage_percent"],
+                                 round(100 * first / envelope_area, 1))
+        self.assertGreater(area, 0)
+
     def test_every_space_is_placed_or_reported_with_a_reason(self):
         result = generate_alternatives(ENVELOPE, SPACES, 2, FRONT)
         wanted = sorted(s["id"] for s in SPACES)

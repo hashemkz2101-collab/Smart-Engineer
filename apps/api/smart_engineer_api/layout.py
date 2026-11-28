@@ -312,6 +312,12 @@ def generate_alternatives(
             "placed_area_m2": sum(f["used_area_m2"] for f in floors),
             "fully_placed": not remaining,
             "floors_used": len(floors),
+            # How much of the buildable area the first floor's blocks cover. Spaces keep the
+            # areas the program gave them, so a low value means the program is smaller than
+            # the land allows, not that the engine left room unused by mistake.
+            "footprint_coverage_percent": round(
+                100 * (floors[0]["used_area_m2"] / region.area if floors else 0.0), 1
+            ),
         }
         signature = _signature(alternative)
         if placed_count and signature not in seen:
