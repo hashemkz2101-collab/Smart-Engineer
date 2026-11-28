@@ -3,12 +3,12 @@
 import uuid
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from . import design_service
+from . import design_service, design_version_service
 from .auth_routes import Authenticated, check_origin, csrf_protected, current_auth, get_db
 from .design_model import DesignError
 from .errors import _correlation_id, _envelope
@@ -18,7 +18,7 @@ router = APIRouter(tags=["design"], dependencies=[Depends(check_origin)])
 CONFLICT_CODES = {
     "nothing_to_undo", "nothing_to_redo",
     "element_locked", "hosted_element_locked", "version_conflict", "design_exists",
-    "layout_stale", "no_layout", "no_design",
+    "layout_stale", "no_layout", "no_design", "floor_not_empty",
 }
 MESSAGES = {
     "nothing_to_undo": "There is no earlier state to return to.",
@@ -30,6 +30,13 @@ MESSAGES = {
     "layout_stale": "The layout options are out of date. Regenerate them first.",
     "no_layout": "There are no layout alternatives to import.",
     "no_design": "There is no design to edit yet. Import a layout option first.",
+    "floor_not_empty": "A target floor already has elements; copying never overwrites.",
+    "unknown_version": "There is no such saved version.",
+    "too_many_versions": "The project has reached the maximum number of saved versions.",
+    "too_many_comments": "This version has reached the maximum number of comments.",
+    "unknown_element": "The element is not part of this version.",
+    "unknown_floor": "The source floor has no elements to copy.",
+    "vertical_invalid_level": "A vertical connection points at a floor that has no elements.",
 }
 
 
@@ -68,7 +75,7 @@ async def design_error_handler(request: Request, exc: DesignError) -> JSONRespon
 async def design_service_error_handler(
     request: Request, exc: design_service.DesignServiceError
 ) -> JSONResponse:
-    status = 409 if exc.code in CONFLICT_CODES else 422
+    status = 404 if exc.code == "unknown_version" else 409 if exc.code in CONFLICT_CODES else 422
     return JSONResponse(
         _envelope(exc.code, MESSAGES.get(exc.code, "The request is not valid."),
                   _correlation_id(request)),
@@ -139,3 +146,68 @@ def history(
     db: Session = Depends(get_db),
 ) -> dict:
     return design_service.design_history(db, current.user, project_id)
+
+
+class VersionBody(BaseModel):
+    version: int = Field(ge=1)
+    label: str = Field(min_length=1, max_length=120)
+
+
+class CommentBody(BaseModel):
+    body: str = Field(min_length=1, max_length=design_version_service.MAX_COMMENT_LENGTH)
+    element_id: str | None = Field(default=None, max_length=20)
+
+
+@router.get("/projects/{project_id}/design/versions")
+def list_versions(
+    project_id: uuid.UUID,
+    current: Authenticated = Depends(current_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_version_service.list_versions(db, current.user, project_id)
+
+
+@router.post("/projects/{project_id}/design/versions", status_code=201)
+def save_version(
+    project_id: uuid.UUID,
+    body: VersionBody,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_version_service.save_version(
+        db, current.user, project_id, label=body.label, expected_version=body.version
+    )
+
+
+@router.get("/projects/{project_id}/design/compare")
+def compare_versions(
+    project_id: uuid.UUID,
+    a: str = Query(max_length=12),
+    b: str = Query(max_length=12),
+    current: Authenticated = Depends(current_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_version_service.compare_versions(db, current.user, project_id, a, b)
+
+
+@router.get("/projects/{project_id}/design/versions/{number}")
+def read_version(
+    project_id: uuid.UUID,
+    number: int,
+    current: Authenticated = Depends(current_auth),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_version_service.get_version(db, current.user, project_id, number)
+
+
+@router.post("/projects/{project_id}/design/versions/{number}/comments", status_code=201)
+def add_comment(
+    project_id: uuid.UUID,
+    number: int,
+    body: CommentBody,
+    current: Authenticated = Depends(csrf_protected),
+    db: Session = Depends(get_db),
+) -> dict:
+    return design_version_service.add_comment(
+        db, current.user, project_id, number, body=body.body, element_id=body.element_id
+    )

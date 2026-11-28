@@ -3,7 +3,7 @@
 
 export type DesignElement = {
   id: string;
-  type: "space" | "wall" | "door" | "window" | "opening";
+  type: "space" | "wall" | "door" | "window" | "opening" | "vertical";
   floor: number;
   locked: boolean;
   label?: string;
@@ -16,6 +16,8 @@ export type DesignElement = {
   width?: number;
   height?: number;
   rotation_deg?: number;
+  floors?: number[];
+  copied_from?: string;
   // wall
   x1?: number;
   y1?: number;
@@ -68,7 +70,7 @@ export const unitNames: Record<LengthUnit, string> = { m: "متر", cm: "سان�
 export const snapChoices: Record<LengthUnit, number[]> = { m: [0.1, 0.25, 0.5, 1], cm: [1, 5, 10, 25, 50], mm: [1, 5, 10, 50, 100] };
 
 export const operationLabels: Record<string, string> = {
-  add: "افزودن", move: "جابه‌جایی", resize: "تغییر اندازه", rotate: "چرخش", delete: "حذف", lock: "قفل", unlock: "باز کردن قفل", set: "تنظیم",
+  add: "افزودن", move: "جابه‌جایی", resize: "تغییر اندازه", rotate: "چرخش", delete: "حذف", copy_floor: "کپی طبقه", set_floors: "طبقه‌های ارتباط", lock: "قفل", unlock: "باز کردن قفل", set: "تنظیم",
 };
 
 export type DesignOperation = Record<string, unknown>;
@@ -79,7 +81,10 @@ export const typeLabels: Record<DesignElement["type"], string> = {
   door: "در",
   window: "پنجره",
   opening: "بازشو",
+  vertical: "ارتباط عمودی",
 };
+
+export const verticalKinds: Record<string, string> = { stair: "پله", elevator: "آسانسور", shaft: "شفت" };
 
 export function wallLength(wall: DesignElement): number {
   return Math.hypot((wall.x2 ?? 0) - (wall.x1 ?? 0), (wall.y2 ?? 0) - (wall.y1 ?? 0));

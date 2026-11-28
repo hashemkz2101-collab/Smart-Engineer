@@ -9,6 +9,7 @@ import {
   typeLabels,
   unitFactors,
   unitNames,
+  verticalKinds,
   wallLength,
   type DesignElement,
   type DesignHistory,
@@ -30,6 +31,7 @@ const num = (form: FormData, name: string) => Number(form.get(name));
 
 function describe(element: DesignElement): string {
   const base = `${element.id} — ${typeLabels[element.type]}`;
+  if (element.type === "vertical") return `${base} ${verticalKinds[element.kind ?? ""] ?? element.kind ?? ""}`;
   if (element.type === "space") return `${base} ${element.name ?? kindLabels[element.kind ?? ""] ?? element.kind ?? ""}`;
   return element.label ? `${base} ${element.label}` : base;
 }
@@ -39,7 +41,7 @@ function Drawing({ elements, selected, onPick }: { elements: DesignElement[]; se
   const xs: number[] = [];
   const ys: number[] = [];
   for (const e of elements) {
-    if (e.type === "space") {
+    if (e.type === "space" || e.type === "vertical") {
       xs.push(e.x ?? 0, (e.x ?? 0) + (e.width ?? 0));
       ys.push(e.y ?? 0, (e.y ?? 0) + (e.height ?? 0));
     }
@@ -68,7 +70,7 @@ function Drawing({ elements, selected, onPick }: { elements: DesignElement[]; se
       {elements.map((e) => {
         const chosen = e.id === selected;
         const common = { stroke: "currentColor", strokeWidth: stroke * (chosen ? 3 : 1), strokeDasharray: e.locked ? `${stroke * 4} ${stroke * 2}` : undefined };
-        if (e.type === "space") {
+        if (e.type === "space" || e.type === "vertical") {
           return (
             <g key={e.id} onClick={() => onPick(e.id)} style={{ cursor: "pointer" }}>
               <rect x={e.x} y={sy((e.y ?? 0) + (e.height ?? 0))} width={e.width} height={e.height} fill="currentColor" fillOpacity={chosen ? 0.3 : 0.1} {...common} />
@@ -248,7 +250,8 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
                   <tr key={e.id}>
                     <td>{describe(e)}{e.id === selected ? " (منتخب)" : ""}</td>
                     <td>
-                      {e.type === "space" ? `${show(e.x)}, ${show(e.y)} — ${show(e.width)}×${show(e.height)}` : null}
+                      {e.type === "space" || e.type === "vertical" ? `${show(e.x)}, ${show(e.y)} — ${show(e.width)}×${show(e.height)}` : null}
+                      {e.type === "vertical" ? ` — طبقه‌های ${(e.floors ?? []).map(fa).join("، ")}` : null}
                       {e.type === "wall" ? `طول ${show(wallLength(e))}، ضخامت ${show(e.thickness_m)}` : null}
                       {e.wall_id ? `روی ${e.wall_id}، فاصله ${show(e.offset_m)}، عرض ${show(e.width_m)}` : null}
                     </td>
@@ -266,7 +269,7 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
               <button type="button" className="button button-secondary" onClick={() => void edit({ op: current.locked ? "unlock" : "lock", id: current.id }, current.locked ? "قفل باز شد." : "عنصر قفل شد.")}>
                 {current.locked ? "باز کردن قفل" : "قفل کردن"}
               </button>
-              {current.type === "space" || current.type === "wall" ? (
+              {current.type === "space" || current.type === "vertical" || current.type === "wall" ? (
                 <form onSubmit={submit((f) => ({ op: "move", id: current.id, dx: num(f, "dx"), dy: num(f, "dy") }))}>
                   <label>جابه‌جایی X ({unitName})<input name="dx" type="number" step="any" defaultValue={0} required /></label>
                   <label>جابه‌جایی Y ({unitName})<input name="dy" type="number" step="any" defaultValue={0} required /></label>
@@ -278,7 +281,7 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
                   <button className="button" type="submit">جابه‌جایی</button>
                 </form>
               )}
-              {current.type === "space" ? (
+              {current.type === "space" || current.type === "vertical" ? (
                 <form onSubmit={submit((f) => ({ op: "resize", id: current.id, width: num(f, "width"), height: num(f, "height") }))}>
                   <label>عرض ({unitName})<input name="width" type="number" step="any" min="0" defaultValue={scaled(current.width)} required /></label>
                   <label>ارتفاع ({unitName})<input name="height" type="number" step="any" min="0" defaultValue={scaled(current.height)} required /></label>
@@ -297,13 +300,19 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
                   <button className="button" type="submit">تغییر عرض</button>
                 </form>
               ) : null}
-              {current.type === "space" ? (
+              {current.type === "space" || current.type === "vertical" ? (
                 <button type="button" className="button button-secondary" onClick={() => void edit({ op: "rotate", id: current.id, degrees: 90 }, "فضا ۹۰ درجه چرخید.")}>چرخش ۹۰ درجه</button>
               ) : null}
               {current.type === "wall" ? (
                 <form onSubmit={submit((f) => ({ op: "rotate", id: current.id, degrees: num(f, "degrees") }))}>
                   <label>چرخش حول وسط دیوار (درجه)<input name="degrees" type="number" step="any" defaultValue={90} required /></label>
                   <button className="button" type="submit">چرخاندن</button>
+                </form>
+              ) : null}
+              {current.type === "vertical" ? (
+                <form onSubmit={submit((f) => ({ op: "set_floors", id: current.id, floors: String(f.get("levels")).split(/[,،\s]+/).filter(Boolean).map(Number) }))}>
+                  <label>طبقه‌های متصل (با ویرگول جدا کنید)<input name="levels" defaultValue={(current.floors ?? []).join(",")} required /></label>
+                  <button className="button" type="submit">ذخیرهٔ طبقه‌ها</button>
                 </form>
               ) : null}
               <button type="button" className="button button-secondary" onClick={() => void edit({ op: "delete", id: current.id }, "عنصر حذف شد.")}>
@@ -330,6 +339,19 @@ export function DesignPanel({ projectId, canEdit, version }: { projectId: string
                 <label>Y۲<input name="y2" type="number" step="any" defaultValue={0} required /></label>
                 <label>ضخامت ({unitName})<input name="thickness" type="number" step="any" min="0" defaultValue={scaled(0.2)} required /></label>
                 <button className="button" type="submit">افزودن دیوار</button>
+              </form>
+              <form onSubmit={submit((f) => ({ op: "copy_floor", from_floor: activeFloor, to_floors: String(f.get("targets")).split(/[,،\s]+/).filter(Boolean).map(Number) }))}>
+                <label>کپی طبقهٔ {fa(activeFloor)} روی طبقه‌های (با ویرگول جدا کنید)<input name="targets" inputMode="numeric" defaultValue={String(activeFloor + 1)} required /></label>
+                <button className="button" type="submit">کپی طبقه</button>
+              </form>
+              <form onSubmit={submit((f) => ({ op: "add", element: { type: "vertical", kind: String(f.get("vkind")), floors: String(f.get("vfloors")).split(/[,،\s]+/).filter(Boolean).map(Number), x: num(f, "vx"), y: num(f, "vy"), width: num(f, "vw"), height: num(f, "vh") } }))}>
+                <label>نوع ارتباط عمودی<select name="vkind">{Object.entries(verticalKinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                <label>طبقه‌های متصل<input name="vfloors" defaultValue={`${activeFloor},${activeFloor + 1}`} required /></label>
+                <label>X ({unitName})<input name="vx" type="number" step="any" defaultValue={0} required /></label>
+                <label>Y ({unitName})<input name="vy" type="number" step="any" defaultValue={0} required /></label>
+                <label>عرض ({unitName})<input name="vw" type="number" step="any" min="0" defaultValue={scaled(1.2)} required /></label>
+                <label>ارتفاع ({unitName})<input name="vh" type="number" step="any" min="0" defaultValue={scaled(3)} required /></label>
+                <button className="button" type="submit">افزودن ارتباط عمودی</button>
               </form>
               <form onSubmit={submit((f) => ({ op: "add", element: { type: String(f.get("hosted")), wall_id: String(f.get("wall")), offset_m: num(f, "offset"), width_m: num(f, "hwidth") } }))}>
                 <label>نوع<select name="hosted"><option value="door">در</option><option value="window">پنجره</option><option value="opening">بازشو</option></select></label>

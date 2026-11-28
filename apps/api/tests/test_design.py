@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from smart_engineer_api import auth_service as auth
 from smart_engineer_api import (
     design_service,
+    design_version_service,
     layout_service,
     org_service,
     project_service,
@@ -22,6 +23,7 @@ from smart_engineer_api import space_schedule_service as schedules
 from smart_engineer_api.config import Settings
 from smart_engineer_api.db import ActivityEvent, Base, DesignHistory, DesignModel, Membership
 from smart_engineer_api.db.session import create_session_factory
+from smart_engineer_api.design_compare import compare_models
 from smart_engineer_api.design_model import (
     DesignError,
     apply_operations,
@@ -240,6 +242,111 @@ class ModelTests(unittest.TestCase):
         with self.assertRaises(DesignError) as unit:
             apply_operations(small, [{"op": "lock", "id": "E-0001"}], unit="ft")
         self.assertEqual(unit.exception.code, "invalid_unit")
+
+    def test_copying_a_floor_creates_new_stable_ids_and_keeps_geometry_and_relationships(self):
+        model = base()
+        element(model, "E-0001")["schedule_space_id"] = "SP-1"
+        element(model, "E-0004")["locked"] = True
+        copied = apply_operations(model, [
+            {"op": "copy_floor", "from_floor": 1, "to_floors": [2, 3]}])
+        self.assertEqual(copied["next_id"], 13)
+        upper = [e for e in copied["elements"] if e["floor"] == 2]
+        self.assertEqual(len(upper), 4)
+        ids = [e["id"] for e in copied["elements"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual({e["copied_from"] for e in upper},
+                         {"E-0001", "E-0002", "E-0003", "E-0004"})
+        by_source = {e["copied_from"]: e for e in upper}
+        for source in ("E-0001", "E-0002"):
+            original = element(model, source)
+            for key in ("x", "y", "width", "height", "x1", "y1", "x2", "y2", "kind",
+                        "thickness_m", "rotation_deg"):
+                self.assertEqual(by_source[source].get(key), original.get(key))
+        self.assertNotIn("schedule_space_id", by_source["E-0001"])
+        wall_copy = by_source["E-0002"]["id"]
+        self.assertEqual((by_source["E-0003"]["wall_id"], by_source["E-0003"]["offset_m"]),
+                         (wall_copy, 1))
+        self.assertEqual(by_source["E-0004"]["wall_id"], wall_copy)
+        self.assertTrue(by_source["E-0004"]["locked"])
+        self.assertEqual(element(copied, "E-0001"), element(model, "E-0001"))
+        self.assertEqual(len([e for e in copied["elements"] if e["floor"] == 3]), 4)
+
+    def test_copy_floor_never_overwrites_and_rejects_bad_requests(self):
+        model = base()
+        two = apply_operations(model, [{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}])
+        self.assertEqual(failure(two, [{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}]),
+                         ("floor_not_empty", 0, None))
+        self.assertEqual(failure(model, [{"op": "copy_floor", "from_floor": 4, "to_floors": [5]}]),
+                         ("unknown_floor", 0, None))
+        for bad in ({"from_floor": 1, "to_floors": [1]}, {"from_floor": 1, "to_floors": [2, 2]},
+                    {"from_floor": 1, "to_floors": []}, {"from_floor": 1, "to_floors": [99]},
+                    {"from_floor": 1}, {"from_floor": 1, "to_floors": "2"}):
+            self.assertEqual(failure(model, [{"op": "copy_floor", **bad}]),
+                             ("invalid_value", 0, None), bad)
+        self.assertEqual(failure(model, [{"op": "lock", "id": "E-0001"},
+                                         {"op": "copy_floor", "from_floor": 1, "to_floors": [2]},
+                                         {"op": "copy_floor", "from_floor": 1,
+                                          "to_floors": [2]}]),
+                         ("floor_not_empty", 2, None))
+
+    def test_vertical_connections_must_point_at_floors_that_exist(self):
+        model = apply_operations(base(), [
+            {"op": "copy_floor", "from_floor": 1, "to_floors": [2]},
+            {"op": "add", "element": {"type": "vertical", "kind": "stair", "floors": [1, 2],
+                                      "x": 0, "y": 0, "width": 1, "height": 3}}])
+        stair = model["elements"][-1]
+        self.assertEqual((stair["floors"], stair["floor"], stair["locked"]), ([1, 2], 1, False))
+        self.assertEqual(failure(model, [{"op": "set_floors", "id": stair["id"],
+                                          "floors": [1, 3]}]),
+                         ("vertical_invalid_level", 0, stair["id"]))
+        self.assertEqual(failure(base(), [{"op": "add", "element": {
+            "type": "vertical", "kind": "elevator", "floors": [1, 2], "x": 0, "y": 0,
+            "width": 1, "height": 1}}]), ("vertical_invalid_level", 0, "E-0005"))
+        for bad in ({"floors": [1]}, {"floors": [1, 1]}, {"floors": "12"},
+                    {"floors": [1, 2], "kind": "ladder"}):
+            spec = {"type": "vertical", "kind": "stair", "x": 0, "y": 0, "width": 1,
+                    "height": 1, **bad}
+            self.assertEqual(failure(model, [{"op": "add", "element": spec}]),
+                             ("invalid_value", 0, None), bad)
+        widened = apply_operations(model, [{"op": "set_floors", "id": stair["id"],
+                                            "floors": [2, 1]}])
+        self.assertEqual(element(widened, stair["id"])["floors"], [1, 2])
+        moved = apply_operations(model, [{"op": "move", "id": stair["id"], "dx": 1, "dy": 0},
+                                         {"op": "resize", "id": stair["id"], "width": 2,
+                                          "height": 4}, {"op": "rotate", "id": stair["id"],
+                                                         "degrees": 90}])
+        turned = element(moved, stair["id"])
+        self.assertEqual((turned["x"], turned["width"], turned["height"], turned["rotation_deg"]),
+                         (0, 4, 2, 90))
+        self.assertEqual(failure(model, [{"op": "set_floors", "id": "E-0001", "floors": [1, 2]}]),
+                         ("operation_not_supported", 0, "E-0001"))
+
+    def test_emptying_a_floor_that_a_vertical_connection_uses_is_rejected(self):
+        model = apply_operations(base(), [
+            {"op": "copy_floor", "from_floor": 1, "to_floors": [2]},
+            {"op": "add", "element": {"type": "vertical", "kind": "shaft", "floors": [1, 2],
+                                      "x": 0, "y": 0, "width": 1, "height": 1}}])
+        upper = [e["id"] for e in model["elements"] if e["floor"] == 2 and e["type"] != "vertical"]
+        deletions = [{"op": "delete", "id": item} for item in upper
+                     if element(model, item)["type"] in ("space", "wall")]
+        self.assertEqual(failure(model, deletions)[0], "vertical_invalid_level")
+        self.assertIsNone(failure(model, [{"op": "lock", "id": "E-0001"}]))
+
+    def test_compare_matches_elements_by_stable_id_and_lists_every_changed_field(self):
+        before = base()
+        after = apply_operations(before, [
+            {"op": "move", "id": "E-0001", "dx": 1, "dy": 0},
+            {"op": "lock", "id": "E-0001"},
+            {"op": "delete", "id": "E-0002"},
+            {"op": "add", "element": SPACE}])
+        diff = compare_models(before, after)
+        self.assertEqual(diff["summary"], {"added": 1, "removed": 3, "changed": 1})
+        self.assertEqual({e["id"] for e in diff["removed"]}, {"E-0002", "E-0003", "E-0004"})
+        self.assertEqual(diff["changed"][0]["id"], "E-0001")
+        self.assertEqual({f["field"] for f in diff["changed"][0]["fields"]}, {"x", "locked"})
+        self.assertEqual(compare_models(before, before)["summary"],
+                         {"added": 0, "removed": 0, "changed": 0})
+        self.assertEqual(compare_models(before, before)["unchanged"], 4)
 
 
 class DesignServiceTests(unittest.TestCase):
@@ -493,6 +600,173 @@ class DesignServiceTests(unittest.TestCase):
                                               self.project.id)["entries"][0]
         self.assertEqual((entry["summary"]["unit"], entry["summary"]["snap"]),
                          ("cm", {"grid": 5, "unit": "cm"}))
+
+    def test_copying_floors_is_one_undoable_step_with_a_history_summary(self):
+        made, first = self.import_and_edit()
+        copied = self.edit([{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}], 1)
+        count = len(made["data"]["elements"])
+        self.assertEqual(len(copied["data"]["elements"]), count * 2)
+        entry = design_service.design_history(self.session, self.owner,
+                                              self.project.id)["entries"][0]
+        self.assertEqual(entry["summary"]["operations"], [{"op": "copy_floor", "id": None}])
+        back = design_service.undo_design(self.session, self.owner, self.project.id,
+                                          expected_version=2)
+        self.assertEqual(back["data"], made["data"])
+        again = design_service.redo_design(self.session, self.owner, self.project.id,
+                                           expected_version=3)
+        self.assertEqual(again["data"], copied["data"])
+        with self.assertRaises(DesignError) as clash:
+            self.edit([{"op": "copy_floor", "from_floor": 1, "to_floors": [2]}], 4)
+        self.assertEqual(clash.exception.code, "floor_not_empty")
+
+    def member(self, name, role):
+        user = self.user(name)
+        _, token = org_service.create_invitation(
+            self.session, self.owner, self.org, email=user.email, org_role="member")
+        org_service.accept_invitation(self.session, user, token)
+        project_service.add_member(self.session, self.owner, self.project.id,
+                                   email=user.email, role=role)
+        return user
+
+    def save(self, label, version, actor=None):
+        return design_version_service.save_version(
+            self.session, actor or self.owner, self.project.id, label=label,
+            expected_version=version)
+
+    def test_saved_versions_are_immutable_snapshots_with_author_and_label(self):
+        qs = self.member("qs", "quantity_surveyor")
+        with self.assertRaises(design_service.DesignServiceError) as none:
+            self.save("x", 1)
+        self.assertEqual(none.exception.code, "no_design")
+        made, first = self.import_and_edit()
+        one = self.save("  اولیه  ", 1)
+        self.assertEqual((one["number"], one["label"], one["author"], one["element_count"]),
+                         (1, "اولیه", "owner", len(made["data"]["elements"])))
+        edited = self.edit([{"op": "move", "id": first, "dx": 1, "dy": 0}], 1)
+        two = self.save("بعد از جابه‌جایی", edited["version"])
+        self.assertEqual(two["number"], 2)
+        stored = design_version_service.get_version(self.session, qs, self.project.id, 1)
+        self.assertEqual(stored["data"], made["data"])
+        names = [v["label"] for v in design_version_service.list_versions(
+            self.session, qs, self.project.id)["versions"]]
+        self.assertEqual(names, ["بعد از جابه‌جایی", "اولیه"])
+        for bad in ("", "   ", "x" * 121):
+            with self.assertRaises(design_service.DesignServiceError) as invalid:
+                self.save(bad, edited["version"])
+            self.assertEqual(invalid.exception.code, "invalid_value")
+        with self.assertRaises(design_service.DesignServiceError) as stale:
+            self.save("late", 1)
+        self.assertEqual(stale.exception.code, "version_conflict")
+        with self.assertRaises(AccessDenied):
+            self.save("not allowed", edited["version"], actor=qs)
+        with self.assertRaises(design_service.DesignServiceError) as unknown:
+            design_version_service.get_version(self.session, qs, self.project.id, 9)
+        self.assertEqual(unknown.exception.code, "unknown_version")
+        self.assertIn("project.design_version_saved", [e.action for e in self.session.scalars(
+            select(ActivityEvent))])
+
+    def test_comparing_versions_identifies_added_removed_and_changed_elements(self):
+        made, first = self.import_and_edit()
+        self.save("v1", 1)
+        second = self.edit([
+            {"op": "move", "id": first, "dx": 2, "dy": 0},
+            {"op": "add", "element": {"type": "space", "kind": "storage", "x": 50, "y": 50,
+                                      "width": 2, "height": 2}},
+            {"op": "delete", "id": made["data"]["elements"][1]["id"]}], 1)
+        self.save("v2", second["version"])
+        diff = design_version_service.compare_versions(
+            self.session, self.owner, self.project.id, "1", "2")
+        gone = made["data"]["elements"][1]["id"]
+        self.assertEqual(diff["summary"], {"added": 1, "removed": 1, "changed": 1})
+        self.assertEqual([e["id"] for e in diff["removed"]], [gone])
+        self.assertEqual(diff["changed"][0]["id"], first)
+        self.assertEqual([f["field"] for f in diff["changed"][0]["fields"]], ["x"])
+        self.assertEqual((diff["from"]["number"], diff["to"]["number"]), (1, 2))
+        self.assertEqual(design_version_service.compare_versions(
+            self.session, self.owner, self.project.id, "2", "current")["summary"],
+            {"added": 0, "removed": 0, "changed": 0})
+        later = design_version_service.compare_versions(
+            self.session, self.owner, self.project.id, "1", "current")
+        self.assertEqual(later["to"]["number"], None)
+        self.assertEqual(later["summary"], diff["summary"])
+        for ref in ("7", "abc"):
+            with self.assertRaises(design_service.DesignServiceError) as unknown:
+                design_version_service.compare_versions(
+                    self.session, self.owner, self.project.id, "1", ref)
+            self.assertEqual(unknown.exception.code, "unknown_version")
+
+    def test_comments_attach_to_a_version_and_an_existing_element_id(self):
+        qs = self.member("qs", "quantity_surveyor")
+        made, first = self.import_and_edit()
+        self.save("v1", 1)
+        edited = self.edit([{"op": "delete", "id": first}], 1)
+        self.save("v2", edited["version"])
+        comment = design_version_service.add_comment(
+            self.session, qs, self.project.id, 1, body="  عرض کم است ", element_id=first)
+        self.assertEqual((comment["author"], comment["element_id"], comment["version_number"],
+                          comment["body"]), ("qs", first, 1, "عرض کم است"))
+        # the element no longer exists in version 2, so a comment there is refused
+        with self.assertRaises(design_service.DesignServiceError) as gone:
+            design_version_service.add_comment(self.session, qs, self.project.id, 2,
+                                               body="x", element_id=first)
+        self.assertEqual(gone.exception.code, "unknown_element")
+        whole = design_version_service.add_comment(self.session, self.owner, self.project.id,
+                                                   2, body="کل طرح")
+        self.assertIsNone(whole["element_id"])
+        for bad in ("", "  ", "y" * 2001):
+            with self.assertRaises(design_service.DesignServiceError) as invalid:
+                design_version_service.add_comment(self.session, qs, self.project.id, 1, body=bad)
+            self.assertEqual(invalid.exception.code, "invalid_value")
+        with self.assertRaises(design_service.DesignServiceError) as unknown:
+            design_version_service.add_comment(self.session, qs, self.project.id, 5, body="x")
+        self.assertEqual(unknown.exception.code, "unknown_version")
+        shown = design_version_service.get_version(self.session, qs, self.project.id, 1)
+        self.assertEqual([c["body"] for c in shown["comments"]], ["عرض کم است"])
+        other = design_version_service.get_version(self.session, qs, self.project.id, 2)
+        self.assertEqual([c["body"] for c in other["comments"]], ["کل طرح"])
+        counts = {v["number"]: v["comment_count"] for v in design_version_service.list_versions(
+            self.session, qs, self.project.id)["versions"]}
+        self.assertEqual(counts, {1: 1, 2: 1})
+        outsider = self.user("outsider")
+        with self.assertRaises(AccessDenied):
+            design_version_service.add_comment(self.session, outsider, self.project.id, 1,
+                                               body="hi")
+
+    def test_versions_http_round_trip(self):
+        self.prepare_layouts()
+        client = TestClient(create_app(Settings(environment="test"),
+                                       session_factory=self.sessions, auth_policy=POLICY))
+        self.addCleanup(client.close)
+        login = client.post("/api/v1/auth/login",
+                            json={"email": self.owner.email, "password": PASSWORD})
+        headers = {"X-CSRF-Token": login.json()["csrf_token"]}
+        url = f"/api/v1/projects/{self.project.id}/design"
+        client.post(f"{url}/import-layout", headers=headers,
+                    json={"alternative_id": "ALT-1", "version": 0})
+        saved = client.post(f"{url}/versions", headers=headers, json={"version": 1, "label": "A"})
+        self.assertEqual((saved.status_code, saved.json()["number"]), (201, 1))
+        stale = client.post(f"{url}/versions", headers=headers, json={"version": 9, "label": "B"})
+        self.assertEqual((stale.status_code, stale.json()["error"]["code"]),
+                         (409, "version_conflict"))
+        client.post(f"{url}/edit", headers=headers, json={"version": 1, "operations": [
+            {"op": "lock", "id": "E-0001"}]})
+        compared = client.get(f"{url}/compare", params={"a": "1", "b": "current"})
+        self.assertEqual(compared.status_code, 200, compared.text)
+        self.assertEqual(compared.json()["changed"][0]["fields"],
+                         [{"field": "locked", "before": False, "after": True}])
+        comment = client.post(f"{url}/versions/1/comments", headers=headers,
+                              json={"body": "نکته", "element_id": "E-0001"})
+        self.assertEqual((comment.status_code, comment.json()["element_id"]), (201, "E-0001"))
+        detail = client.get(f"{url}/versions/1").json()
+        self.assertEqual((detail["label"], len(detail["comments"])), ("A", 1))
+        missing = client.get(f"{url}/versions/5")
+        self.assertEqual((missing.status_code, missing.json()["error"]["code"]),
+                         (404, "unknown_version"))
+        bad = client.post(f"{url}/versions/1/comments", headers=headers,
+                          json={"body": "x", "element_id": "E-9999"})
+        self.assertEqual((bad.status_code, bad.json()["error"]["code"]), (422, "unknown_element"))
+        self.assertEqual(client.post(f"{url}/versions", json={"version": 1, "label": "C"})
+                         .status_code, 403)
 
     def test_http_round_trip_with_explicit_lock_reason(self):
         self.prepare_layouts()
