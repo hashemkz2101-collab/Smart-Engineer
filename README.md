@@ -328,3 +328,17 @@ baseline does not require hosting or a continuously running service.
   and traceability requirements.
 - [`CHANGELOG.md`](CHANGELOG.md) records notable documentation and product
   changes; entries do not imply feature implementation.
+
+## Claude design proposals (optional)
+
+The design panel can ask Claude to propose changes. It needs your own Anthropic API key (separate
+from a Claude chat subscription; each request is billed to your API account). Set it only in the
+environment of the process that runs the API, never in the repository, the browser or chat:
+
+```powershell
+$env:SMART_ENGINEER_ANTHROPIC_API_KEY = "<your key>"
+# optional: $env:SMART_ENGINEER_ANTHROPIC_MODEL = "claude-sonnet-5-5"
+```
+
+Then start the API as usual. Without the key the feature stays off. Proposals are checked with the
+same rules as manual edits and applied only when you press apply; they can be undone.

@@ -5,6 +5,12 @@ does not imply that planned application features have been implemented.
 
 ## Unreleased
 
+- 2026-11-28, Phase 3: Claude design proposals. With the owner's own API key set on the server
+  (`SMART_ENGINEER_ANTHROPIC_API_KEY`), the design panel can ask Claude for a list of changes;
+  they are validated like manual edits and applied only when the person presses apply (undoable).
+  `GET/POST .../design/ai-status|ai-proposal`, daily limit, no key in responses or logs, CI uses
+  a fake client. See docs/OPEN_DECISIONS.md AI-NO-01.
+
 - 2026-11-28, Phase 3 (ARCH-006): design versions, comparison and comments. The design can
   be saved as numbered immutable versions; any two versions (or a version and the working
   model) are compared by stable element ID, listing added, removed and changed elements with

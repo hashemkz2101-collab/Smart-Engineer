@@ -137,6 +137,20 @@ Still not here: coordinate-level snapping to other elements' edges/endpoints (gr
 * Not done: restoring a version, comments with replies/resolve, approval (Phase 9), the
   owner/client role (ROLE-011), notifications.
 
+## Slice 7 — Claude design proposals (owner request)
+
+* `GET …/design/ai-status` tells the panel whether a server key exists.
+  `POST …/design/ai-proposal {instruction?}` (needs `project.design.edit` and an imported
+  design) asks Claude for operations, dry-runs them and returns `{base_version, summary,
+  operations, valid, error, attempts}`. **Nothing is stored or applied**; the person applies a
+  valid proposal with `POST …/design/edit` using `base_version`, so history and undo work.
+* One automatic retry sends the validation error back to the model. A proposal that still
+  fails is returned as invalid and cannot be applied from the panel.
+* Server errors: `ai_not_configured` 503, `ai_auth`/`ai_unavailable`/`ai_bad_response` 502,
+  `ai_rate_limited`/`ai_limit_reached` 429. The key never appears in responses or logs.
+* Decision record: AI-NO-01 in docs/OPEN_DECISIONS.md. Not here: containment/overlap checks
+  (ARCH-007), streaming, multi-turn chat, generating a design when none was imported.
+
 ## Not in this slice
 
 Design versions and comments

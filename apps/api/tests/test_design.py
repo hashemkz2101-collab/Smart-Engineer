@@ -8,8 +8,8 @@ from decimal import Decimal
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from smart_engineer_api import auth_service as auth
 from smart_engineer_api import (
+    ai_design_service,
     design_service,
     design_version_service,
     layout_service,
@@ -19,7 +19,9 @@ from smart_engineer_api import (
     site_service,
     zoning_service,
 )
+from smart_engineer_api import auth_service as auth
 from smart_engineer_api import space_schedule_service as schedules
+from smart_engineer_api.ai_design import AiError
 from smart_engineer_api.config import Settings
 from smart_engineer_api.db import ActivityEvent, Base, DesignHistory, DesignModel, Membership
 from smart_engineer_api.db.session import create_session_factory
@@ -34,6 +36,7 @@ from smart_engineer_api.design_model import (
 from smart_engineer_api.main import create_app
 from smart_engineer_api.permissions import AccessDenied
 from tests.geometry_helpers import memory_engine
+from tests.test_ai_design import ScriptedClient
 from tests.test_layout import PASSWORD, POLICY, PROGRAM, RECT, SOURCE
 
 SPACE = {"type": "space", "kind": "living", "x": 0, "y": 0, "width": 5, "height": 4}
@@ -767,6 +770,108 @@ class DesignServiceTests(unittest.TestCase):
         self.assertEqual((bad.status_code, bad.json()["error"]["code"]), (422, "unknown_element"))
         self.assertEqual(client.post(f"{url}/versions", json={"version": 1, "label": "C"})
                          .status_code, 403)
+
+    def test_claude_proposals_are_advisory_dry_run_and_limited(self):
+        qs = self.member("qs", "quantity_surveyor")
+        made, first = self.import_and_edit()
+        settings = Settings(environment="test", anthropic_api_key="sk-x")
+        good = {"summary": "نشیمن را جابه‌جا کن",
+                "operations": [{"op": "move", "id": first, "dx": 1, "dy": 0}]}
+        bad = {"summary": "bad", "operations": [{"op": "move", "id": "E-9999", "dx": 1, "dy": 0}]}
+
+        def ask(client, actor=None, instruction="بزرگ‌تر کن"):
+            return ai_design_service.propose_design(
+                self.session, actor or self.owner, self.project.id, client=client,
+                settings=settings, instruction=instruction)
+
+        with self.assertRaises(AiError) as off:
+            ask(None)
+        self.assertEqual(off.exception.code, "ai_not_configured")
+        result = ask(ScriptedClient(good))
+        self.assertEqual((result["valid"], result["base_version"], result["attempts"],
+                          result["operations"], result["model"]),
+                         (True, 1, 1, good["operations"], "claude-sonnet-5-5"))
+        stored = self.session.scalar(select(DesignModel))
+        self.assertEqual((stored.version, stored.data), (1, made["data"]))  # nothing applied
+        retried = ask(ScriptedClient(bad, good))
+        self.assertEqual((retried["valid"], retried["attempts"]), (True, 2))
+        invalid = ask(ScriptedClient(bad, bad))
+        self.assertEqual((invalid["valid"], invalid["error"]["code"]), (False, "unknown_element"))
+        events = [e.detail for e in self.session.scalars(select(ActivityEvent).where(
+            ActivityEvent.action == "project.design_ai_proposed"))]
+        self.assertEqual([(d["valid"], d["attempts"]) for d in events],
+                         [(True, 1), (True, 2), (False, 2)])
+        with self.assertRaises(AccessDenied):
+            ask(ScriptedClient(good), actor=qs)
+        with self.assertRaises(design_service.DesignServiceError) as long:
+            ask(ScriptedClient(good), instruction="x" * 1001)
+        self.assertEqual(long.exception.code, "invalid_value")
+        for _ in range(ai_design_service.DAILY_PROPOSAL_LIMIT - len(events)):
+            self.session.add(ActivityEvent(
+                project_id=self.project.id, actor_user_id=self.owner.id,
+                action="project.design_ai_proposed", detail={}))
+        self.session.commit()
+        with self.assertRaises(AiError) as limited:
+            ask(ScriptedClient(good))
+        self.assertEqual(limited.exception.code, "ai_limit_reached")
+
+    def test_claude_proposal_needs_an_imported_design(self):
+        settings = Settings(environment="test", anthropic_api_key="sk-x")
+        with self.assertRaises(design_service.DesignServiceError) as none:
+            ai_design_service.propose_design(
+                self.session, self.owner, self.project.id,
+                client=ScriptedClient({"summary": "", "operations": []}),
+                settings=settings, instruction="")
+        self.assertEqual(none.exception.code, "no_design")
+
+    def test_claude_proposal_http_round_trip_applies_only_through_edit(self):
+        self.prepare_layouts()
+        first = "E-0001"
+        good = {"summary": "ok", "operations": [{"op": "lock", "id": first}]}
+        client = ScriptedClient(good)
+        app = create_app(Settings(environment="test", anthropic_api_key="sk-x"),
+                         session_factory=self.sessions, auth_policy=POLICY, ai_client=client)
+        http = TestClient(app)
+        self.addCleanup(http.close)
+        login = http.post("/api/v1/auth/login",
+                          json={"email": self.owner.email, "password": PASSWORD})
+        headers = {"X-CSRF-Token": login.json()["csrf_token"]}
+        url = f"/api/v1/projects/{self.project.id}/design"
+        self.assertEqual(http.get(f"{url}/ai-status").json(),
+                         {"enabled": True, "model": "claude-sonnet-5-5"})
+        none = http.post(f"{url}/ai-proposal", headers=headers, json={"instruction": "x"})
+        self.assertEqual((none.status_code, none.json()["error"]["code"]), (409, "no_design"))
+        http.post(f"{url}/import-layout", headers=headers,
+                  json={"alternative_id": "ALT-1", "version": 0})
+        self.assertEqual(http.post(f"{url}/ai-proposal", json={}).status_code, 403)
+        proposal = http.post(f"{url}/ai-proposal", headers=headers,
+                             json={"instruction": "قفل کن"})
+        self.assertEqual(proposal.status_code, 200, proposal.text)
+        body = proposal.json()
+        self.assertEqual((body["valid"], body["base_version"]), (True, 1))
+        self.assertFalse(http.get(url).json()["data"]["elements"][0]["locked"])
+        applied = http.post(f"{url}/edit", headers=headers, json={
+            "version": body["base_version"], "operations": body["operations"]})
+        self.assertEqual(applied.status_code, 200, applied.text)
+        self.assertTrue(applied.json()["data"]["elements"][0]["locked"])
+        self.assertEqual(http.post(f"{url}/undo", headers=headers, json={"version": 2})
+                         .status_code, 200)
+        self.assertNotIn("sk-x", proposal.text + http.get(f"{url}/ai-status").text)
+
+    def test_claude_without_a_key_is_reported_as_not_configured(self):
+        self.prepare_layouts()
+        app = create_app(Settings(environment="test"), session_factory=self.sessions,
+                         auth_policy=POLICY)
+        http = TestClient(app)
+        self.addCleanup(http.close)
+        login = http.post("/api/v1/auth/login",
+                          json={"email": self.owner.email, "password": PASSWORD})
+        headers = {"X-CSRF-Token": login.json()["csrf_token"]}
+        url = f"/api/v1/projects/{self.project.id}/design"
+        self.assertEqual(http.get(f"{url}/ai-status").json(), {"enabled": False, "model": None})
+        refused = http.post(f"{url}/ai-proposal", headers=headers, json={})
+        self.assertEqual((refused.status_code, refused.json()["error"]["code"]),
+                         (503, "ai_not_configured"))
 
     def test_http_round_trip_with_explicit_lock_reason(self):
         self.prepare_layouts()
